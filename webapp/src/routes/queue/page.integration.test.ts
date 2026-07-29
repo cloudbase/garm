@@ -217,3 +217,55 @@ describe('Queue Page - Integration Tests', () => {
 		});
 	});
 });
+
+describe('Queue Page - job links', () => {
+	beforeEach(async () => {
+		vi.clearAllMocks();
+		const cacheModule = await import('$lib/stores/eager-cache.js');
+		vi.mocked(cacheModule.eagerCacheManager.getScaleSets).mockResolvedValue(mockScaleSets);
+		vi.mocked(cacheModule.eagerCacheManager.getPools).mockResolvedValue(mockPools);
+	});
+
+	it('deep-links webhook jobs to the GitHub job page and scale set jobs to the run page', async () => {
+		vi.mocked(garmApi.listJobs).mockResolvedValue([
+			{
+				id: 10,
+				workflow_job_id: 90673415740,
+				run_id: 30480594764,
+				name: 'pool-job',
+				status: 'queued',
+				repository_owner: 'nexthop-ai',
+				repository_name: 'nhsystem-ops',
+				labels: ['self-hosted', 'pool-label'],
+				created_at: '2026-07-29T00:02:00Z'
+			},
+			{
+				id: 11,
+				scaleset_job_id: 'guid-1',
+				scale_set_id: 5,
+				run_id: 1234,
+				workflow_run_url: 'https://github.com/nexthop-ai/repo-a/actions/runs/1234',
+				name: 'ss-job',
+				status: 'queued',
+				repository_owner: 'nexthop-ai',
+				repository_name: 'repo-a',
+				labels: [],
+				created_at: '2026-07-29T00:02:00Z'
+			}
+		] as any);
+
+		render(QueuePage);
+
+		await waitFor(() => {
+			expect(screen.getByText('pool-job')).toBeInTheDocument();
+		});
+		expect(screen.getByText('pool-job').closest('a')).toHaveAttribute(
+			'href',
+			'https://github.com/nexthop-ai/nhsystem-ops/actions/runs/30480594764/job/90673415740'
+		);
+		expect(screen.getByText('ss-job').closest('a')).toHaveAttribute(
+			'href',
+			'https://github.com/nexthop-ai/repo-a/actions/runs/1234'
+		);
+	});
+});

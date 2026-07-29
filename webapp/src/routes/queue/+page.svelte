@@ -122,6 +122,21 @@
 		return groups;
 	}
 
+	// Link to the job on GitHub. Webhook jobs carry the numeric GitHub job ID,
+	// allowing a direct /job/<id> link; scale set messages only carry a GUID,
+	// so those link to the workflow run page.
+	function jobUrl(job: Job): string {
+		let runUrl = job.workflow_run_url;
+		if (!runUrl && job.run_id && job.repository_owner && job.repository_name) {
+			runUrl = `https://github.com/${job.repository_owner}/${job.repository_name}/actions/runs/${job.run_id}`;
+		}
+		if (!runUrl) return '';
+		if (job.workflow_job_id) {
+			return `${runUrl}/job/${job.workflow_job_id}`;
+		}
+		return runUrl;
+	}
+
 	function waitingFor(job: Job): string {
 		if (!job.created_at) return '-';
 		const seconds = Math.max(0, Math.floor((currentTime - new Date(job.created_at).getTime()) / 1000));
@@ -281,9 +296,9 @@
 									<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{idx + 1}</td>
 										<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">
-											{#if job.workflow_run_url}
+											{#if jobUrl(job)}
 												<a
-													href={job.workflow_run_url}
+													href={jobUrl(job)}
 													target="_blank"
 													rel="noopener noreferrer"
 													class="text-blue-600 dark:text-blue-400 hover:underline">{job.name || '(unnamed job)'}</a
