@@ -7,6 +7,7 @@
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { getEntityName } from '$lib/utils/common.js';
+	import { jobUrl } from '$lib/utils/jobs.js';
 
 	let jobs: Job[] = [];
 	let scaleSets: ScaleSet[] = [];
@@ -162,21 +163,6 @@
 		// Alphabetical, so the layout is stable across refreshes.
 		groups.sort((a, b) => a.title.localeCompare(b.title));
 		return groups;
-	}
-
-	// Link to the job on GitHub. Webhook jobs carry the numeric GitHub job ID,
-	// allowing a direct /job/<id> link; scale set messages only carry a GUID,
-	// so those link to the workflow run page.
-	function jobUrl(job: Job): string {
-		let runUrl = job.workflow_run_url;
-		if (!runUrl && job.run_id && job.repository_owner && job.repository_name) {
-			runUrl = `https://github.com/${job.repository_owner}/${job.repository_name}/actions/runs/${job.run_id}`;
-		}
-		if (!runUrl) return '';
-		if (job.workflow_job_id) {
-			return `${runUrl}/job/${job.workflow_job_id}`;
-		}
-		return runUrl;
 	}
 
 	function waitingFor(job: Job): string {
