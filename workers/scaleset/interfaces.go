@@ -22,7 +22,7 @@ type scaleSetHelper interface {
 	GetScaleSet() params.ScaleSet
 	GetScaleSetClient() (*scalesets.ScaleSetClient, error)
 	SetLastMessageID(id int64) error
-	SetDesiredRunnerCount(count int) error
+	SetRunnerStatistics(stats params.RunnerScaleSetStatistic) error
 	Owner() string
 	HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error
 	HandleJobsStarted(jobs []params.ScaleSetJobMessage) error
