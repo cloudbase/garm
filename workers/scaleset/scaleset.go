@@ -457,7 +457,8 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 	// Cross check what exists in github with what we have in the database.
 	for name, runner := range ghRunnersByName {
 		status := runner.GetStatus()
-		if _, ok := dbRunnersByName[name]; !ok {
+		dbRunner, ok := dbRunnersByName[name]
+		if !ok {
 			// runner appears to be active. Is it not managed by GARM?
 			if status != params.RunnerIdle && status != params.RunnerActive {
 				slog.InfoContext(w.ctx, "runner does not exist in GARM; removing from github", "runner_name", name)
@@ -470,6 +471,39 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			}
 			continue
 		}
+
+		// Sync github's view of the runner (online idle/busy or offline) onto
+		// the instance. Without this, a runner whose agent died after setup
+		// stays "idle" in GARM forever, while github considers it offline and
+		// never assigns it jobs. Only touch runners that finished installing;
+		// runners in earlier lifecycle states are expected to be offline.
+		switch dbRunner.RunnerStatus {
+		case params.RunnerIdle, params.RunnerActive, params.RunnerOffline:
+		default:
+			continue
+		}
+		switch status {
+		case params.RunnerIdle, params.RunnerActive, params.RunnerOffline:
+		default:
+			continue
+		}
+		if dbRunner.RunnerStatus == status {
+			continue
+		}
+		if ok := locking.TryLock(name, w.consumerID); !ok {
+			slog.DebugContext(w.ctx, "runner is locked; skipping runner status sync", "runner_name", name)
+			continue
+		}
+		slog.InfoContext(w.ctx, "syncing runner status from github", "runner_name", name, "old_status", dbRunner.RunnerStatus, "new_status", status)
+		updatedRunner, err := w.store.UpdateInstance(w.ctx, name, params.UpdateInstanceParams{RunnerStatus: status})
+		locking.Unlock(name, false)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.ErrorContext(w.ctx, "error updating runner status", "runner_name", name, "error", err)
+			}
+			continue
+		}
+		w.runners[updatedRunner.ID] = updatedRunner
 	}
 
 	unlockFn, err := w.reapTimedOutRunners(ghRunnersByName)

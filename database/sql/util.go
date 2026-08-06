@@ -489,6 +489,14 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		ret.ProxyName = scaleSet.Proxy.Name
 	}
 
+	if len(scaleSet.RunnerStatistics) > 0 {
+		var stats params.RunnerScaleSetStatistic
+		if err := json.Unmarshal(scaleSet.RunnerStatistics, &stats); err != nil {
+			return params.ScaleSet{}, fmt.Errorf("error unmarshaling runner statistics: %w", err)
+		}
+		ret.Statistics = &stats
+	}
+
 	var ep GithubEndpoint
 	if scaleSet.RepoID != nil {
 		ret.RepoID = scaleSet.RepoID.String()
