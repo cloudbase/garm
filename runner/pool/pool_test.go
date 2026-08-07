@@ -18,6 +18,7 @@ package pool
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -25,12 +26,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	dbMocks "github.com/cloudbase/garm/database/common/mocks"
 	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/locking"
@@ -225,6 +229,111 @@ func (s *PoolStressTestSuite) TestHandleWorkflowJobFullLifecycle() {
 	completedJobs, err := s.store.ListJobsByStatus(s.adminCtx, params.JobStatusCompleted)
 	s.Require().NoError(err)
 	s.Len(completedJobs, 1, "exactly 1 completed job should exist in DB")
+}
+
+func (s *PoolStressTestSuite) TestHandleWorkflowJobIgnoresQueuedJobWithoutMatchingPool() {
+	job := s.makeWorkflowJob(1002, "queued", "queued", "", []string{"self-hosted", "windows"})
+
+	err := s.mgr.HandleWorkflowJob(job)
+	s.Require().NoError(err)
+
+	_, err = s.store.GetJobByID(s.adminCtx, job.WorkflowJob.ID)
+	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
+}
+
+func (s *PoolStressTestSuite) TestHandleWorkflowJobIgnoresNewNonQueuedJobWithoutOwnedRunner() {
+	tests := []struct {
+		name       string
+		action     string
+		runnerName string
+	}{
+		{name: "job without runner", action: "in_progress"},
+		{name: "job with unknown runner", action: "completed", runnerName: "foreign-runner"},
+	}
+
+	for i, tt := range tests {
+		s.Run(tt.name, func() {
+			job := s.makeWorkflowJob(int64(1003+i), tt.action, tt.action, tt.runnerName, []string{"self-hosted", "linux", "x64"})
+
+			err := s.mgr.HandleWorkflowJob(job)
+			s.Require().NoError(err)
+
+			_, err = s.store.GetJobByID(s.adminCtx, job.WorkflowJob.ID)
+			s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
+		})
+	}
+}
+
+func TestHandleWorkflowJobStopsAfterIgnoringUnknownRunner(t *testing.T) {
+	ctx := context.Background()
+	store := dbMocks.NewStore(t)
+	entity := params.ForgeEntity{
+		ID:         uuid.NewString(),
+		EntityType: params.ForgeEntityTypeRepository,
+		Name:       "test-repo",
+		Owner:      "test-owner",
+	}
+	job := params.WorkflowJob{Action: "completed"}
+	job.WorkflowJob.ID = 1005
+	job.WorkflowJob.Status = "completed"
+	job.WorkflowJob.RunnerName = "foreign-runner"
+	job.WorkflowJob.Labels = []string{"self-hosted", "linux"}
+	job.Repository.Name = entity.Name
+	job.Repository.Owner.Login = entity.Owner
+
+	// ValidateOwner and shouldRecordJob each check runner ownership. A third call
+	// would prove lifecycle handling continued after the delivery was ignored.
+	store.EXPECT().GetInstance(mock.Anything, job.WorkflowJob.RunnerName).Return(params.Instance{}, runnerErrors.ErrNotFound).Twice()
+	store.EXPECT().GetJobByID(mock.Anything, job.WorkflowJob.ID).Return(params.Job{}, runnerErrors.ErrNotFound).Once()
+
+	mgr := &basePoolManager{ctx: ctx, entity: entity, store: store}
+	require.NoError(t, mgr.HandleWorkflowJob(job))
+}
+
+func TestPersistJobToDBReturnsPoolLookupError(t *testing.T) {
+	ctx := context.Background()
+	store := dbMocks.NewStore(t)
+	wantErr := errors.New("pool lookup failed")
+	entity := params.ForgeEntity{
+		ID:         uuid.NewString(),
+		EntityType: params.ForgeEntityTypeRepository,
+	}
+	job := params.Job{
+		WorkflowJobID: 1003,
+		Status:        string(params.JobStatusQueued),
+		Action:        string(params.JobStatusQueued),
+		Labels:        []string{"self-hosted", "linux"},
+	}
+
+	store.EXPECT().GetJobByID(ctx, job.WorkflowJobID).Return(params.Job{}, runnerErrors.ErrNotFound).Once()
+	store.EXPECT().FindPoolsMatchingAllTags(ctx, entity.EntityType, entity.ID, job.Labels).Return(nil, wantErr).Once()
+
+	mgr := &basePoolManager{ctx: ctx, entity: entity, store: store}
+	_, err := mgr.persistJobToDB(ctx, job)
+	require.ErrorIs(t, err, wantErr)
+}
+
+func TestPersistJobToDBReturnsRunnerLookupError(t *testing.T) {
+	ctx := context.Background()
+	store := dbMocks.NewStore(t)
+	wantErr := errors.New("runner lookup failed")
+	entity := params.ForgeEntity{
+		ID:         uuid.NewString(),
+		EntityType: params.ForgeEntityTypeRepository,
+	}
+	job := params.Job{
+		WorkflowJobID: 1004,
+		Status:        string(params.JobStatusInProgress),
+		Action:        string(params.JobStatusInProgress),
+		RunnerName:    "runner-name",
+	}
+
+	store.EXPECT().GetJobByID(ctx, job.WorkflowJobID).Return(params.Job{}, runnerErrors.ErrNotFound).Once()
+	store.EXPECT().GetInstance(ctx, job.RunnerName).Return(params.Instance{}, wantErr).Once()
+
+	mgr := &basePoolManager{ctx: ctx, entity: entity, store: store}
+	_, err := mgr.persistJobToDB(ctx, job)
+	require.ErrorIs(t, err, wantErr)
 }
 
 // TestConcurrentQueuedJobs sends N queued webhooks concurrently with different job IDs
@@ -726,7 +835,7 @@ func (s *PoolStressTestSuite) TestPersistJobToDB_RejectsReverseTransitions() {
 				RepositoryName:  "test-repo",
 				RepositoryOwner: "test-owner",
 			}
-			err = s.mgr.persistJobToDB(s.adminCtx, nextJob)
+			_, err = s.mgr.persistJobToDB(s.adminCtx, nextJob)
 			s.Require().Error(err, "expected reverse transition %s->%s to be rejected", tt.seedAction, tt.nextAction)
 
 			// Verify the DB still has the original action
@@ -784,7 +893,7 @@ func (s *PoolStressTestSuite) TestPersistJobToDB_AllowsForwardTransitions() {
 				RepositoryName:  "test-repo",
 				RepositoryOwner: "test-owner",
 			}
-			err = s.mgr.persistJobToDB(s.adminCtx, nextJob)
+			_, err = s.mgr.persistJobToDB(s.adminCtx, nextJob)
 			s.Require().NoError(err, "expected transition %s->%s to pass validation", tt.seedAction, tt.nextAction)
 		})
 	}

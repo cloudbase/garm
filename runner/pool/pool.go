@@ -189,60 +189,56 @@ func (r *basePoolManager) isEntityPool(pool params.Pool) bool {
 }
 
 // shouldRecordJob determines if a job should be recorded in the database
-func (r *basePoolManager) shouldRecordJob(ctx context.Context, jobParams params.Job, isNewJob bool) bool {
+func (r *basePoolManager) shouldRecordJob(ctx context.Context, jobParams params.Job, isNewJob bool) (bool, error) {
 	// Always record existing jobs
 	if !isNewJob {
-		return true
+		return true, nil
 	}
 
 	// For new jobs, only record if queued
 	if jobParams.Status == string(params.JobStatusQueued) {
 		// Check if we have pools that can handle it
-		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
+		potentialPools, err := r.store.FindPoolsMatchingAllTags(ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
 		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to find pools matching tags",
-				"requested_tags", strings.Join(jobParams.Labels, ", "))
-			return false
+			return false, fmt.Errorf("failed to find pools matching tags: %w", err)
 		}
 		if len(potentialPools) == 0 {
 			slog.WarnContext(
 				ctx, "no pools matching tags; not recording job",
 				"requested_tags", strings.Join(jobParams.Labels, ", "))
-			return false
+			return false, nil
 		}
-		return true
+		return true, nil
 	}
 
 	// For new non-queued jobs, only record if runner belongs to us
 	if jobParams.RunnerName != "" {
 		_, err := r.store.GetInstance(ctx, jobParams.RunnerName)
 		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				slog.With(slog.Any("error", err)).ErrorContext(
-					ctx, "failed to get instance",
-					"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				return false, nil
 			}
-			return false
+			return false, fmt.Errorf("failed to get instance %q: %w", util.SanitizeLogEntry(jobParams.RunnerName), err)
 		}
-		return true
+		return true, nil
 	}
 
 	// New non-queued job with no runner - don't record
-	return false
+	return false, nil
 }
 
 // persistJobToDB validates the job state transition and saves or updates the job
-// in the database. Returns an error if the transition is invalid.
-func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.Job) error {
+// in the database. It returns false without an error when the job is intentionally
+// ignored because it is not managed by this pool manager.
+func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.Job) (bool, error) {
 	if jobParams.WorkflowJobID == 0 {
-		return runnerErrors.NewBadRequestError("workflow job has no ID")
+		return false, runnerErrors.NewBadRequestError("workflow job has no ID")
 	}
 
 	existingJob, err := r.store.GetJobByID(ctx, jobParams.WorkflowJobID)
 	isNewJob := errors.Is(err, runnerErrors.ErrNotFound)
 	if err != nil && !isNewJob {
-		return fmt.Errorf("failed to get job from db: %w", err)
+		return false, fmt.Errorf("failed to get job from db: %w", err)
 	}
 
 	// Validate job state transition (only allow forward transitions).
@@ -253,7 +249,7 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 			string(params.JobStatusCompleted):  3,
 		}
 		if statusRank[jobParams.Action] < statusRank[existingJob.Action] {
-			return runnerErrors.NewBadRequestError("cannot transition job from %s to %s", existingJob.Action, jobParams.Action)
+			return false, runnerErrors.NewBadRequestError("cannot transition job from %s to %s", existingJob.Action, jobParams.Action)
 		}
 	}
 
@@ -265,15 +261,19 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 		"is_new_job", isNewJob,
 		"job_action", jobParams.Action,
 	)
-	if !r.shouldRecordJob(ctx, jobParams, isNewJob) {
+	shouldRecord, err := r.shouldRecordJob(ctx, jobParams, isNewJob)
+	if err != nil {
+		return false, fmt.Errorf("failed to determine whether job %d should be recorded: %w", jobParams.WorkflowJobID, err)
+	}
+	if !shouldRecord {
 		slog.DebugContext(
 			ctx,
-			"not recording job",
+			"ignoring workflow job not managed by this pool manager",
 			"workflow_job_id", jobParams.WorkflowJobID,
 			"is_new_job", isNewJob,
 			"job_action", jobParams.Action,
 		)
-		return fmt.Errorf("job %d should not be recorded: %w", jobParams.WorkflowJobID, runnerErrors.ErrUnprocessable)
+		return false, nil
 	}
 
 	slog.DebugContext(
@@ -286,9 +286,9 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 
 	// Save or update the job
 	if _, jobErr := r.store.CreateOrUpdateJob(ctx, jobParams); jobErr != nil {
-		return fmt.Errorf("failed to update job %d: %w", jobParams.WorkflowJobID, jobErr)
+		return false, fmt.Errorf("failed to update job %d: %w", jobParams.WorkflowJobID, jobErr)
 	}
-	return nil
+	return true, nil
 }
 
 // handleCompletedJob processes a completed job webhook
@@ -460,8 +460,12 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	}
 
 	// Validate and persist job to database first, then act on it.
-	if err := r.persistJobToDB(ctx, jobParams); err != nil {
+	recorded, err := r.persistJobToDB(ctx, jobParams)
+	if err != nil {
 		return err
+	}
+	if !recorded {
+		return nil
 	}
 
 	// Process job based on action type
