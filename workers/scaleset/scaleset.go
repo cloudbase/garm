@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
 	"strings"
 	"sync"
@@ -33,6 +34,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleSet, provider common.Provider) (*Worker, error) {
@@ -62,6 +64,7 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		scaleSet:       scaleSet,
 		entity:         entity,
 		runners:        make(map[string]params.Instance),
+		offlineSince:   make(map[string]time.Time),
 	}, nil
 }
 
@@ -75,6 +78,14 @@ type Worker struct {
 	scaleSet params.ScaleSet
 	entity   params.ForgeEntity
 	runners  map[string]params.Instance
+	// offlineSince tracks when we first observed a runner in the
+	// running/offline state, keyed by runner name. Instances have no
+	// "runner status changed at" timestamp in the DB and UpdatedAt is
+	// bumped by every write, so we track this in memory. Entries are
+	// cleared when the runner leaves the offline state or is removed;
+	// a GARM restart resets the clock, which at worst delays reaping
+	// by one timeout period. Protected by mux.
+	offlineSince map[string]time.Time
 
 	consumer dbCommon.Consumer
 
@@ -363,7 +374,13 @@ func (w *Worker) removeRunnerFromGithubAndSetPendingDelete(runnerName string, ag
 	}
 	if err := scaleSetCli.RemoveRunner(w.ctx, agentID); err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return fmt.Errorf("removing runner %s: %w", runnerName, err)
+			// Github may refuse to deregister a runner it believes is running a
+			// job (TaskAgentJobStillRunningException) even when the agent never
+			// actually acquired it (seen during github outages). Destroying the
+			// instance is what un-sticks that state on github's side: the agent
+			// disappears, github fails the stuck job and releases the runner.
+			// So log and proceed with pending_delete instead of aborting.
+			slog.WarnContext(w.ctx, "github refused to remove runner; deleting instance anyway", "runner_name", runnerName, "error", err)
 		}
 	}
 	instance, err := w.setRunnerDBStatus(runnerName, commonParams.InstancePendingDelete)
@@ -380,8 +397,34 @@ func (w *Worker) removeRunnerFromGithubAndSetPendingDelete(runnerName string, ag
 	return nil
 }
 
+// offlineTimeoutJitter returns a deterministic per-runner offset in
+// [0, DefaultRunnerOfflineTimeout/2) added to the offline timeout. Runners
+// that go offline together (e.g. during a github outage) would otherwise be
+// reaped together, respawned together and go offline together again, with the
+// batches growing more synchronized every cycle and hammering the provider
+// API. Hashing the name spreads each batch over a jitter window without
+// keeping extra state.
+func offlineTimeoutJitter(runnerName string) time.Duration {
+	h := fnv.New64a()
+	h.Write([]byte(runnerName))
+	return time.Duration(h.Sum64() % uint64(appdefaults.DefaultRunnerOfflineTimeout/2))
+}
+
+// maxOfflineReapsPerPass bounds how many offline runners we recycle in one
+// consolidation pass, so a mass-offline event (github outage) trickles
+// delete/create calls to the provider over several passes instead of issuing
+// them all at once.
+func (w *Worker) maxOfflineReapsPerPass() int {
+	limit := int(w.scaleSet.MaxRunners) / 4
+	if limit < 5 {
+		limit = 5
+	}
+	return limit
+}
+
 func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) (func(), error) {
 	lockNames := []string{}
+	offlineReaps := 0
 
 	unlockFn := func() {
 		for _, name := range lockNames {
@@ -390,10 +433,9 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 		}
 	}
 
+	currentNames := make(map[string]struct{}, len(w.runners))
 	for _, runner := range w.runners {
-		if time.Since(runner.CreatedAt).Minutes() < float64(w.scaleSet.RunnerTimeout()) {
-			continue
-		}
+		currentNames[runner.Name] = struct{}{}
 		switch runner.Status {
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
 			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
@@ -411,30 +453,72 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 			continue
 		}
 
-		if runner.RunnerStatus != params.RunnerPending && runner.RunnerStatus != params.RunnerInstalling && runner.RunnerStatus != params.RunnerFailed {
-			slog.DebugContext(w.ctx, "runner is not pending, installing or failed; skipping", "runner_name", runner.Name)
+		// A runner in running/offline is one whose agent registered with github
+		// but then died or lost its connection to the actions service (this
+		// happens en masse during github outages). It will never receive jobs
+		// again, but it occupies a max_runners slot. Track when we first saw it
+		// offline and recycle it once it exceeds the offline timeout.
+		offlineTimedOut := false
+		if runner.Status == commonParams.InstanceRunning && runner.RunnerStatus == params.RunnerOffline {
+			since, seen := w.offlineSince[runner.Name]
+			if !seen {
+				w.offlineSince[runner.Name] = time.Now()
+			} else {
+				timeout := appdefaults.DefaultRunnerOfflineTimeout + offlineTimeoutJitter(runner.Name)
+				offlineTimedOut = time.Since(since) >= timeout && offlineReaps < w.maxOfflineReapsPerPass()
+			}
+		} else {
+			delete(w.offlineSince, runner.Name)
+		}
+
+		bootstrapTimedOut := false
+		if time.Since(runner.CreatedAt).Minutes() >= float64(w.scaleSet.RunnerTimeout()) {
+			if runner.RunnerStatus == params.RunnerPending || runner.RunnerStatus == params.RunnerInstalling || runner.RunnerStatus == params.RunnerFailed {
+				ghRunner, ok := runners[runner.Name]
+				bootstrapTimedOut = !ok || ghRunner.GetStatus() == params.RunnerOffline
+			}
+		}
+
+		if !offlineTimedOut && !bootstrapTimedOut {
 			continue
 		}
-		if ghRunner, ok := runners[runner.Name]; !ok || ghRunner.GetStatus() == params.RunnerOffline {
-			if ok := locking.TryLock(runner.Name, w.consumerID); !ok {
-				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
-				continue
-			}
 
+		if ok := locking.TryLock(runner.Name, w.consumerID); !ok {
+			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
+			continue
+		}
+
+		if offlineTimedOut {
+			slog.InfoContext(
+				w.ctx, "reaping runner offline for too long",
+				"runner_name", runner.Name,
+				"offline_for", time.Since(w.offlineSince[runner.Name]).String())
+		} else {
 			slog.InfoContext(
 				w.ctx, "reaping timed-out/failed runner",
 				"runner_name", runner.Name)
+		}
 
-			if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
-				// Don't let a single poisoned runner (e.g. one that raced into a
-				// status that can no longer transition to pending_delete through
-				// some other codepath) abort reaping for the rest of the batch.
-				// Log it, release just this runner's lock, and keep going.
-				slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
-				locking.Unlock(runner.Name, false)
-				continue
-			}
-			lockNames = append(lockNames, runner.Name)
+		if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
+			// Don't let a single poisoned runner (e.g. one that raced into a
+			// status that can no longer transition to pending_delete through
+			// some other codepath) abort reaping for the rest of the batch.
+			// Log it, release just this runner's lock, and keep going.
+			slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
+			locking.Unlock(runner.Name, false)
+			continue
+		}
+		if offlineTimedOut {
+			offlineReaps++
+		}
+		delete(w.offlineSince, runner.Name)
+		lockNames = append(lockNames, runner.Name)
+	}
+
+	// Prune tracking entries for runners that no longer exist.
+	for name := range w.offlineSince {
+		if _, ok := currentNames[name]; !ok {
+			delete(w.offlineSince, name)
 		}
 	}
 	return unlockFn, nil
@@ -457,7 +541,8 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 	// Cross check what exists in github with what we have in the database.
 	for name, runner := range ghRunnersByName {
 		status := runner.GetStatus()
-		if _, ok := dbRunnersByName[name]; !ok {
+		dbRunner, ok := dbRunnersByName[name]
+		if !ok {
 			// runner appears to be active. Is it not managed by GARM?
 			if status != params.RunnerIdle && status != params.RunnerActive {
 				slog.InfoContext(w.ctx, "runner does not exist in GARM; removing from github", "runner_name", name)
@@ -470,6 +555,48 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			}
 			continue
 		}
+
+		// Sync github's view of the runner (online idle/busy or offline) onto
+		// the instance. Without this, a runner whose agent died after setup
+		// stays "idle" in GARM forever, while github considers it offline and
+		// never assigns it jobs. Only touch runners that finished installing;
+		// runners in earlier lifecycle states are expected to be offline.
+		switch dbRunner.RunnerStatus {
+		case params.RunnerIdle, params.RunnerActive, params.RunnerOffline:
+		default:
+			continue
+		}
+		switch status {
+		case params.RunnerIdle, params.RunnerActive, params.RunnerOffline:
+		default:
+			continue
+		}
+		if dbRunner.RunnerStatus == status {
+			continue
+		}
+		if dbRunner.RunnerStatus == params.RunnerActive && status == params.RunnerIdle {
+			// The github runners list is NOT a reliable busy indicator for
+			// scale set runners: it reports "idle" for runners that are
+			// actively executing a job (observed 2026-08-07: reaping on this
+			// signal cancelled ~150 running jobs). Never touch active runners
+			// based on the list; job completion/failure is handled by the
+			// listener and the offline reaper covers dead agents.
+			continue
+		}
+		if ok := locking.TryLock(name, w.consumerID); !ok {
+			slog.DebugContext(w.ctx, "runner is locked; skipping runner status sync", "runner_name", name)
+			continue
+		}
+		slog.InfoContext(w.ctx, "syncing runner status from github", "runner_name", name, "old_status", dbRunner.RunnerStatus, "new_status", status)
+		updatedRunner, err := w.store.UpdateInstance(w.ctx, name, params.UpdateInstanceParams{RunnerStatus: status})
+		locking.Unlock(name, false)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.ErrorContext(w.ctx, "error updating runner status", "runner_name", name, "error", err)
+			}
+			continue
+		}
+		w.runners[updatedRunner.ID] = updatedRunner
 	}
 
 	unlockFn, err := w.reapTimedOutRunners(ghRunnersByName)

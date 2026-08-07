@@ -219,6 +219,10 @@ type ScaleSet struct {
 	Enabled                bool
 	LastMessageID          int64
 	DesiredRunnerCount     int
+	// RunnerStatistics is the last RunnerScaleSetStatistic received from
+	// GitHub on the message session (busy/idle/assigned counts as GitHub
+	// sees them).
+	RunnerStatistics datatypes.JSON
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers.
@@ -473,6 +477,11 @@ type WorkflowJob struct {
 	WorkflowJobID int64 `gorm:"index:workflow_job_id_idx"`
 	// ScaleSetJobID is the job ID for a scaleset job.
 	ScaleSetJobID string `gorm:"index:scaleset_job_id_idx"`
+
+	// ScaleSetFkID is the ID of the scale set that this job was assigned to,
+	// if the job came in through a scale set listener.
+	ScaleSetFkID *uint    `gorm:"index"`
+	ScaleSet     ScaleSet `gorm:"foreignKey:ScaleSetFkID"`
 
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64
