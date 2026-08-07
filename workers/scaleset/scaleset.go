@@ -59,17 +59,16 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		return nil, fmt.Errorf("failed to get entity from the db: %w", err)
 	}
 	return &Worker{
-		ctx:              ctx,
-		controllerInfo:   controllerInfo,
-		consumerID:       consumerID,
-		store:            store,
-		provider:         provider,
-		scaleSet:         scaleSet,
-		entity:           entity,
-		runners:          make(map[string]params.Instance),
-		pseudoPoolID:     garmUtil.ScaleSetPseudoPoolID(scalesetEntity.ID, scaleSet.ID),
-		offlineSince:     make(map[string]time.Time),
-		activeIdleMisses: make(map[string]int),
+		ctx:            ctx,
+		controllerInfo: controllerInfo,
+		consumerID:     consumerID,
+		store:          store,
+		provider:       provider,
+		scaleSet:       scaleSet,
+		entity:         entity,
+		runners:        make(map[string]params.Instance),
+		pseudoPoolID:   garmUtil.ScaleSetPseudoPoolID(scalesetEntity.ID, scaleSet.ID),
+		offlineSince:   make(map[string]time.Time),
 	}, nil
 }
 
@@ -91,15 +90,6 @@ type Worker struct {
 	// a GARM restart resets the clock, which at worst delays reaping
 	// by one timeout period. Protected by mux.
 	offlineSince map[string]time.Time
-	// activeIdleMisses counts consecutive consolidation passes in which a
-	// runner GARM considers "active" is reported "idle" by github. A runner
-	// genuinely executing a job is reported busy, so two consecutive idle
-	// observations (>5 minutes apart) mean the job assignment was lost on
-	// github's side (broker outage) and the runner will never receive it:
-	// GARM keeps it active forever (active->idle transitions are rejected)
-	// and it occupies a slot doing nothing. Such phantoms are reaped.
-	// Protected by mux.
-	activeIdleMisses map[string]int
 
 	// pseudoPoolID is the stable pool ID reported to providers for this scale
 	// set. It is derived from immutable IDs, so it is computed once.
@@ -610,11 +600,6 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 			delete(w.offlineSince, name)
 		}
 	}
-	for name := range w.activeIdleMisses {
-		if _, ok := currentNames[name]; !ok {
-			delete(w.activeIdleMisses, name)
-		}
-	}
 	return unlockFn, nil
 }
 
@@ -666,37 +651,17 @@ func (w *Worker) consolidateRunnerState(listedAt time.Time, runners []params.Run
 			continue
 		}
 		if dbRunner.RunnerStatus == status {
-			delete(w.activeIdleMisses, name)
 			continue
 		}
 		if dbRunner.RunnerStatus == params.RunnerActive && status == params.RunnerIdle {
-			// GARM thinks this runner is executing a job, github reports it
-			// idle. Either the job just started (our runner list snapshot is
-			// stale) or the job assignment was lost on github's side and the
-			// runner will never receive it. A real job shows up as busy on the
-			// next pass, so only act after two consecutive idle observations.
-			w.activeIdleMisses[name]++
-			if w.activeIdleMisses[name] < 2 {
-				continue
-			}
-			if ok := locking.TryLock(name, w.consumerID); !ok {
-				slog.DebugContext(w.ctx, "runner is locked; skipping phantom active reap", "runner_name", name)
-				continue
-			}
-			slog.InfoContext(w.ctx, "reaping phantom active runner; github reports it idle", "runner_name", name, "misses", w.activeIdleMisses[name])
-			if err := w.removeRunnerFromGithubAndSetPendingDelete(name, dbRunner.AgentID); err != nil {
-				slog.ErrorContext(w.ctx, "error removing phantom active runner", "runner_name", name, "error", err)
-				locking.Unlock(name, false)
-				continue
-			}
-			delete(w.activeIdleMisses, name)
-			// Hold the lock until consolidation finishes, like the other
-			// pending_delete paths below, so the provider worker doesn't act
-			// on the status change while we still cross-check state.
-			defer locking.Unlock(name, false)
+			// The github runners list is NOT a reliable busy indicator for
+			// scale set runners: it reports "idle" for runners that are
+			// actively executing a job (observed 2026-08-07: reaping on this
+			// signal cancelled ~150 running jobs). Never touch active runners
+			// based on the list; job completion/failure is handled by the
+			// listener and the offline reaper covers dead agents.
 			continue
 		}
-		delete(w.activeIdleMisses, name)
 		if ok := locking.TryLock(name, w.consumerID); !ok {
 			slog.DebugContext(w.ctx, "runner is locked; skipping runner status sync", "runner_name", name)
 			continue
