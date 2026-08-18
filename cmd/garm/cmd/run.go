@@ -87,6 +87,8 @@ func runServer() error {
 		return fmt.Errorf("fetching config: %w", err)
 	}
 
+	params.SetHTTP2HealthChecks(cfg.Default.HTTP2ReadIdleTimeout.Duration(), cfg.Default.HTTP2PingTimeout.Duration())
+
 	logCfg := cfg.GetLoggingConfig()
 	var hub *websocket.Hub
 	if logCfg.EnableLogStreamer != nil && *logCfg.EnableLogStreamer {

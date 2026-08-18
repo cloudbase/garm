@@ -1375,6 +1375,7 @@ func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, erro
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+	applyHTTP2HealthChecks(httpTransport)
 
 	var tc *http.Client
 	switch g.AuthType {

@@ -58,6 +58,8 @@ time_to_live = "8760h"
 |-----------------------------|---------|----------------------------------------------------------|
 | `enable_webhook_management` | `false` | Allow GARM to install/manage webhooks automatically      |
 | `debug_server`              | `false` | Enable the Go pprof profiling server on `127.0.0.1:9997` |
+| `http2_read_idle_timeout` | (disabled) | Duration string (ex: `"5m"`). When set, enables HTTP/2 health checks on outbound connections to forges: a PING frame is sent on any connection idle for this duration, and dead connections are closed so in-flight requests fail fast instead of hanging until the kernel TCP timeout (~15 minutes). |
+| `http2_ping_timeout` | `"15s"` | Duration string. Time to wait for a response to a health check PING before the connection is considered dead. Only effective when `http2_read_idle_timeout` is set. |
 
 When `debug_server` is enabled, you can profile GARM using:
 
