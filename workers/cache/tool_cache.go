@@ -224,7 +224,7 @@ reset:
 			return
 		case <-ticker.C:
 			now := time.Now().UTC()
-			if !now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline)*time.Minute)) || oldMetadataURL != metadataURL || oldUseInternal != useInternal {
+			if !now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline)*time.Minute)) && oldMetadataURL == metadataURL && oldUseInternal == useInternal {
 				continue
 			}
 			ep, ok := cache.GetEndpoint(t.entity.Credentials.Endpoint.Name)
