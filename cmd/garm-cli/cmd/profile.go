@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -28,12 +29,13 @@ import (
 )
 
 var (
-	loginProfileName string
-	loginURL         string
-	loginPassword    string
-	loginUserName    string
-	loginFullName    string
-	loginEmail       string
+	loginProfileName  string
+	loginURL          string
+	loginPassword     string
+	loginPasswordFile string
+	loginUserName     string
+	loginFullName     string
+	loginEmail        string
 )
 
 // runnerCmd represents the runner command
@@ -139,6 +141,10 @@ var profileAddCmd = &cobra.Command{
 			}
 		}
 
+		if err := resolvePasswordFile(); err != nil {
+			return err
+		}
+
 		if err := promptUnsetLoginVariables(); err != nil {
 			return err
 		}
@@ -190,6 +196,10 @@ installation, by performing a login.
 			return nil
 		}
 
+		if err := resolvePasswordFile(); err != nil {
+			return err
+		}
+
 		if err := promptUnsetLoginVariables(); err != nil {
 			return err
 		}
@@ -219,11 +229,15 @@ installation, by performing a login.
 func init() {
 	profileLoginCmd.Flags().StringVarP(&loginUserName, "username", "u", "", "Username to log in as")
 	profileLoginCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The user passowrd")
+	profileLoginCmd.Flags().StringVar(&loginPasswordFile, "password-file", "", "Path to a file containing the user password")
+	profileLoginCmd.MarkFlagsMutuallyExclusive("password", "password-file")
 
 	profileAddCmd.Flags().StringVarP(&loginProfileName, "name", "n", "", "A name for this runner manager")
 	profileAddCmd.Flags().StringVarP(&loginURL, "url", "a", "", "The base URL for the runner manager API")
 	profileAddCmd.Flags().StringVarP(&loginUserName, "username", "u", "", "Username to log in as")
 	profileAddCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The user passowrd")
+	profileAddCmd.Flags().StringVar(&loginPasswordFile, "password-file", "", "Path to a file containing the user password")
+	profileAddCmd.MarkFlagsMutuallyExclusive("password", "password-file")
 	profileAddCmd.MarkFlagRequired("name") //nolint
 	profileAddCmd.MarkFlagRequired("url")  //nolint
 
@@ -274,4 +288,45 @@ func promptUnsetLoginVariables() error {
 		}
 	}
 	return nil
+}
+
+// resolvePasswordFile sets loginPassword to the contents of the file given via
+// --password-file. It is a no-op if the flag was not set. The flag is mutually
+// exclusive with --password, so this never overwrites a password that was
+// passed on the command line.
+func resolvePasswordFile() error {
+	if loginPasswordFile == "" {
+		return nil
+	}
+
+	passwd, err := readPasswordFile(loginPasswordFile)
+	if err != nil {
+		return err
+	}
+	loginPassword = passwd
+
+	return nil
+}
+
+func readPasswordFile(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("reading password file: %w", err)
+	}
+
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		fmt.Fprintf(os.Stderr, "warning: password file %s is readable by users other than the owner (mode %#o)\n", path, perm)
+	}
+
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("reading password file: %w", err)
+	}
+
+	passwd := strings.TrimRight(string(contents), "\r\n")
+	if passwd == "" {
+		return "", fmt.Errorf("password file %s is empty", path)
+	}
+
+	return passwd, nil
 }

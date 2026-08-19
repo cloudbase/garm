@@ -67,6 +67,10 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 				return fmt.Errorf("a manager with name %s already exists in your local config", loginProfileName)
 			}
 		}
+		if err := resolvePasswordFile(); err != nil {
+			return err
+		}
+
 		var caBundle []byte
 		var err error
 		if controllerCABundle != "" {
@@ -212,6 +216,8 @@ func init() {
 	initCmd.Flags().StringVarP(&agentURL, "agent-url", "g", "", "The agent URL for the controller (ie. https://garm.example.com/agent)")
 	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
 	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
+	initCmd.Flags().StringVar(&loginPasswordFile, "password-file", "", "Path to a file containing the admin password")
+	initCmd.MarkFlagsMutuallyExclusive("password", "password-file")
 	initCmd.Flags().StringVar(&controllerCABundle, "ca-bundle", "", "A CA bundle that will be used by GARM and the runners to validate HTTPS connections.")
 	initCmd.MarkFlagRequired("name") //nolint
 	initCmd.MarkFlagRequired("url")  //nolint
