@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -9,6 +10,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -60,7 +62,12 @@ func (r *Runner) SetInstanceToPendingDelete(ctx context.Context) error {
 		Status: commonParams.InstancePendingDelete,
 	}
 
-	if _, err := r.store.ForceUpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+		var te *runnerErrors.InstanceTransitionError
+		if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
+			// Already on the deletion lane; treat the refusal as success.
+			return nil
+		}
 		return fmt.Errorf("failed to set instance to pending_delete: %w", err)
 	}
 	return nil
