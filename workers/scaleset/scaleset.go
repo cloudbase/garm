@@ -1005,7 +1005,7 @@ func (w *Worker) handleScaleDown() {
 			removed++
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
 			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
-			removed++
+			// Not counted by runnerCount(), so not part of the delta.
 			continue
 		default:
 			slog.WarnContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.Status)
@@ -1024,8 +1024,16 @@ func (w *Worker) targetRunners() int {
 	return int(targetRunners)
 }
 
+// runnerCount counts runners that are not on the deletion lane.
 func (w *Worker) runnerCount() int {
-	return len(w.runners)
+	count := 0
+	for _, runner := range w.runners {
+		if garmErrors.InstanceIsBeingDeleted(runner.Status) {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (w *Worker) handleAutoScale() {
