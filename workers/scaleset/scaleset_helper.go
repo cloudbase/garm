@@ -74,6 +74,7 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 	baseURL := strings.TrimRight(w.entity.Credentials.BaseURL, "/")
 	jobParams := job.ToJob()
 	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
+	jobParams.ScaleSetID = w.scaleSet.ID
 
 	switch entity.EntityType {
 	case params.ForgeEntityTypeEnterprise:
@@ -227,9 +228,9 @@ func (w *Worker) HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error {
 	return nil
 }
 
-func (w *Worker) SetDesiredRunnerCount(count int) error {
-	if err := w.store.SetScaleSetDesiredRunnerCount(w.ctx, w.scaleSet.ID, count); err != nil {
-		return fmt.Errorf("setting desired runner count: %w", err)
+func (w *Worker) SetRunnerStatistics(stats params.RunnerScaleSetStatistic) error {
+	if err := w.store.SetScaleSetRunnerStatistics(w.ctx, w.scaleSet.ID, stats); err != nil {
+		return fmt.Errorf("setting runner statistics: %w", err)
 	}
 	return nil
 }

@@ -5572,54 +5572,6 @@ func (_c *Store_SetEntityPoolManagerStatus_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// SetScaleSetDesiredRunnerCount provides a mock function with given fields: ctx, scaleSetID, desiredRunnerCount
-func (_m *Store) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) error {
-	ret := _m.Called(ctx, scaleSetID, desiredRunnerCount)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetScaleSetDesiredRunnerCount")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint, int) error); ok {
-		r0 = rf(ctx, scaleSetID, desiredRunnerCount)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Store_SetScaleSetDesiredRunnerCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetScaleSetDesiredRunnerCount'
-type Store_SetScaleSetDesiredRunnerCount_Call struct {
-	*mock.Call
-}
-
-// SetScaleSetDesiredRunnerCount is a helper method to define mock.On call
-//   - ctx context.Context
-//   - scaleSetID uint
-//   - desiredRunnerCount int
-func (_e *Store_Expecter) SetScaleSetDesiredRunnerCount(ctx interface{}, scaleSetID interface{}, desiredRunnerCount interface{}) *Store_SetScaleSetDesiredRunnerCount_Call {
-	return &Store_SetScaleSetDesiredRunnerCount_Call{Call: _e.mock.On("SetScaleSetDesiredRunnerCount", ctx, scaleSetID, desiredRunnerCount)}
-}
-
-func (_c *Store_SetScaleSetDesiredRunnerCount_Call) Run(run func(ctx context.Context, scaleSetID uint, desiredRunnerCount int)) *Store_SetScaleSetDesiredRunnerCount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint), args[2].(int))
-	})
-	return _c
-}
-
-func (_c *Store_SetScaleSetDesiredRunnerCount_Call) Return(_a0 error) *Store_SetScaleSetDesiredRunnerCount_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Store_SetScaleSetDesiredRunnerCount_Call) RunAndReturn(run func(context.Context, uint, int) error) *Store_SetScaleSetDesiredRunnerCount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SetScaleSetLastMessageID provides a mock function with given fields: ctx, scaleSetID, lastMessageID
 func (_m *Store) SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error {
 	ret := _m.Called(ctx, scaleSetID, lastMessageID)
@@ -5664,6 +5616,54 @@ func (_c *Store_SetScaleSetLastMessageID_Call) Return(_a0 error) *Store_SetScale
 }
 
 func (_c *Store_SetScaleSetLastMessageID_Call) RunAndReturn(run func(context.Context, uint, int64) error) *Store_SetScaleSetLastMessageID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetScaleSetRunnerStatistics provides a mock function with given fields: ctx, scaleSetID, stats
+func (_m *Store) SetScaleSetRunnerStatistics(ctx context.Context, scaleSetID uint, stats params.RunnerScaleSetStatistic) error {
+	ret := _m.Called(ctx, scaleSetID, stats)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetScaleSetRunnerStatistics")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.RunnerScaleSetStatistic) error); ok {
+		r0 = rf(ctx, scaleSetID, stats)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_SetScaleSetRunnerStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetScaleSetRunnerStatistics'
+type Store_SetScaleSetRunnerStatistics_Call struct {
+	*mock.Call
+}
+
+// SetScaleSetRunnerStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - scaleSetID uint
+//   - stats params.RunnerScaleSetStatistic
+func (_e *Store_Expecter) SetScaleSetRunnerStatistics(ctx interface{}, scaleSetID interface{}, stats interface{}) *Store_SetScaleSetRunnerStatistics_Call {
+	return &Store_SetScaleSetRunnerStatistics_Call{Call: _e.mock.On("SetScaleSetRunnerStatistics", ctx, scaleSetID, stats)}
+}
+
+func (_c *Store_SetScaleSetRunnerStatistics_Call) Run(run func(ctx context.Context, scaleSetID uint, stats params.RunnerScaleSetStatistic)) *Store_SetScaleSetRunnerStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint), args[2].(params.RunnerScaleSetStatistic))
+	})
+	return _c
+}
+
+func (_c *Store_SetScaleSetRunnerStatistics_Call) Return(_a0 error) *Store_SetScaleSetRunnerStatistics_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SetScaleSetRunnerStatistics_Call) RunAndReturn(run func(context.Context, uint, params.RunnerScaleSetStatistic) error) *Store_SetScaleSetRunnerStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }

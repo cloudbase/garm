@@ -1515,6 +1515,13 @@ definitions:
             runner_name:
                 type: string
                 x-go-name: RunnerName
+            scale_set_id:
+                description: |-
+                    ScaleSetID is the garm ID of the scale set this job was assigned to,
+                    if it came in through a scale set listener.
+                format: uint64
+                type: integer
+                x-go-name: ScaleSetID
             scaleset_job_id:
                 description: ScaleSetJobID is the job ID when generated for a scale set.
                 type: string
@@ -1980,6 +1987,38 @@ definitions:
                 x-go-name: Prefix
         type: object
         x-go-package: github.com/cloudbase/garm/params
+    RunnerScaleSetStatistic:
+        properties:
+            totalAcquiredJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalAcquiredJobs
+            totalAssignedJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalAssignedJobs
+            totalAvailableJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalAvailableJobs
+            totalBusyRunners:
+                format: int64
+                type: integer
+                x-go-name: TotalBusyRunners
+            totalIdleRunners:
+                format: int64
+                type: integer
+                x-go-name: TotalIdleRunners
+            totalRegisteredRunners:
+                format: int64
+                type: integer
+                x-go-name: TotalRegisteredRunners
+            totalRunningJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalRunningJobs
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     RunnerStatus:
         type: string
         x-go-package: github.com/cloudbase/garm/params
@@ -2108,6 +2147,8 @@ definitions:
                 x-go-name: ScaleSetID
             state:
                 $ref: '#/definitions/ScaleSetState'
+            statistics:
+                $ref: '#/definitions/RunnerScaleSetStatistic'
             status_messages:
                 items:
                     $ref: '#/definitions/StatusMessage'

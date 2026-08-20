@@ -166,7 +166,7 @@ type ScaleSetsStore interface {
 	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
 	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
 	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error
-	SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) error
+	SetScaleSetRunnerStatistics(ctx context.Context, scaleSetID uint, stats params.RunnerScaleSetStatistic) error
 }
 
 type ScaleSetInstanceStore interface {

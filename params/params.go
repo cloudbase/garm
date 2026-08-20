@@ -719,7 +719,10 @@ type ScaleSet struct {
 	Enabled            bool                `json:"enabled,omitempty"`
 	Instances          []Instance          `json:"instances,omitempty"`
 	DesiredRunnerCount int                 `json:"desired_runner_count,omitempty"`
-	EnableShell        bool                `json:"enable_shell"`
+	// Statistics is the last runner scale set statistic received from GitHub
+	// on the message session (busy/idle/assigned counts as GitHub sees them).
+	Statistics  *RunnerScaleSetStatistic `json:"statistics,omitempty"`
+	EnableShell bool                     `json:"enable_shell"`
 
 	// Generation holds the numeric generation of the scaleset. This number
 	// will be incremented, every time certain settings of the scaleset, which
@@ -1418,6 +1421,9 @@ type Job struct {
 	WorkflowJobID int64 `json:"workflow_job_id,omitempty"`
 	// ScaleSetJobID is the job ID when generated for a scale set.
 	ScaleSetJobID string `json:"scaleset_job_id,omitempty"`
+	// ScaleSetID is the garm ID of the scale set this job was assigned to,
+	// if it came in through a scale set listener.
+	ScaleSetID uint `json:"scale_set_id,omitempty"`
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64 `json:"run_id,omitempty"`
 	// Action is the specific activity that triggered the event.
