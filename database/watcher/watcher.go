@@ -119,10 +119,14 @@ func (w *watcher) serviceProducer(prod *producer) {
 			return
 		case payload := <-prod.messages:
 			w.mux.Lock()
+			wg := sync.WaitGroup{}
 			for _, c := range w.consumers {
-				go c.Send(payload)
+				wg.Go(func() {
+					c.Send(payload)
+				})
 			}
 			w.mux.Unlock()
+			wg.Wait()
 		}
 	}
 }
