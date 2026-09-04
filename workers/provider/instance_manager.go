@@ -148,8 +148,9 @@ func (i *instanceManager) getEntity() (params.ForgeEntity, error) {
 }
 
 func (i *instanceManager) pseudoPoolID() string {
-	// This is temporary. We need to extend providers to know about scale sets.
-	return fmt.Sprintf("%s-%s", i.scaleSet.Name, i.scaleSetEntity.ID)
+	// nolint:golangci-lint,godox
+	// TODO(gabriel-samfira): extend providers to know about scale sets.
+	return garmUtil.ScaleSetPseudoPoolID(i.scaleSetEntity.ID, i.scaleSet.ID)
 }
 
 func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instance) error {

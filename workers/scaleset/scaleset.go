@@ -62,6 +62,7 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		scaleSet:       scaleSet,
 		entity:         entity,
 		runners:        make(map[string]params.Instance),
+		pseudoPoolID:   garmUtil.ScaleSetPseudoPoolID(scalesetEntity.ID, scaleSet.ID),
 	}, nil
 }
 
@@ -75,6 +76,14 @@ type Worker struct {
 	scaleSet params.ScaleSet
 	entity   params.ForgeEntity
 	runners  map[string]params.Instance
+
+	// pseudoPoolID is the stable pool ID reported to providers for this scale
+	// set. It is derived from immutable IDs, so it is computed once.
+	pseudoPoolID string
+	// legacyPoolIDDrained indicates that the provider no longer has any
+	// instances tagged with the legacy name-based pseudo pool ID, so we can
+	// stop querying for it.
+	legacyPoolIDDrained bool
 
 	consumer dbCommon.Consumer
 
@@ -551,10 +560,6 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 // DB runners with no provider instance are marked as pending_delete. Must be
 // called with w.mux held.
 func (w *Worker) consolidateProviderState() error {
-	pseudoPoolID, err := w.pseudoPoolID()
-	if err != nil {
-		return fmt.Errorf("getting pseudo pool ID: %w", err)
-	}
 	listParams := common.ListInstancesParams{
 		ListInstancesV011: common.ListInstancesV011Params{
 			ProviderBaseParams: common.ProviderBaseParams{
@@ -563,7 +568,7 @@ func (w *Worker) consolidateProviderState() error {
 		},
 	}
 
-	providerRunners, err := w.provider.ListInstances(w.ctx, pseudoPoolID, listParams)
+	providerRunners, err := w.provider.ListInstances(w.ctx, w.pseudoPoolID, listParams)
 	if err != nil {
 		return fmt.Errorf("listing instances: %w", err)
 	}
@@ -571,6 +576,27 @@ func (w *Worker) consolidateProviderState() error {
 	providerRunnersByName := make(map[string]commonParams.ProviderInstance)
 	for _, runner := range providerRunners {
 		providerRunnersByName[runner.Name] = runner
+	}
+
+	if !w.legacyPoolIDDrained {
+		legacyID, err := w.legacyPseudoPoolID()
+		if err != nil {
+			return fmt.Errorf("getting legacy pseudo pool ID: %w", err)
+		}
+		legacyRunners, err := w.provider.ListInstances(w.ctx, legacyID, listParams)
+		if err != nil {
+			return fmt.Errorf("listing instances by legacy pseudo pool ID: %w", err)
+		}
+		if len(legacyRunners) == 0 {
+			w.legacyPoolIDDrained = true
+		}
+		for _, runner := range legacyRunners {
+			if _, ok := providerRunnersByName[runner.Name]; ok {
+				continue
+			}
+			providerRunnersByName[runner.Name] = runner
+			providerRunners = append(providerRunners, runner)
+		}
 	}
 
 	deleteInstanceParams := common.DeleteInstanceParams{
@@ -637,8 +663,16 @@ func (w *Worker) consolidateProviderState() error {
 	return nil
 }
 
-func (w *Worker) pseudoPoolID() (string, error) {
-	// This is temporary. We need to extend providers to know about scale sets.
+// legacyPseudoPoolID returns the deprecated name-based pseudo pool ID. Older
+// GARM versions tagged provider instances with this ID, so we keep listing by
+// it until no instances tagged with it remain. It must be recomputed on every
+// call, because the scale set name can change (which is bad and have failed to
+// consider this until now).
+//
+// Deprecated: This function is "born" deprecated because it transitions from
+// the old way to tag instances, to the new stable uuid V5 computed from the
+// entity ID and the internal scaleset ID.
+func (w *Worker) legacyPseudoPoolID() (string, error) {
 	entity, err := w.scaleSet.GetEntity()
 	if err != nil {
 		return "", fmt.Errorf("getting entity: %w", err)
