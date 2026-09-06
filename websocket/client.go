@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -93,7 +94,7 @@ type Client struct {
 
 	messageHandler HandleWebsocketMessage
 
-	running bool
+	running atomic.Bool
 	done    chan struct{}
 }
 
@@ -102,19 +103,20 @@ func (c *Client) ID() string {
 }
 
 func (c *Client) Stop() {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	if !c.running {
+	if !c.running.CompareAndSwap(true, false) {
 		return
 	}
 
-	c.running = false
 	c.consumer.Close()
+	close(c.done)
+	// Best effort close frame. The peer may already be gone and writeMessage
+	// may block until the write deadline expires, so this must not run under
+	// any lock that Write() needs.
+	// NOTE: c.send is intentionally never closed. Write() checks running
+	// without holding a lock, so closing the channel here could panic a
+	// concurrent send. clientWriter exits via c.done instead.
 	c.writeMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	c.conn.Close()
-	close(c.send)
-	close(c.done)
 }
 
 func (c *Client) Done() <-chan struct{} {
@@ -128,10 +130,10 @@ func (c *Client) SetMessageHandler(handler HandleWebsocketMessage) {
 }
 
 func (c *Client) Start() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	if !c.running.CompareAndSwap(false, true) {
+		return nil
+	}
 
-	c.running = true
 	c.send = make(chan []byte, clientSendBuffer)
 	c.done = make(chan struct{})
 
@@ -143,10 +145,7 @@ func (c *Client) Start() error {
 }
 
 func (c *Client) Write(msg []byte) (int, error) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	if !c.running {
+	if !c.running.Load() {
 		return 0, fmt.Errorf("websocket client is stopped")
 	}
 
@@ -227,17 +226,10 @@ func (c *Client) clientWriter() {
 	}()
 	for {
 		select {
-		case message, ok := <-c.send:
-			if !ok {
-				// The hub closed the channel.
-				if err := c.writeMessage(websocket.CloseMessage, []byte{}); err != nil {
-					if IsErrorOfInterest(err) {
-						slog.With(slog.Any("error", err)).Error("failed to write message")
-					}
-				}
-				return
-			}
-
+		case <-c.done:
+			// Stop() sends the close frame; nothing more to do here.
+			return
+		case message := <-c.send:
 			if err := c.writeMessage(websocket.TextMessage, message); err != nil {
 				if IsErrorOfInterest(err) {
 					slog.With(slog.Any("error", err)).Error("error sending message")
