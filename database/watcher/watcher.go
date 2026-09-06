@@ -86,7 +86,10 @@ func (w *watcher) RegisterProducer(ctx context.Context, id string) (common.Produ
 	}
 	p := &producer{
 		id:       id,
-		messages: make(chan common.ChangePayload, 1),
+		// Buffer writes so a burst of DB updates doesn't trip Notify()'s
+		// 1 second timeout while serviceProducer waits on consumers to
+		// accept the previous event.
+		messages: make(chan common.ChangePayload, 128),
 		quit:     make(chan struct{}),
 		ctx:      ctx,
 	}
@@ -138,7 +141,12 @@ func (w *watcher) RegisterConsumer(ctx context.Context, id string, filters ...co
 		return nil, common.ErrConsumerAlreadyRegistered
 	}
 	c := &consumer{
-		messages: make(chan common.ChangePayload, 1),
+		// Buffer enough events to ride out a consumer that is momentarily
+		// busy. Send() drops the payload after a 1 second timeout, so an
+		// unbuffered channel turns any processing hiccup into a lost event;
+		// with a buffer, a consumer must fall this many events behind and
+		// stay blocked for a full second before anything is dropped.
+		messages: make(chan common.ChangePayload, 128),
 		filters:  filters,
 		quit:     make(chan struct{}),
 		id:       id,
