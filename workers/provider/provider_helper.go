@@ -24,12 +24,15 @@ import (
 type providerHelper interface {
 	SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error
 	InstanceTokenGetter() auth.InstanceTokenGetter
-	updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
+	persistProviderInstanceState(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
 	GetControllerInfo() (params.ControllerInfo, error)
 	GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error)
 }
 
-func (p *Provider) updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
+// persistProviderInstanceState commits the provider-reported state of an
+// instance (provider ID, addresses, OS info, status) to the store and returns
+// the full post-commit instance as re-read from the database.
+func (p *Provider) persistProviderInstanceState(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		ProviderID:    providerInstance.ProviderID,
 		OSName:        providerInstance.OSName,
