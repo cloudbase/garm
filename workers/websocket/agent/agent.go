@@ -168,12 +168,25 @@ func (a *Agent) Start() error {
 }
 
 func (a *Agent) Stop() error {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-
-	if !a.running.Load() {
+	if !a.running.CompareAndSwap(true, false) {
 		return nil
 	}
+
+	// Detach from the event pipeline first: closing the consumer removes it
+	// from the watcher's dispatch fan-out immediately, and closing a.done
+	// makes loop() exit so it stops contending for a.mux. Both are fast and
+	// must happen before the slow peer writes below, otherwise a dead client
+	// could keep this consumer in the fan-out (stalling global dispatch) for
+	// the duration of the teardown.
+	if a.consumer != nil {
+		a.consumer.Close()
+	}
+	close(a.done)
+
+	// The remaining teardown performs websocket writes that can each block up
+	// to the write deadline against a dead peer. It deliberately holds no
+	// mutex: loop() is already exiting, and nothing else may be stalled behind
+	// these writes.
 	slog.InfoContext(a.ctx, "removing sessions")
 	a.shellSessions.Range(func(_, val any) bool {
 		sess := val.(*ClientSession)
@@ -182,13 +195,10 @@ func (a *Agent) Stop() error {
 		return true
 	})
 
-	a.running.Store(false)
 	slog.InfoContext(a.ctx, "sending websocket close message")
 	a.writeMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	slog.InfoContext(a.ctx, "closing connection")
 	a.conn.Close()
-	slog.InfoContext(a.ctx, "closing done channel")
-	close(a.done)
 	return nil
 }
 
@@ -277,9 +287,24 @@ func (a *Agent) handleShellReady(agentMsg messaging.AgentMessage, raw []byte) er
 	}
 	session := val.(*ClientSession)
 	if err := session.Write(raw); err != nil {
+		a.dropDeadSession(session, err)
 		return fmt.Errorf("failed to write message: %w", err)
 	}
 	return nil
+}
+
+// dropDeadSession tears down a shell session whose client is unreachable.
+// Keeping it around would stall every subsequent write to that client on the
+// 10s write deadline; the user can open a new shell to reconnect. The client
+// connection already has a write error recorded, so the close frames sent by
+// RemoveClientSession return immediately rather than blocking.
+func (a *Agent) dropDeadSession(session *ClientSession, cause error) {
+	slog.WarnContext(a.ctx, "dropping unreachable shell session",
+		"session_id", session.sessionID, "error", cause)
+	if err := a.RemoveClientSession(session.sessionID); err != nil {
+		slog.ErrorContext(a.ctx, "failed to remove dead shell session",
+			"session_id", session.sessionID, "error", err)
+	}
 }
 
 func (a *Agent) handleShellExit(agentMsg messaging.AgentMessage) error {
@@ -309,6 +334,7 @@ func (a *Agent) handleShellData(agentMsg messaging.AgentMessage, raw []byte) err
 	}
 	session := val.(*ClientSession)
 	if err := session.Write(raw); err != nil {
+		a.dropDeadSession(session, err)
 		return fmt.Errorf("failed to write message: %w", err)
 	}
 	return nil
@@ -391,7 +417,11 @@ func (a *Agent) loop() {
 			return
 		case <-a.done:
 			return
-		case payload := <-a.consumer.Watch():
+		case payload, ok := <-a.consumer.Watch():
+			if !ok {
+				// Consumer was closed (Stop closes it). Exit the loop.
+				return
+			}
 			instance, ok := payload.Payload.(params.Instance)
 			if !ok {
 				continue
