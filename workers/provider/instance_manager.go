@@ -275,7 +275,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		}
 	}
 
-	updated, err := i.helper.updateArgsFromProviderInstance(instance.Name, providerInstance)
+	updated, err := i.helper.persistProviderInstanceState(instance.Name, providerInstance)
 	if err != nil {
 		return fmt.Errorf("updating instance args: %w", err)
 	}
