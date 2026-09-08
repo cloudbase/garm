@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/google/go-github/v84/github"
 
@@ -28,16 +29,39 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 )
 
+// requestTimeout bounds every scale set API call except the message queue
+// long poll. Without it, a stalled endpoint hangs the request
+// forever. Some call sites (like listener teardown) cannot rely on their
+// context for cancellation.
+const requestTimeout = 60 * time.Second
+
+// longPollRequestTimeout bounds a single message queue long poll. The broker
+// holds the request open for up to ~50 seconds before returning an empty
+// response, so this must stay comfortably above that; it only exists so a
+// black-holed connection cannot hold a poll open forever. GitHub's own
+// runner polls the same broker with a 100 second client timeout.
+const longPollRequestTimeout = 100 * time.Second
+
 func NewClient(cli common.GithubClient) (*ScaleSetClient, error) {
+	// Use separate clients for regular API calls against the scaleset API
+	// and the scaleset long poll message queue. The long poll is held open
+	// by the broker for up to ~50 seconds by design, so it cannot share the
+	// tighter timeout every other call gets.
 	return &ScaleSetClient{
-		ghCli:      cli,
-		httpClient: &http.Client{},
+		ghCli: cli,
+		httpClient: &http.Client{
+			Timeout: requestTimeout,
+		},
+		longPollClient: &http.Client{
+			Timeout: longPollRequestTimeout,
+		},
 	}, nil
 }
 
 type ScaleSetClient struct {
-	ghCli      common.GithubClient
-	httpClient *http.Client
+	ghCli          common.GithubClient
+	httpClient     *http.Client
+	longPollClient *http.Client
 
 	// scale sets are aparently available through the same security
 	// contex that a normal runner would use. We connect to the same
@@ -82,11 +106,23 @@ func (s *ScaleSetClient) GetGithubClient() (common.GithubClient, error) {
 }
 
 func (s *ScaleSetClient) Do(req *http.Request) (*http.Response, error) {
-	if s.httpClient == nil {
+	return s.doWithClient(s.httpClient, req)
+}
+
+// DoLongPoll dispatches a request through the long poll client, whose
+// timeout accommodates the broker holding the request open for up to ~50
+// seconds. Use it only for requests that legitimately block server side
+// (the message queue long poll).
+func (s *ScaleSetClient) DoLongPoll(req *http.Request) (*http.Response, error) {
+	return s.doWithClient(s.longPollClient, req)
+}
+
+func (s *ScaleSetClient) doWithClient(client *http.Client, req *http.Request) (*http.Response, error) {
+	if client == nil {
 		return nil, fmt.Errorf("http client is not initialized")
 	}
 
-	resp, err := s.httpClient.Do(req) //nolint:gosec // G704 - URL is constructed from GitHub API endpoints
+	resp, err := client.Do(req) //nolint:gosec // G704 - URL is constructed from GitHub API endpoints
 	if err != nil {
 		return nil, fmt.Errorf("failed to dispatch HTTP request: %w", err)
 	}
