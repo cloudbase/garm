@@ -504,24 +504,27 @@ func (g *garmToolsSync) downloadAssetToTempFile(asset garmUtil.GitHubReleaseAsse
 
 // triggerReconcile queues a reconcile for reconcileLoop without ever
 // blocking the caller. If a trigger is already queued, it is replaced so the
-// newest controller info wins; the reconcile that eventually runs always
-// sees the latest requested state.
+// newest controller info wins. Every select has a default, so this is
+// non-blocking by construction, regardless of how many goroutines call it.
 func (g *garmToolsSync) triggerReconcile(ctrlInfo params.ControllerInfo) {
-	for {
-		select {
-		case g.reconcileCh <- ctrlInfo:
-			return
-		default:
-		}
-		// Channel full: evict the stale queued trigger and retry. The loop
-		// handles reconcileLoop consuming the queued value between our evict
-		// and our send.
-		select {
-		case <-g.reconcileCh:
-		default:
-			// previous stale message was already consumed by the reconcile
-			// loop, after we checked in the previous select.
-		}
+	select {
+	case g.reconcileCh <- ctrlInfo:
+		return
+	default:
+	}
+	// Channel full: evict the stale queued trigger and try once more.
+	select {
+	case <-g.reconcileCh:
+	default:
+		// The queued trigger was already consumed by the reconcile loop
+		// after our first send failed.
+	}
+	select {
+	case g.reconcileCh <- ctrlInfo:
+	default:
+		// Another trigger was queued between our evict and this send. That
+		// can only happen with a concurrent caller; a reconcile will run
+		// either way, and the hourly tick covers any state it missed.
 	}
 }
 
