@@ -212,8 +212,7 @@ func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSe
 		return err
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req) //nolint:gosec // G704 - URL is constructed from GitHub API endpoints
+	resp, err := s.Do(req)
 	if err != nil {
 		return err
 	}

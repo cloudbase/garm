@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v84/github"
 
@@ -707,13 +708,23 @@ func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient
 		entity:         entity,
 	}
 
-	limits, err := cli.RateLimit(ctx)
-	if err == nil && limits != nil {
-		core := limits.GetCore()
-		if core != nil {
-			cli.recordLimits(*core)
+	// The rate limit probe is advisory. It must not block construction. An
+	// unreachable forge would stall every caller for the full dial timeout
+	// (30s), and at startup pool managers are constructed serially, so one
+	// dead endpoint would hold up tools for every entity. Probe in the
+	// background, detached from the caller's context lifetime (callers may
+	// cancel right after construction) but bounded by its own deadline.
+	go func() {
+		probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		limits, err := cli.RateLimit(probeCtx)
+		if err == nil && limits != nil {
+			core := limits.GetCore()
+			if core != nil {
+				cli.recordLimits(*core)
+			}
 		}
-	}
+	}()
 
 	return cli, nil
 }
