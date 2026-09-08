@@ -229,7 +229,11 @@ func (c *Controller) loop() {
 	defer c.Stop()
 	for {
 		select {
-		case payload := <-c.consumer.Watch():
+		case payload, ok := <-c.consumer.Watch():
+			if !ok {
+				slog.InfoContext(c.ctx, "consumer channel closed")
+				return
+			}
 			slog.DebugContext(c.ctx, "received payload, queuing for processing")
 			select {
 			case c.eventQueue.In() <- payload:
