@@ -1459,6 +1459,70 @@ func (s *WatcherTestSuite) TestWithInstanceStatusFilter() {
 	s.Require().Equal(payload, *receivedPayload)
 }
 
+func (s *WatcherTestSuite) TestBlockedConsumerDoesNotBlockWatcher() {
+	producer, err := watcher.RegisterProducer(s.ctx, "test-producer")
+	s.Require().NoError(err)
+	s.Require().NotNil(producer)
+
+	// This consumer is deliberately wedged: nothing reads from its Watch()
+	// channel until the flood below is over.
+	blocked, err := watcher.RegisterConsumer(
+		s.ctx, "test-blocked-consumer",
+		watcher.WithEntityTypeFilter(common.ControllerEntityType),
+		watcher.WithOperationTypeFilter(common.UpdateOperation))
+	s.Require().NoError(err)
+	s.Require().NotNil(blocked)
+
+	healthy, err := watcher.RegisterConsumer(
+		s.ctx, "test-healthy-consumer",
+		watcher.WithEntityTypeFilter(common.ControllerEntityType),
+		watcher.WithOperationTypeFilter(common.UpdateOperation))
+	s.Require().NoError(err)
+	s.Require().NotNil(healthy)
+	consumeEvents(healthy)
+
+	// Send more events than the producer buffer, the consumer hand-off
+	// buffer and the messages buffer combined can absorb, so delivery to the
+	// wedged consumer must spill into its dispatch queue.
+	const eventCount = 1000
+
+	expected := make([]common.ChangePayload, eventCount)
+	for i := range eventCount {
+		expected[i] = common.ChangePayload{
+			EntityType: common.ControllerEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    fmt.Sprintf("event-%d", i),
+		}
+	}
+
+	// The producer must never be throttled by the wedged consumer. With a
+	// blocking dispatch design, a full consumer buffer costs up to 1 second
+	// per event, so a flood this size would take many minutes; enqueue-based
+	// dispatch completes in milliseconds. The generous bound only guards
+	// against regressions, not scheduling jitter.
+	start := time.Now()
+	for i := range eventCount {
+		s.Require().NoError(producer.Notify(expected[i]))
+	}
+	s.Require().Less(time.Since(start), 10*time.Second, "producer was throttled by a blocked consumer")
+
+	// The healthy consumer receives every event, in emission order, while
+	// the other consumer is still wedged.
+	for i := range eventCount {
+		received := waitForPayload(healthy.Watch(), 1*time.Second)
+		s.Require().NotNil(received, "healthy consumer did not receive event %d", i)
+		s.Require().Equal(expected[i], *received)
+	}
+
+	// The wedged consumer lost nothing: once it starts reading, every event
+	// is there, in order.
+	for i := range eventCount {
+		received := waitForPayload(blocked.Watch(), 1*time.Second)
+		s.Require().NotNil(received, "blocked consumer lost event %d", i)
+		s.Require().Equal(expected[i], *received)
+	}
+}
+
 func TestWatcherTestSuite(t *testing.T) {
 	// Watcher tests
 	watcherSuite := &WatcherTestSuite{
