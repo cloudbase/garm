@@ -33,6 +33,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	workersCommon "github.com/cloudbase/garm/workers/common"
 )
 
 func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleSet, provider common.Provider) (*Worker, error) {
@@ -86,6 +87,13 @@ type Worker struct {
 	legacyPoolIDDrained bool
 
 	consumer dbCommon.Consumer
+
+	// eventQueue decouples the watcher consumer from event handling. The
+	// drain loop forwards events into it without blocking, and a single
+	// Process goroutine applies them strictly in delivery order — handlers
+	// mutate w.runners, so out-of-order application would leave stale or
+	// ghost entries.
+	eventQueue *workersCommon.UnboundedChan[dbCommon.ChangePayload]
 
 	listener *scaleSetListener
 
@@ -338,8 +346,10 @@ func (w *Worker) Start() (err error) {
 	w.consumer = consumer
 	w.running = true
 	w.quit = make(chan struct{})
+	w.eventQueue = workersCommon.NewUnboundedChan[dbCommon.ChangePayload](w.ctx, w.quit)
 
 	slog.DebugContext(w.ctx, "starting scale set worker loops", "scale_set", w.consumerID)
+	go w.eventQueue.Process(w.handleEvent)
 	go w.loop()
 	go w.keepListenerAlive()
 	go w.handleAutoScale()
@@ -781,7 +791,16 @@ func (w *Worker) loop() {
 				slog.InfoContext(w.ctx, "consumer channel closed")
 				return
 			}
-			go w.handleEvent(event)
+			// Forward to the serialized event queue. The queue router always
+			// accepts, so this cannot block the watcher drain; events are
+			// then applied in order by the Process goroutine.
+			select {
+			case w.eventQueue.In() <- event:
+			case <-w.quit:
+				return
+			case <-w.ctx.Done():
+				return
+			}
 		case <-w.ctx.Done():
 			slog.DebugContext(w.ctx, "context done")
 			return
@@ -974,7 +993,20 @@ func (w *Worker) handleScaleDown() {
 		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
 		return
 	}
+	// Runners already on their way out satisfy part of the delta before any
+	// new victim is picked. Counting them during the removal loop instead
+	// would make the outcome depend on map iteration order: an idle runner
+	// could be removed while a runner already being deleted would have
+	// covered the delta.
 	removed := 0
+	for _, runner := range w.runners {
+		switch runner.Status {
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting:
+			removed++
+		}
+	}
+
 	for _, runner := range w.runners {
 		slog.InfoContext(w.ctx, "considering runners for removal", "delta", delta, "removed", removed)
 		if removed >= delta {
@@ -982,9 +1014,14 @@ func (w *Worker) handleScaleDown() {
 		}
 		switch runner.Status {
 		case commonParams.InstanceRunning:
-			switch runner.RunnerStatus {
-			case params.RunnerTerminated, params.RunnerActive:
-				slog.DebugContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.RunnerStatus)
+			if runner.RunnerStatus != params.RunnerIdle {
+				// Scale down removes idle capacity, nothing else. A runner
+				// that is still bootstrapping (pending/installing) is moments
+				// away from being useful and will be picked up as idle on a
+				// later pass if the delta persists; stuck bootstraps are the
+				// reaper's job. Active and terminated runners are not
+				// removable capacity at all.
+				slog.DebugContext(w.ctx, "runner is not idle; skipping", "runner_name", runner.Name, "runner_status", runner.RunnerStatus)
 				continue
 			}
 			locked := locking.TryLock(runner.Name, w.consumerID)
@@ -1038,8 +1075,12 @@ func (w *Worker) handleScaleDown() {
 			locking.Unlock(runner.Name, false)
 			removed++
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
-			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
-			removed++
+			commonParams.InstanceDeleting:
+			// Already counted against the delta before the loop.
+			continue
+		case commonParams.InstanceDeleted:
+			// Provider resource is gone and the record is excluded from
+			// runnerCount(); it is not part of the delta.
 			continue
 		default:
 			slog.WarnContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.Status)
@@ -1058,8 +1099,20 @@ func (w *Worker) targetRunners() int {
 	return int(targetRunners)
 }
 
+// runnerCount returns the number of runners that still occupy capacity in
+// the provider. Runners on their way out (pending_delete, deleting) are
+// still physically present in the IaaS, so they count; only runners whose
+// provider resource is confirmed gone (deleted) are excluded — those records
+// merely await database cleanup.
 func (w *Worker) runnerCount() int {
-	return len(w.runners)
+	count := 0
+	for _, runner := range w.runners {
+		if runner.Status == commonParams.InstanceDeleted {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (w *Worker) handleAutoScale() {
