@@ -26,6 +26,7 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -340,9 +341,10 @@ func (i *instanceManager) consolidateState() error {
 		}
 	case commonParams.InstanceRunning:
 		// Nothing to do. The provider finished creating the instance.
-	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
+	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete, commonParams.InstanceDeleting:
 		// Remove or force remove the runner. When force remove is specified, we ignore
 		// IaaS errors.
+		// InstanceDeleting resumes an unfinished delete; deletes are idempotent.
 		if i.instance.Status == commonParams.InstancePendingDelete {
 			// invoke backoff sleep. We only do this for non forced removals,
 			// as force delete will always return, regardless of whether or not
@@ -363,8 +365,8 @@ func (i *instanceManager) consolidateState() error {
 		}
 
 		if err := i.handleDeleteInstanceInProvider(i.instance); err != nil {
-			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", i.instance.Status == commonParams.InstancePendingForceDelete)
-			if prevStatus == commonParams.InstancePendingDelete {
+			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", prevStatus == commonParams.InstancePendingForceDelete)
+			if prevStatus != commonParams.InstancePendingForceDelete {
 				i.incrementBackOff()
 				if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, []byte(err.Error()), true); err != nil {
 					return fmt.Errorf("setting instance status to error: %w", err)
@@ -374,7 +376,19 @@ func (i *instanceManager) consolidateState() error {
 			}
 		}
 		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleted, nil, false); err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
+			var transitionErr *runnerErrors.InstanceTransitionError
+			switch {
+			case errors.Is(err, runnerErrors.ErrNotFound):
+				// The record is already gone; nothing left to update.
+			case errors.As(err, &transitionErr) && garmErrors.InstanceIsBeingDeleted(transitionErr.From):
+				// The row moved back onto the deletion lane; the provider
+				// resource is gone, so force the final transition.
+				if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleted, nil, true); err != nil {
+					if !errors.Is(err, runnerErrors.ErrNotFound) {
+						return fmt.Errorf("setting instance status to deleted: %w", err)
+					}
+				}
+			default:
 				return fmt.Errorf("setting instance status to deleted: %w", err)
 			}
 		}
