@@ -85,7 +85,7 @@ func (w *watcher) RegisterProducer(ctx context.Context, id string) (common.Produ
 		return nil, fmt.Errorf("producer_id %s: %w", id, common.ErrProducerAlreadyRegistered)
 	}
 	p := &producer{
-		id:       id,
+		id: id,
 		// Buffer writes so a burst of DB updates doesn't trip Notify()'s
 		// 1 second timeout while serviceProducer waits on consumers to
 		// accept the previous event.
@@ -121,6 +121,10 @@ func (w *watcher) serviceProducer(prod *producer) {
 			slog.InfoContext(w.ctx, "closing producer")
 			return
 		case payload := <-prod.messages:
+			// Send each message in parallel to all consumers. Worst case,
+			// if any future implementation of the consumer will add a timeout,
+			// we will only ever wait for the amount of time of the timeout for
+			// all consumers, regardless of how many.
 			w.mux.Lock()
 			wg := sync.WaitGroup{}
 			for _, c := range w.consumers {
@@ -128,8 +132,8 @@ func (w *watcher) serviceProducer(prod *producer) {
 					c.Send(payload)
 				})
 			}
-			w.mux.Unlock()
 			wg.Wait()
+			w.mux.Unlock()
 		}
 	}
 }
@@ -141,18 +145,17 @@ func (w *watcher) RegisterConsumer(ctx context.Context, id string, filters ...co
 		return nil, common.ErrConsumerAlreadyRegistered
 	}
 	c := &consumer{
-		// Buffer enough events to ride out a consumer that is momentarily
-		// busy. Send() drops the payload after a 1 second timeout, so an
-		// unbuffered channel turns any processing hiccup into a lost event;
-		// with a buffer, a consumer must fall this many events behind and
-		// stay blocked for a full second before anything is dropped.
+		// Buffering the channels here helps with latency. The current
+		// implementation is non blocking.
 		messages: make(chan common.ChangePayload, 128),
+		in:       make(chan common.ChangePayload, 128),
 		filters:  filters,
 		quit:     make(chan struct{}),
 		id:       id,
 		ctx:      ctx,
 	}
 	w.consumers[id] = c
+	go c.dispatch()
 	go w.serviceConsumer(c)
 	return c, nil
 }
