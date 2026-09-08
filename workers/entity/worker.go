@@ -261,7 +261,11 @@ func (w *Worker) loop() {
 	defer w.Stop()
 	for {
 		select {
-		case payload := <-w.consumer.Watch():
+		case payload, ok := <-w.consumer.Watch():
+			if !ok {
+				slog.InfoContext(w.ctx, "consumer channel closed")
+				return
+			}
 			slog.DebugContext(w.ctx, "received payload, queuing for processing")
 			select {
 			case w.eventQueue.In() <- payload:
