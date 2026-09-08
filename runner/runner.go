@@ -1040,7 +1040,7 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType
 	}
 
 	if err := poolManager.HandleWorkflowJob(job); err != nil {
-		slog.ErrorContext(r.ctx, "failed to handle workflow job", "error", err)
+		slog.WarnContext(r.ctx, "failed to handle workflow job", "error", err)
 		return fmt.Errorf("error handling workflow job: %w", err)
 	}
 

@@ -459,7 +459,7 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 	return unlockFn, nil
 }
 
-func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error {
+func (w *Worker) consolidateRunnerState(listedAt time.Time, runners []params.RunnerReference) error {
 	w.mux.Lock()
 	defer w.mux.Unlock()
 
@@ -519,6 +519,14 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 		}
 
 		if _, ok := ghRunnersByName[name]; !ok {
+			// The github listing is a snapshot taken before this function ran.
+			// A runner registered around or after that moment is absent from it
+			// by construction, not because it's gone. Don't judge a runner
+			// younger than the evidence. A future pass will see it.
+			if runner.CreatedAt.After(listedAt.Add(-time.Minute)) {
+				slog.DebugContext(w.ctx, "runner is newer than the github runner listing; skipping", "runner_name", name)
+				continue
+			}
 			if ok := locking.TryLock(name, w.consumerID); !ok {
 				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", name)
 				continue
@@ -532,6 +540,16 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			// as the transition commits. Cross-worker coordination is done by the
 			// status state machine, not by these locks.
 			defer locking.Unlock(name, false)
+
+			// Aditional guard against accidentally removing a runner that has picked
+			// up a job, but that got past our safety checks (ex: GH api didn't return it
+			// when we listed)
+			if err := scaleSetCli.RemoveRunner(w.ctx, runner.AgentID); err != nil {
+				if !errors.Is(err, runnerErrors.ErrNotFound) {
+					slog.ErrorContext(w.ctx, "error removing runner from github; skipping", "runner_name", name, "error", err)
+					continue
+				}
+			}
 
 			slog.InfoContext(w.ctx, "runner does not exist in github; removing from provider", "runner_name", name)
 			instance, err := w.setRunnerDBStatus(runner.Name, commonParams.InstancePendingDelete)
