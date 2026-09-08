@@ -18,20 +18,26 @@ import (
 	"context"
 	"log/slog"
 	"sync"
-	"time"
 
 	"github.com/cloudbase/garm/database/common"
 )
+
+// queueWarnThreshold is the pending-queue depth at which we start warning
+// that a consumer is not keeping up with the event stream. Events are never
+// dropped; this only makes a slow consumer visible.
+const queueWarnThreshold = 512
 
 type consumer struct {
 	messages chan common.ChangePayload
 	filters  []common.PayloadFilterFunc
 	id       string
 
-	mux    sync.Mutex
-	closed bool
-	quit   chan struct{}
-	ctx    context.Context
+	mux     sync.Mutex
+	cond    *sync.Cond
+	pending []common.ChangePayload
+	closed  bool
+	quit    chan struct{}
+	ctx     context.Context
 }
 
 func (w *consumer) SetFilters(filters ...common.PayloadFilterFunc) {
@@ -50,9 +56,11 @@ func (w *consumer) Close() {
 	if w.closed {
 		return
 	}
-	close(w.messages)
 	close(w.quit)
 	w.closed = true
+	// Wake the dispatch loop so it notices the closed state and closes
+	// the messages channel.
+	w.cond.Broadcast()
 }
 
 func (w *consumer) IsClosed() bool {
@@ -61,6 +69,11 @@ func (w *consumer) IsClosed() bool {
 	return w.closed
 }
 
+// Send enqueues a payload for delivery to this consumer. It never blocks on
+// the consumer and never drops events: payloads are appended to an ordered
+// queue drained by the dispatch loop. Callers invoking Send sequentially are
+// guaranteed in-order delivery, which consumers rely on (e.g. an instance
+// update followed by its delete must not be observed in reverse).
 func (w *consumer) Send(payload common.ChangePayload) {
 	w.mux.Lock()
 	defer w.mux.Unlock()
@@ -83,16 +96,41 @@ func (w *consumer) Send(payload common.ChangePayload) {
 		}
 	}
 
-	timer := time.NewTimer(1 * time.Second)
-	defer timer.Stop()
-	slog.DebugContext(w.ctx, "sending payload")
-	select {
-	case <-w.quit:
-		slog.DebugContext(w.ctx, "consumer is closed")
-	case <-w.ctx.Done():
-		slog.DebugContext(w.ctx, "consumer is closed")
-	case <-timer.C:
-		slog.DebugContext(w.ctx, "timeout trying to send payload", "payload", payload)
-	case w.messages <- payload:
+	w.pending = append(w.pending, payload)
+	if len(w.pending) >= queueWarnThreshold && len(w.pending)%queueWarnThreshold == 0 {
+		slog.WarnContext(w.ctx, "consumer is falling behind on events", "consumer_id", w.id, "pending_events", len(w.pending))
+	}
+	w.cond.Signal()
+}
+
+// dispatch drains the pending queue in order, delivering each payload to the
+// messages channel. It owns closing the messages channel: doing it here (and
+// only here) guarantees we never send on a closed channel.
+func (w *consumer) dispatch() {
+	defer close(w.messages)
+	for {
+		w.mux.Lock()
+		for len(w.pending) == 0 && !w.closed {
+			w.cond.Wait()
+		}
+		if w.closed {
+			w.mux.Unlock()
+			return
+		}
+		payload := w.pending[0]
+		w.pending = w.pending[1:]
+		if len(w.pending) == 0 {
+			// Don't pin the backing array of a previously grown queue.
+			w.pending = nil
+		}
+		w.mux.Unlock()
+
+		select {
+		case <-w.quit:
+			return
+		case <-w.ctx.Done():
+			return
+		case w.messages <- payload:
+		}
 	}
 }

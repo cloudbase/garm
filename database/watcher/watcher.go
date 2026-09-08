@@ -119,8 +119,12 @@ func (w *watcher) serviceProducer(prod *producer) {
 			return
 		case payload := <-prod.messages:
 			w.mux.Lock()
+			// Send synchronously and in registration-independent but stable
+			// per-consumer order. Send only enqueues (it cannot block on a slow
+			// consumer), and calling it inline preserves event ordering for each
+			// consumer.
 			for _, c := range w.consumers {
-				go c.Send(payload)
+				c.Send(payload)
 			}
 			w.mux.Unlock()
 		}
@@ -140,7 +144,9 @@ func (w *watcher) RegisterConsumer(ctx context.Context, id string, filters ...co
 		id:       id,
 		ctx:      ctx,
 	}
+	c.cond = sync.NewCond(&c.mux)
 	w.consumers[id] = c
+	go c.dispatch()
 	go w.serviceConsumer(c)
 	return c, nil
 }
