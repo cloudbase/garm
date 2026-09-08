@@ -73,8 +73,10 @@ func (l *scaleSetListener) Start() error {
 		return nil
 	}
 
-	listenCtx, listenCancelFunc := context.WithCancel(context.Background())
-	listenCtx = garmUtil.CopySlogValuesToNewCtx(l.ctx, listenCtx)
+	// Deriving from the worker context keeps the slog values and means the
+	// long poll dies with the worker; the cancel func still allows stopping
+	// the listener independently, for restarts without a worker restart.
+	listenCtx, listenCancelFunc := context.WithCancel(l.ctx)
 	listenCtx = garmUtil.WithSlogContext(
 		listenCtx,
 		slog.Any("session_listener", l.scaleSetHelper.GetScaleSet().ID),
@@ -255,6 +257,9 @@ func (l *scaleSetListener) loop() {
 			return
 		default:
 			slog.DebugContext(l.ctx, "getting message", "last_message_id", l.lastMessageID, "max_runners", l.scaleSetHelper.GetScaleSet().MaxRunners)
+			// Each poll attempt is bounded by the long poll client's own
+			// timeout, sized for the broker's ~50s hold; the context only
+			// needs to carry cancellation.
 			msg, err := l.messageSession.GetMessage(
 				l.listenerCtx, l.lastMessageID, l.scaleSetHelper.GetScaleSet().MaxRunners)
 			if err != nil {
