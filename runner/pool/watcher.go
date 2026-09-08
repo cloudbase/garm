@@ -15,7 +15,9 @@
 package pool
 
 import (
+	"context"
 	"log/slog"
+	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
@@ -23,6 +25,12 @@ import (
 	runnerCommon "github.com/cloudbase/garm/runner/common"
 	ghClient "github.com/cloudbase/garm/util/github"
 )
+
+// clientCreateTimeout bounds the creation of a new forge client after a
+// credentials change. Creating a client issues a RateLimit probe (and, for
+// github apps, may fetch an installation token); without a deadline a stalled
+// forge endpoint would hang the rebuild indefinitely.
+const clientCreateTimeout = 30 * time.Second
 
 // entityGetter is implemented by all github entities (repositories, organizations and enterprises)
 type entityGetter interface {
@@ -37,17 +45,63 @@ func (r *basePoolManager) handleControllerUpdateEvent(controllerInfo params.Cont
 	r.controllerInfo = controllerInfo
 }
 
-func (r *basePoolManager) getClientOrStub() runnerCommon.GithubClient {
-	var err error
+// triggerClientUpdate queues a forge client rebuild for clientUpdaterLoop
+// without blocking the caller. The channel carries no payload — the rebuild
+// snapshots r.entity when it runs — so a full channel already guarantees a
+// future rebuild will see the newest credentials.
+func (r *basePoolManager) triggerClientUpdate() {
+	select {
+	case r.clientUpdateCh <- struct{}{}:
+	default:
+	}
+}
+
+// clientUpdaterLoop is the only goroutine that rebuilds the forge client.
+// Client creation involves network I/O and must never run on the watcher
+// drain goroutine or under r.mux: a stalled forge endpoint would park event
+// processing (and, via the watcher fan-out, global event dispatch) for the
+// duration of the call.
+func (r *basePoolManager) clientUpdaterLoop() {
+	for {
+		select {
+		case <-r.quit:
+			return
+		case <-r.ctx.Done():
+			return
+		case <-r.clientUpdateCh:
+			r.updateClient()
+		}
+	}
+}
+
+// updateClient rebuilds the forge client from the current entity credentials
+// and refreshes the cached tools. If a newer credentials update lands while a
+// rebuild is in flight, its queued trigger makes the loop run again with the
+// fresh state, so a stale install is always overwritten.
+func (r *basePoolManager) updateClient() {
+	r.mux.Lock()
+	entity := r.entity
+	r.mux.Unlock()
+
+	ctx, cancel := context.WithTimeout(r.ctx, clientCreateTimeout)
+	defer cancel()
+
 	var ghc runnerCommon.GithubClient
-	ghc, err = ghClient.Client(r.ctx, r.entity)
+	ghc, err := ghClient.Client(ctx, entity)
 	if err != nil {
 		slog.WarnContext(r.ctx, "failed to create github client", "error", err)
 		ghc = &stubGithubClient{
 			err: runnerErrors.NewUnauthorizedError("failed to create github client; please update credentials"),
 		}
 	}
-	return ghc
+
+	r.mux.Lock()
+	r.ghcli = ghc
+	r.mux.Unlock()
+
+	if err := r.updateTools(); err != nil {
+		slog.ErrorContext(r.ctx, "failed to update tools", "error", err)
+	}
 }
 
 func (r *basePoolManager) handleEntityUpdate(entity params.ForgeEntity, operation common.OperationType) {
@@ -69,16 +123,6 @@ func (r *basePoolManager) handleEntityUpdate(entity params.ForgeEntity, operatio
 	}
 
 	credentialsUpdate := r.entity.Credentials.GetID() != entity.Credentials.GetID()
-	defer func() {
-		slog.DebugContext(r.ctx, "deferred tools update", "credentials_update", credentialsUpdate)
-		if !credentialsUpdate {
-			return
-		}
-		slog.DebugContext(r.ctx, "updating tools", "entity", entity.ID)
-		if err := r.updateTools(); err != nil {
-			slog.ErrorContext(r.ctx, "failed to update tools", "error", err)
-		}
-	}()
 
 	slog.DebugContext(r.ctx, "updating entity", "entity", entity.ID)
 	r.mux.Lock()
@@ -90,8 +134,8 @@ func (r *basePoolManager) handleEntityUpdate(entity params.ForgeEntity, operatio
 			filters := composeWatcherFilters(r.entity)
 			r.consumer.SetFilters(filters)
 		}
-		slog.DebugContext(r.ctx, "credentials update", "entity", entity.ID)
-		r.ghcli = r.getClientOrStub()
+		slog.DebugContext(r.ctx, "credentials update; queueing client rebuild", "entity", entity.ID)
+		r.triggerClientUpdate()
 	}
 	r.mux.Unlock()
 	slog.DebugContext(r.ctx, "lock released", "entity", entity.ID)
@@ -109,27 +153,16 @@ func (r *basePoolManager) handleCredentialsUpdate(credentials params.ForgeCreden
 	// test-repo. This function would handle situations where "org_pat" is updated.
 	// If "test-repo" is updated with new credentials, that event is handled above in
 	// handleEntityUpdate.
-	shouldUpdateTools := r.entity.Credentials.GetID() == credentials.GetID()
-	defer func() {
-		if !shouldUpdateTools {
-			return
-		}
-		slog.DebugContext(r.ctx, "deferred tools update", "credentials_id", credentials.GetID())
-		if err := r.updateTools(); err != nil {
-			slog.ErrorContext(r.ctx, "failed to update tools", "error", err)
-		}
-	}()
-
 	r.mux.Lock()
-	if !shouldUpdateTools {
+	if r.entity.Credentials.GetID() != credentials.GetID() {
 		slog.InfoContext(r.ctx, "credential ID mismatch; stale event?", "credentials_id", credentials.GetID())
 		r.mux.Unlock()
 		return
 	}
 
-	slog.DebugContext(r.ctx, "updating credentials", "credentials_id", credentials.GetID())
+	slog.DebugContext(r.ctx, "updating credentials; queueing client rebuild", "credentials_id", credentials.GetID())
 	r.entity.Credentials = credentials
-	r.ghcli = r.getClientOrStub()
+	r.triggerClientUpdate()
 	r.mux.Unlock()
 }
 
