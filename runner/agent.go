@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -9,6 +10,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -60,7 +62,18 @@ func (r *Runner) SetInstanceToPendingDelete(ctx context.Context) error {
 		Status: commonParams.InstancePendingDelete,
 	}
 
-	if _, err := r.store.ForceUpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+	// Currently, the only place this is called from is the agent websocket
+	// worker. So when an agent notices that the runner finished, it sends a
+	// status update back to GARM, letting it know that the runner can be reaped.
+	// But if a runner is already being deleted, there is no reason to forcefully
+	// transition it to pending_delete.
+	//
+	// Force transitions should be done only for recovery cases.
+	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+		var te *runnerErrors.InstanceTransitionError
+		if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
+			return nil
+		}
 		return fmt.Errorf("failed to set instance to pending_delete: %w", err)
 	}
 	return nil
