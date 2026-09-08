@@ -179,6 +179,7 @@ func (w *Worker) consolidateRunnerState() error {
 	}
 	// Client is scoped to the current entity. Only runners in a repo/org/enterprise
 	// will be listed.
+	listedAt := time.Now()
 	runners, err := scaleSetCli.ListAllRunners(w.ctx)
 	if err != nil {
 		return fmt.Errorf("listing runners: %w", err)
@@ -201,7 +202,7 @@ func (w *Worker) consolidateRunnerState() error {
 	g, ctx := errgroup.WithContext(w.ctx)
 	g.Go(func() error {
 		slog.DebugContext(ctx, "consolidating scale set runners", "entity", w.Entity.String(), "runners", runners)
-		if err := w.scaleSetController.ConsolidateRunnerState(byScaleSetID); err != nil {
+		if err := w.scaleSetController.ConsolidateRunnerState(listedAt, byScaleSetID); err != nil {
 			return fmt.Errorf("consolidating runners for scale set: %w", err)
 		}
 		return nil
