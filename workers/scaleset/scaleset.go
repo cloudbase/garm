@@ -174,6 +174,30 @@ func (w *Worker) ensureScaleSetInGitHub() error {
 	return nil
 }
 
+func (w *Worker) markScaleSetCreated() error {
+	if w.scaleSet.State == params.ScaleSetCreated {
+		return nil
+	}
+
+	entity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return fmt.Errorf("getting scale set entity: %w", err)
+	}
+	state := params.ScaleSetCreated
+	updated, err := w.store.UpdateEntityScaleSet(
+		w.ctx,
+		entity,
+		w.scaleSet.ID,
+		params.UpdateScaleSetParams{State: &state},
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("updating scale set state: %w", err)
+	}
+	w.scaleSet = updated
+	return nil
+}
+
 func (w *Worker) Stop() error {
 	slog.DebugContext(w.ctx, "stopping scale set worker", "scale_set", w.consumerID)
 	w.mux.Lock()
@@ -327,6 +351,10 @@ func (w *Worker) Start() (err error) {
 
 	if err := w.ensureScaleSetInGitHub(); err != nil {
 		return fmt.Errorf("failed to ensure scale set: %w", err)
+	}
+
+	if err := w.markScaleSetCreated(); err != nil {
+		return fmt.Errorf("failed to mark scale set as created: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(
@@ -792,6 +820,27 @@ func (w *Worker) handleInstanceCleanup(instance params.Instance) error {
 	return nil
 }
 
+func (w *Worker) reconcileRunners() error {
+	instances, err := w.store.ListScaleSetInstances(w.ctx, w.scaleSet.ID, false)
+	if err != nil {
+		return fmt.Errorf("listing scale set instances: %w", err)
+	}
+
+	runners := make(map[string]params.Instance, len(instances))
+	for _, instance := range instances {
+		runners[instance.ID] = instance
+	}
+	w.runners = runners
+
+	var cleanupErrs []error
+	for _, instance := range instances {
+		if err := w.handleInstanceCleanup(instance); err != nil {
+			cleanupErrs = append(cleanupErrs, err)
+		}
+	}
+	return errors.Join(cleanupErrs...)
+}
+
 func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 	instance, ok := event.Payload.(params.Instance)
 	if !ok {
@@ -970,7 +1019,8 @@ func (w *Worker) handleScaleUp() {
 		return
 	}
 
-	if w.targetRunners() <= w.runnerCount() {
+	runnersToAdd := w.runnersToAdd()
+	if runnersToAdd == 0 {
 		slog.DebugContext(w.ctx, "target is less than or equal to current; not scaling up")
 		return
 	}
@@ -986,7 +1036,7 @@ func (w *Worker) handleScaleUp() {
 		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
 		return
 	}
-	for i := w.runnerCount(); i < w.targetRunners(); i++ {
+	for range runnersToAdd {
 		newRunnerName := strings.ToLower(fmt.Sprintf("%s-%s", w.scaleSet.GetRunnerPrefix(), util.NewID()))
 		jitConfig, err := scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
 		if err != nil {
@@ -1056,19 +1106,8 @@ func (w *Worker) handleScaleDown() {
 		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
 		return
 	}
-	// Runners already on their way out satisfy part of the delta before any
-	// new victim is picked. Counting them during the removal loop instead
-	// would make the outcome depend on map iteration order: an idle runner
-	// could be removed while a runner already being deleted would have
-	// covered the delta.
+	// runnerCount already excludes runners being deleted.
 	removed := 0
-	for _, runner := range w.runners {
-		switch runner.Status {
-		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
-			commonParams.InstanceDeleting:
-			removed++
-		}
-	}
 
 	for _, runner := range w.runners {
 		slog.InfoContext(w.ctx, "considering runners for removal", "delta", delta, "removed", removed)
@@ -1139,12 +1178,7 @@ func (w *Worker) handleScaleDown() {
 			locking.Unlock(runner.Name, false)
 			removed++
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
-			commonParams.InstanceDeleting:
-			// Already counted against the delta before the loop.
-			continue
-		case commonParams.InstanceDeleted:
-			// Provider resource is gone and the record is excluded from
-			// runnerCount(); it is not part of the delta.
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
 			continue
 		default:
 			slog.WarnContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.Status)
@@ -1163,20 +1197,41 @@ func (w *Worker) targetRunners() int {
 	return int(targetRunners)
 }
 
-// runnerCount returns the number of runners that still occupy capacity in
-// the provider. Runners on their way out (pending_delete, deleting) are
-// still physically present in the IaaS, so they count; only runners whose
-// provider resource is confirmed gone (deleted) are excluded — those records
-// merely await database cleanup.
+// runnerCount excludes runners that are being deleted from usable capacity.
 func (w *Worker) runnerCount() int {
 	count := 0
 	for _, runner := range w.runners {
-		if runner.Status == commonParams.InstanceDeleted {
+		switch runner.Status {
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
 			continue
 		}
 		count++
 	}
 	return count
+}
+
+func (w *Worker) providerSlotsInUse() uint {
+	var count uint
+	for _, runner := range w.runners {
+		if runner.Status != commonParams.InstanceDeleted {
+			count++
+		}
+	}
+	return count
+}
+
+func (w *Worker) runnersToAdd() int {
+	runnerDeficit := max(w.targetRunners()-w.runnerCount(), 0)
+	providerSlots := w.providerSlotsInUse()
+	if providerSlots >= w.scaleSet.MaxRunners {
+		return 0
+	}
+	availableSlots := w.scaleSet.MaxRunners - providerSlots
+	if availableSlots < uint(runnerDeficit) {
+		return int(availableSlots)
+	}
+	return runnerDeficit
 }
 
 func (w *Worker) handleAutoScale() {
@@ -1210,10 +1265,8 @@ func (w *Worker) handleAutoScale() {
 			return
 		case <-ticker.C:
 			w.mux.Lock()
-			for _, instance := range w.runners {
-				if err := w.handleInstanceCleanup(instance); err != nil {
-					slog.ErrorContext(w.ctx, "error cleaning up instance", "instance_id", instance.ID, "error", err)
-				}
+			if err := w.reconcileRunners(); err != nil {
+				slog.ErrorContext(w.ctx, "error reconciling scale set instances", "error", err)
 			}
 
 			if w.runnerCount() == w.targetRunners() {
