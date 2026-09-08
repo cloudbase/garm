@@ -33,7 +33,12 @@ func TryLock(key, identifier string) (ok bool) {
 
 	_, filename, line, _ := runtime.Caller(1)
 	slog.Debug("attempting to try lock", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
-	defer slog.Debug("try lock returned", "key", key, "identifier", identifier, "locked", ok, "caller", fmt.Sprintf("%s:%d", filename, line))
+	// The deferred log must be a closure: deferring slog.Debug directly
+	// evaluates its arguments at defer time, which would always log the
+	// zero value of ok instead of the actual result.
+	defer func() {
+		slog.Debug("try lock returned", "key", key, "identifier", identifier, "locked", ok, "caller", fmt.Sprintf("%s:%d", filename, line))
+	}()
 
 	ok = locker.TryLock(key, identifier)
 	return ok
