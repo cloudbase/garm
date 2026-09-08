@@ -124,14 +124,15 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		controllerInfo:      controllerInfo,
 		instanceTokenGetter: instanceTokenGetter,
 
-		store:       store,
-		providers:   providers,
-		quit:        make(chan struct{}),
-		jobs:        make(map[int64]params.Job),
-		checkedJobs: make(map[int64]time.Time),
-		wg:          wg,
-		backoff:     backoff,
-		consumer:    consumer,
+		store:          store,
+		providers:      providers,
+		quit:           make(chan struct{}),
+		jobs:           make(map[int64]params.Job),
+		checkedJobs:    make(map[int64]time.Time),
+		clientUpdateCh: make(chan struct{}, 1),
+		wg:             wg,
+		backoff:        backoff,
+		consumer:       consumer,
 	}
 	return repo, nil
 }
@@ -153,6 +154,11 @@ type basePoolManager struct {
 	tools       []commonParams.RunnerApplicationDownload
 	quit        chan struct{}
 	checkedJobs map[int64]time.Time
+
+	// clientUpdateCh signals clientUpdaterLoop to rebuild the forge client
+	// after a credentials change. Capacity 1; the rebuild reads the newest
+	// entity state when it runs, so triggers coalesce.
+	clientUpdateCh chan struct{}
 
 	managerIsRunning   bool
 	managerErrorReason string
@@ -1902,6 +1908,7 @@ func (r *basePoolManager) Start() error {
 	}()
 
 	go r.runWatcher()
+	go r.clientUpdaterLoop()
 	go func() {
 		select {
 		case <-r.quit:
