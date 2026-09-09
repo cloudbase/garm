@@ -155,6 +155,22 @@ func TestRunnersToAddHandlesLargeMaximum(t *testing.T) {
 	assert.Equal(t, 1, w.runnersToAdd())
 }
 
+func TestRunnersToAddCapsDeficitAtRemainingProviderSlots(t *testing.T) {
+	w := &Worker{
+		scaleSet: params.ScaleSet{MinIdleRunners: 5, MaxRunners: 5},
+		runners: map[string]params.Instance{
+			"running":       {Status: commonParams.InstanceRunning},
+			"pending":       {Status: commonParams.InstancePendingDelete},
+			"pending-force": {Status: commonParams.InstancePendingForceDelete},
+			"deleting":      {Status: commonParams.InstanceDeleting},
+		},
+	}
+	assert.Equal(t, 1, w.runnerCount())
+	assert.EqualValues(t, 4, w.providerSlotsInUse())
+	assert.Equal(t, 4, w.targetRunners()-w.runnerCount())
+	assert.Equal(t, 1, w.runnersToAdd())
+}
+
 func TestTargetRunnersHonorsMaximum(t *testing.T) {
 	w := &Worker{
 		scaleSet: params.ScaleSet{
