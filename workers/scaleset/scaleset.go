@@ -841,10 +841,10 @@ func (w *Worker) handleInstanceCleanup(instance params.Instance) error {
 	return nil
 }
 
-func (w *Worker) reconcileRunners() error {
+func (w *Worker) reconcileRunners() (refreshed bool, err error) {
 	instances, err := w.store.ListScaleSetInstances(w.ctx, w.scaleSet.ID, false)
 	if err != nil {
-		return fmt.Errorf("listing scale set instances: %w", err)
+		return false, fmt.Errorf("listing scale set instances: %w", err)
 	}
 
 	runners := make(map[string]params.Instance, len(instances))
@@ -859,7 +859,7 @@ func (w *Worker) reconcileRunners() error {
 			cleanupErrs = append(cleanupErrs, err)
 		}
 	}
-	return errors.Join(cleanupErrs...)
+	return true, errors.Join(cleanupErrs...)
 }
 
 func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
@@ -1396,8 +1396,13 @@ func (w *Worker) handleAutoScale() {
 			return
 		case <-ticker.C:
 			w.mux.Lock()
-			if err := w.reconcileRunners(); err != nil {
+			refreshed, err := w.reconcileRunners()
+			if err != nil {
 				slog.ErrorContext(w.ctx, "error reconciling scale set instances", "error", err)
+			}
+			if !refreshed {
+				w.mux.Unlock()
+				continue
 			}
 
 			// Instance cleanup above is database-only and always runs; the
