@@ -617,7 +617,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 		WithArgs(instance.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"message", "instance_id"}).AddRow("instance sample message", instance.ID))
 	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `instances`")).
+		ExpectExec("UPDATE `instances`").
 		WillReturnError(fmt.Errorf("mocked update instance error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 

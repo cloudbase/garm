@@ -77,7 +77,7 @@ func (r *Runner) GetGithubCredentials(ctx context.Context, id uint) (params.Forg
 		return params.ForgeCredentials{}, fmt.Errorf("failed to get github credentials: %w", err)
 	}
 
-	cached, ok := cache.GetGithubCredentials((creds.ID))
+	cached, ok := cache.GetGithubCredentials(creds.ID)
 	if ok {
 		creds.RateLimit = cached.RateLimit
 	}

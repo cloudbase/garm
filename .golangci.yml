@@ -23,6 +23,17 @@ linters:
     - wastedassign
     - whitespace
   settings:
+    goconst:
+      # goconst v1.11 (bundled since golangci-lint v2.13) started scanning
+      # strings inside composite literals (slice/map/struct literals), which
+      # older versions never visited. That floods the repo with findings for
+      # idiomatic repetition (CLI table headers, metric label names, test
+      # fixtures). Exclude them to keep the pre-v2.13 behavior. Note that
+      # setting exclude-types replaces the default ("call"), so it must be
+      # listed here as well.
+      exclude-types:
+        - Call
+        - CompositeLit
     gosec:
       excludes:
         - G101

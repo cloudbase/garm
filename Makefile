@@ -82,11 +82,11 @@ release: build-static create-release-files ## Create a release
 
 ##@ Lint / Verify
 .PHONY: lint
-lint: golangci-lint $(GOLANGCI_LINT) ## Run linting.
+lint: golangci-lint ## Run linting.
 	$(GOLANGCI_LINT) run -v --build-tags=testing,integration --timeout=5m $(GOLANGCI_LINT_EXTRA_ARGS)
 
 .PHONY: lint-fix
-lint-fix: golangci-lint $(GOLANGCI_LINT) ## Lint the codebase and run auto-fixers if supported by the linte
+lint-fix: golangci-lint ## Lint the codebase and run auto-fixers if supported by the linte
 	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint
 
 verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
@@ -133,10 +133,9 @@ $(LOCALBIN):
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
-GOLANGCI_LINT_VERSION ?= v2.10.1
+GOLANGCI_LINT_VERSION ?= v2.13.2
 
 .PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary. If wrong version is installed, it will be overwritten.
-$(GOLANGCI_LINT): $(LOCALBIN)
+golangci-lint: $(LOCALBIN) ## Download golangci-lint locally if necessary. If wrong version is installed, it will be overwritten.
 	test -s $(LOCALBIN)/golangci-lint && $(LOCALBIN)/golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION) || \
 	GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
