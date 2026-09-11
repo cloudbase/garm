@@ -639,7 +639,7 @@ func (w *Worker) rateLimitLoop() {
 					slog.With(slog.Any("error", err)).ErrorContext(w.ctx, "failed to create rate limit client")
 					continue
 				}
-				rateLimit, err := rateCli.RateLimit(w.ctx)
+				rateLimit, tokenExpiration, err := rateCli.RateLimit(w.ctx)
 				if err != nil {
 					slog.With(slog.Any("error", err)).ErrorContext(w.ctx, "failed to get rate limit")
 					continue
@@ -672,6 +672,13 @@ func (w *Worker) rateLimitLoop() {
 					metrics.GithubRateLimitRemaining.With(labels).Set(float64(core.Remaining))
 					metrics.GithubRateLimitUsed.With(labels).Set(float64(core.Used))
 					metrics.GithubRateLimitResetTimestamp.With(labels).Set(float64(core.Reset.Unix()))
+
+					// Only PATs have a meaningful expiration to alert on.
+					// App credentials rotate their tokens automatically, so
+					// an expiration there is expected and not actionable.
+					if creds.AuthType == params.ForgeAuthTypePAT && !tokenExpiration.IsZero() {
+						metrics.GithubTokenExpirationTimestamp.With(labels).Set(float64(tokenExpiration.Unix()))
+					}
 				}
 			}
 		}

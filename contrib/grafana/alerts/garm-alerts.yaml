@@ -49,6 +49,26 @@ groups:
           summary: "Scale set {{ $labels.id }} listener is stale"
           description: "No successful long-poll cycle in over 5 minutes. This scale set has silently stopped receiving scaling signals from GitHub."
 
+      - alert: GarmForgeAPIErrorRate
+        expr: |
+          sum(increase(garm_github_errors_total[15m]))
+            / clamp_min(sum(increase(garm_github_operations_total[15m])), 1) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GARM forge API calls are failing"
+          description: "More than 20% of forge API calls failed over the last 15 minutes. Check credential validity (expired PAT?) and endpoint reachability; `sum by (operation) (increase(garm_github_errors_total[15m]))` names the failing operations."
+
+      - alert: GarmCredentialExpiringSoon
+        expr: |
+          (garm_github_token_expiration_timestamp - time()) < 14 * 24 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "Credential {{ $labels.credential_name }} expires soon"
+          description: "The token for {{ $labels.credential_name }} on {{ $labels.endpoint }} expires in less than 14 days (or has already expired). Rotate it before API calls start failing."
+
       - alert: GarmRateLimitNearExhaustion
         expr: |
           garm_github_rate_limit_remaining

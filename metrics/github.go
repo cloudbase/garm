@@ -59,4 +59,16 @@ var (
 		Name:      "rate_limit_reset_timestamp",
 		Help:      "Unix timestamp when the rate limit resets",
 	}, []string{"credential_name", "credential_id", "endpoint"})
+
+	// GithubTokenExpirationTimestamp records when a credential's token
+	// expires, as reported by the forge. PATs created without an expiration
+	// and forges that do not report one emit no series; app credentials are
+	// excluded since their tokens rotate automatically. Alert on this before
+	// the expiry turns into a wall of API errors.
+	GithubTokenExpirationTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: metricsNamespace,
+		Subsystem: metricsGithubSubsystem,
+		Name:      "token_expiration_timestamp",
+		Help:      "Unix timestamp when the credential's token expires, if reported by the forge",
+	}, []string{"credential_name", "credential_id", "endpoint"})
 )

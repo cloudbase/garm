@@ -237,8 +237,11 @@ A spike in `bootstrap_timeout` typically means a broken image, network or userda
 | `garm_github_rate_limit_remaining` | Gauge | `credential_name`, `credential_id`, `endpoint` |
 | `garm_github_rate_limit_used` | Gauge | `credential_name`, `credential_id`, `endpoint` |
 | `garm_github_rate_limit_reset_timestamp` | Gauge | `credential_name`, `credential_id`, `endpoint` |
+| `garm_github_token_expiration_timestamp` | Gauge | `credential_name`, `credential_id`, `endpoint` |
 
 The `scope` label is `Repository`, `Organization`, or `Enterprise`. The `operation` label takes one of the values listed below.
+
+`garm_github_token_expiration_timestamp` records when a credential's token expires, as reported by the forge on API responses. It is only emitted for PAT credentials whose token has an expiration set; app credentials are excluded since their tokens rotate automatically. Alert on `(garm_github_token_expiration_timestamp - time()) < 14 * 24 * 3600` to rotate tokens before an expiry turns into a wall of API errors.
 
 **GitHub client operations** (hooks, runners, registration tokens):
 

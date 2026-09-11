@@ -84,6 +84,7 @@ func RegisterMetrics() error {
 		GithubRateLimitRemaining,
 		GithubRateLimitUsed,
 		GithubRateLimitResetTimestamp,
+		GithubTokenExpirationTimestamp,
 		JobStatus,
 		// webhook metrics
 		WebhooksReceived,

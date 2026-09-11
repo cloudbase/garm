@@ -4,6 +4,7 @@ package mocks
 
 import (
 	context "context"
+	time "time"
 
 	github "github.com/google/go-github/v84/github"
 	mock "github.com/stretchr/testify/mock"
@@ -23,7 +24,7 @@ func (_m *RateLimitClient) EXPECT() *RateLimitClient_Expecter {
 }
 
 // RateLimit provides a mock function with given fields: ctx
-func (_m *RateLimitClient) RateLimit(ctx context.Context) (*github.RateLimits, error) {
+func (_m *RateLimitClient) RateLimit(ctx context.Context) (*github.RateLimits, time.Time, error) {
 	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
@@ -31,8 +32,9 @@ func (_m *RateLimitClient) RateLimit(ctx context.Context) (*github.RateLimits, e
 	}
 
 	var r0 *github.RateLimits
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (*github.RateLimits, error)); ok {
+	var r1 time.Time
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*github.RateLimits, time.Time, error)); ok {
 		return rf(ctx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context) *github.RateLimits); ok {
@@ -43,13 +45,21 @@ func (_m *RateLimitClient) RateLimit(ctx context.Context) (*github.RateLimits, e
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context) time.Time); ok {
 		r1 = rf(ctx)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(time.Time)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // RateLimitClient_RateLimit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RateLimit'
@@ -70,12 +80,12 @@ func (_c *RateLimitClient_RateLimit_Call) Run(run func(ctx context.Context)) *Ra
 	return _c
 }
 
-func (_c *RateLimitClient_RateLimit_Call) Return(_a0 *github.RateLimits, _a1 error) *RateLimitClient_RateLimit_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *RateLimitClient_RateLimit_Call) Return(_a0 *github.RateLimits, _a1 time.Time, _a2 error) *RateLimitClient_RateLimit_Call {
+	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *RateLimitClient_RateLimit_Call) RunAndReturn(run func(context.Context) (*github.RateLimits, error)) *RateLimitClient_RateLimit_Call {
+func (_c *RateLimitClient_RateLimit_Call) RunAndReturn(run func(context.Context) (*github.RateLimits, time.Time, error)) *RateLimitClient_RateLimit_Call {
 	_c.Call.Return(run)
 	return _c
 }
