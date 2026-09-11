@@ -573,6 +573,10 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 }
 
 func (g *githubClient) RateLimit(ctx context.Context) (*github.RateLimits, error) {
+	metrics.GithubOperationCount.WithLabelValues(
+		"GetRateLimit",        // label: operation
+		g.entity.LabelScope(), // label: scope
+	).Inc()
 	limits, resp, err := g.rateLimit.Get(ctx)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
@@ -639,12 +643,41 @@ func NewRateLimitClient(ctx context.Context, credentials params.ForgeCredentials
 	if err != nil {
 		return nil, fmt.Errorf("error fetching github client: %w", err)
 	}
-	cli := &githubClient{
-		rateLimit: ghClient.RateLimit,
-		cli:       ghClient,
+	cli := &rateLimitClient{
+		cli: ghClient,
 	}
 
 	return cli, nil
+}
+
+// rateLimitClient is a minimal, credential-scoped client used to query rate
+// limits outside the context of any entity. Besides the limits themselves,
+// it surfaces the token expiration the forge reports on the response.
+type rateLimitClient struct {
+	cli *github.Client
+}
+
+func (r *rateLimitClient) RateLimit(ctx context.Context) (*github.RateLimits, time.Time, error) {
+	metrics.GithubOperationCount.WithLabelValues(
+		"GetRateLimit", // label: operation
+		"",             // label: scope
+	).Inc()
+	limits, resp, err := r.cli.RateLimit.Get(ctx)
+	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GetRateLimit", // label: operation
+			"",             // label: scope
+		).Inc()
+	}
+	if err := parseError(resp, err); err != nil {
+		return nil, time.Time{}, fmt.Errorf("getting rate limit: %w", err)
+	}
+
+	var tokenExpiration time.Time
+	if resp != nil {
+		tokenExpiration = resp.TokenExpiration.Time
+	}
+	return limits, tokenExpiration, nil
 }
 
 func withGiteaURLs(client *github.Client, apiBaseURL string) (*github.Client, error) {
