@@ -33,6 +33,10 @@ func (w *MockWatcher) RegisterConsumer(_ context.Context, _ string, _ ...common.
 	return &MockConsumer{}, nil
 }
 
+func (w *MockWatcher) Metrics() common.WatcherMetrics {
+	return common.WatcherMetrics{}
+}
+
 func (w *MockWatcher) Close() {
 }
 

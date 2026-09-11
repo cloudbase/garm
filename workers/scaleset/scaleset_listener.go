@@ -18,10 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github/scalesets"
@@ -140,6 +142,13 @@ func (l *scaleSetListener) IsRunning() bool {
 	return l.running.Load()
 }
 
+// scaleSetIDLabel returns the database ID of the scale set as a string, for
+// use as the "id" metric label. It matches the "id" label on the other
+// garm_scaleset_* metrics.
+func (l *scaleSetListener) scaleSetIDLabel() string {
+	return strconv.FormatUint(uint64(l.scaleSetHelper.GetScaleSet().ID), 10)
+}
+
 func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage) {
 	l.mux.Lock()
 	defer l.mux.Unlock()
@@ -159,7 +168,12 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	var startedJobs []params.ScaleSetJobMessage
 	var assignedJobs []params.ScaleSetJobMessage
 
+	scaleSetID := l.scaleSetIDLabel()
 	for _, job := range body {
+		metrics.ScaleSetMessagesCount.WithLabelValues(
+			scaleSetID,              // label: id
+			string(job.MessageType), // label: message_type
+		).Inc()
 		switch job.MessageType {
 		case params.MessageTypeJobAssigned:
 			slog.InfoContext(l.ctx, "new job assigned", "job_id", job.JobID, "job_name", job.JobDisplayName)
@@ -285,6 +299,9 @@ func (l *scaleSetListener) loop() {
 				return
 			}
 			retryAfterUnauthorized = false
+			// Empty polls also prove the listener is alive; the broker holds
+			// the long poll for ~50s before returning a nil message.
+			metrics.ScaleSetListenerLastSuccess.WithLabelValues(l.scaleSetIDLabel()).SetToCurrentTime()
 			if !msg.IsNil() {
 				// Longpoll returns after 50 seconds. If no message arrives during that interval
 				// we get a nil message. We can simply ignore it and continue.

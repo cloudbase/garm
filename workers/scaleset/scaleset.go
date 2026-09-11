@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/cloudbase/garm/database/watcher"
 	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/locking"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -187,6 +189,10 @@ func (w *Worker) Stop() error {
 		close(w.quit)
 	}
 	w.listener.Stop()
+	// Drop the freshness gauge so a stopped (possibly deleted) scale set
+	// does not linger as a stale timestamp and trip staleness alerts. It is
+	// re-set on the next successful poll if the worker comes back.
+	metrics.ScaleSetListenerLastSuccess.DeleteLabelValues(strconv.FormatUint(uint64(w.scaleSet.ID), 10))
 	return nil
 }
 
@@ -287,6 +293,9 @@ func (w *Worker) Start() (err error) {
 					locking.Unlock(instance.Name, false)
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
+			}
+			if instanceState == commonParams.InstancePendingDelete {
+				w.recordLifecycleEvent(metrics.OutcomeStartupRecovery)
 			}
 		case commonParams.InstanceDeleting:
 			// Set the instance in deleting. It is assumed that the runner was already
@@ -399,6 +408,40 @@ func (w *Worker) removeRunnerFromGithubAndSetPendingDelete(runnerName string, ag
 	return nil
 }
 
+// providerBaseParams returns the base provider parameters for operations on
+// this scale set's runners, identifying the owning entity and scale set.
+func (w *Worker) providerBaseParams() common.ProviderBaseParams {
+	base := common.ProviderBaseParams{
+		ControllerInfo: w.controllerInfo,
+		ScaleSetID:     w.scaleSet.ID,
+	}
+	if entity, err := w.scaleSet.GetEntity(); err == nil {
+		base.EntityType = entity.EntityType
+		base.EntityID = entity.ID
+	}
+	return base
+}
+
+// recordLifecycleEvent counts a runner removal decision made for this scale
+// set, by outcome. The entity String() form is used for the owner label; a
+// bare repo name would be ambiguous across owners.
+func (w *Worker) recordLifecycleEvent(outcome string) {
+	var owner string
+	if entity, err := w.scaleSet.GetEntity(); err == nil {
+		if cachedEntity, ok := cache.GetEntity(entity.ID); ok {
+			owner = cachedEntity.String()
+		}
+	}
+	metrics.RunnerLifecycleCount.WithLabelValues(
+		outcome,                           // label: outcome
+		w.scaleSet.ProviderName,           // label: provider
+		owner,                             // label: pool_owner
+		string(w.scaleSet.ScaleSetType()), // label: pool_type
+		"",                                // label: pool_id
+		strconv.FormatUint(uint64(w.scaleSet.ID), 10), // label: scaleset_id
+	).Inc()
+}
+
 func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) (func(), error) {
 	lockNames := []string{}
 
@@ -453,6 +496,7 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 				locking.Unlock(runner.Name, false)
 				continue
 			}
+			w.recordLifecycleEvent(metrics.OutcomeBootstrapTimeout)
 			lockNames = append(lockNames, runner.Name)
 		}
 	}
@@ -577,6 +621,7 @@ func (w *Worker) consolidateRunnerState(listedAt time.Time, runners []params.Run
 			// which involves this runner. For the duration of the lifetime of this function, we
 			// hold the lock, so no race condition can occur.
 			w.runners[runner.ID] = instance
+			w.recordLifecycleEvent(metrics.OutcomeOrphaned)
 		}
 	}
 
@@ -590,9 +635,7 @@ func (w *Worker) consolidateRunnerState(listedAt time.Time, runners []params.Run
 func (w *Worker) consolidateProviderState() error {
 	listParams := common.ListInstancesParams{
 		ListInstancesV011: common.ListInstancesV011Params{
-			ProviderBaseParams: common.ProviderBaseParams{
-				ControllerInfo: w.controllerInfo,
-			},
+			ProviderBaseParams: w.providerBaseParams(),
 		},
 	}
 
@@ -629,9 +672,7 @@ func (w *Worker) consolidateProviderState() error {
 
 	deleteInstanceParams := common.DeleteInstanceParams{
 		DeleteInstanceV011: common.DeleteInstanceV011Params{
-			ProviderBaseParams: common.ProviderBaseParams{
-				ControllerInfo: w.controllerInfo,
-			},
+			ProviderBaseParams: w.providerBaseParams(),
 		},
 	}
 
@@ -684,6 +725,7 @@ func (w *Worker) consolidateProviderState() error {
 				locking.Unlock(runner.Name, false)
 				continue
 			}
+			w.recordLifecycleEvent(metrics.OutcomeOrphaned)
 		}
 		locking.Unlock(runner.Name, false)
 	}
@@ -885,6 +927,9 @@ Loop:
 				w.mux.Unlock()
 				continue Loop
 			}
+			metrics.ScaleSetListenerRestartsCount.WithLabelValues(
+				strconv.FormatUint(uint64(w.scaleSet.ID), 10), // label: id
+			).Inc()
 			w.mux.Unlock()
 			for {
 				w.mux.Lock()
@@ -1090,6 +1135,7 @@ func (w *Worker) handleScaleDown() {
 				continue
 			}
 			w.runners[runner.ID] = updatedRunner
+			w.recordLifecycleEvent(metrics.OutcomeIdleScaleDown)
 			locking.Unlock(runner.Name, false)
 			removed++
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,

@@ -18,6 +18,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"github.com/cloudbase/garm/database/common"
 )
@@ -40,6 +41,9 @@ type consumer struct {
 	in      chan common.ChangePayload
 	filters []common.PayloadFilterFunc
 	id      string
+	// queueLen mirrors the dispatch queue depth so it can be read from
+	// outside the dispatch goroutine (e.g. by the metrics collector).
+	queueLen atomic.Int64
 
 	mux    sync.Mutex
 	closed bool
@@ -73,6 +77,11 @@ func (w *consumer) IsClosed() bool {
 	w.mux.Lock()
 	defer w.mux.Unlock()
 	return w.closed
+}
+
+// QueueLen returns the current depth of the dispatch queue.
+func (w *consumer) QueueLen() int {
+	return int(w.queueLen.Load())
 }
 
 // Send delivers a payload to this consumer. Delivery is in call order, never
@@ -110,7 +119,9 @@ func (w *consumer) dispatch() {
 	defer close(w.messages)
 
 	var queue []common.ChangePayload
+	defer w.queueLen.Store(0)
 	for {
+		w.queueLen.Store(int64(len(queue)))
 		if len(queue) == 0 {
 			select {
 			case payload := <-w.in:
