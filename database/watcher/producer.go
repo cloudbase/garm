@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/metrics"
 )
 
 type producer struct {
@@ -48,8 +49,16 @@ func (w *producer) Notify(payload common.ChangePayload) error {
 	case <-w.ctx.Done():
 		return common.ErrProducerClosed
 	case <-timer.C:
+		// The database write already committed, but downstream consumers
+		// will never see this event. Any nonzero value on this counter
+		// means in-memory state may have diverged from the database.
+		metrics.WatcherNotifyTimeoutsCount.Inc()
 		return common.ErrProducerTimeoutErr
 	case w.messages <- payload:
+		metrics.WatcherEventsCount.WithLabelValues(
+			string(payload.EntityType), // label: entity_type
+			string(payload.Operation),  // label: operation
+		).Inc()
 	}
 	return nil
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/cloudbase/garm/cache"
 	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/locking"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
@@ -161,6 +162,7 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 			locking.Unlock(job.RunnerName, false)
 			return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 		}
+		w.recordLifecycleEvent(metrics.OutcomeJobCompleted)
 		locking.Unlock(job.RunnerName, false)
 	}
 	return nil

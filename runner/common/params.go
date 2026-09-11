@@ -56,6 +56,13 @@ type StartParams struct {
 type ProviderBaseParams struct {
 	PoolInfo       params.Pool
 	ControllerInfo params.ControllerInfo
+	// EntityType and EntityID identify the forge entity (repository,
+	// organization, enterprise) that owns the runner the operation acts on.
+	EntityType params.ForgeEntityType
+	EntityID   string
+	// ScaleSetID is set for scale-set-owned runners. Exactly one of
+	// PoolInfo.ID / ScaleSetID is populated.
+	ScaleSetID uint
 }
 
 // Structs for version v0.1.1.

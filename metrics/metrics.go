@@ -16,6 +16,8 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 const (
@@ -30,6 +32,7 @@ const (
 	metricsWebhookSubsystem      = "webhook"
 	metricsGithubSubsystem       = "github"
 	metricsJobsSubsystem         = "job"
+	metricsWatcherSubsystem      = "watcher"
 )
 
 // RegisterMetrics registers all the metrics
@@ -84,6 +87,31 @@ func RegisterMetrics() error {
 		JobStatus,
 		// webhook metrics
 		WebhooksReceived,
+
+		// event-driven metrics, updated as things happen rather than on a
+		// collection interval
+		//
+		// runner lifecycle
+		RunnerProvisionDuration,
+		RunnerReadyDuration,
+		RunnerDeletionDuration,
+		RunnerLifecycleCount,
+		// jobs
+		JobQueueDuration,
+		JobExecutionDuration,
+		JobsCompletedCount,
+		// provider operations
+		ProviderOperationDuration,
+		ProviderOperationErrorsCount,
+		// scale set listeners
+		ScaleSetMessagesCount,
+		ScaleSetListenerLastSuccess,
+		ScaleSetListenerRestartsCount,
+		// database watcher
+		WatcherEventsCount,
+		WatcherNotifyTimeoutsCount,
+		// build info
+		BuildInfo,
 	)
 
 	for _, c := range collectors {
@@ -91,6 +119,8 @@ func RegisterMetrics() error {
 			return err
 		}
 	}
+
+	setBuildInfo(appdefaults.GetVersion())
 
 	return nil
 }

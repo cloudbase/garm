@@ -41,6 +41,7 @@ import (
 	"github.com/cloudbase/garm/database/watcher"
 	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/locking"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -175,6 +176,8 @@ func (r *basePoolManager) getProviderBaseParams(pool params.Pool) common.Provide
 	return common.ProviderBaseParams{
 		PoolInfo:       pool,
 		ControllerInfo: r.controllerInfo,
+		EntityType:     r.entity.EntityType,
+		EntityID:       r.entity.ID,
 	}
 }
 
@@ -364,8 +367,23 @@ func (r *basePoolManager) handleCompletedJob(ctx context.Context, jobParams para
 			"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 		return fmt.Errorf("error updating runner: %w", err)
 	}
+	r.recordLifecycleEvent(pool, metrics.OutcomeJobCompleted)
 
 	return nil
+}
+
+// recordLifecycleEvent counts a runner removal decision made for a pool, by
+// outcome. The entity String() form is used for the owner label; a bare repo
+// name would be ambiguous across owners.
+func (r *basePoolManager) recordLifecycleEvent(pool params.Pool, outcome string) {
+	metrics.RunnerLifecycleCount.WithLabelValues(
+		outcome,                     // label: outcome
+		pool.ProviderName,           // label: provider
+		r.entity.String(),           // label: pool_owner
+		string(r.entity.EntityType), // label: pool_type
+		pool.ID,                     // label: pool_id
+		"",                          // label: scaleset_id
+	).Inc()
 }
 
 // handleInProgressJob processes an in-progress job webhook
@@ -722,6 +740,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []forgeRunner) error {
 					"runner_name", instance.Name)
 				return fmt.Errorf("error updating runner: %w", err)
 			}
+			r.recordLifecycleEvent(pool, metrics.OutcomeBootstrapTimeout)
 		}
 	}
 	return nil
@@ -1320,6 +1339,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 			if err := r.DeleteRunner(instanceToDelete, false, false); err != nil {
 				return fmt.Errorf("failed to delete instance %s: %w", instanceToDelete.ID, err)
 			}
+			r.recordLifecycleEvent(pool, metrics.OutcomeIdleScaleDown)
 			return nil
 		})
 	}

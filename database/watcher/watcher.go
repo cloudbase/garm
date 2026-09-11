@@ -183,6 +183,20 @@ func (w *watcher) serviceConsumer(consumer *consumer) {
 	}
 }
 
+// Metrics returns a snapshot of the watcher's internal state.
+func (w *watcher) Metrics() common.WatcherMetrics {
+	w.mux.Lock()
+	defer w.mux.Unlock()
+
+	depths := make(map[string]int, len(w.consumers))
+	for id, consumer := range w.consumers {
+		depths[id] = consumer.QueueLen()
+	}
+	return common.WatcherMetrics{
+		ConsumerQueueDepths: depths,
+	}
+}
+
 func (w *watcher) Close() {
 	w.mux.Lock()
 	defer w.mux.Unlock()

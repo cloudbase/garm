@@ -1,0 +1,110 @@
+# Starter Prometheus alerting rules for GARM. Tune thresholds (particularly
+# the queue-time SLO) to your deployment before use.
+groups:
+  - name: garm.availability
+    rules:
+      - alert: GarmControllerDown
+        expr: up{job="garm"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GARM controller {{ $labels.instance }} is down"
+          description: "Prometheus cannot scrape the GARM metrics endpoint."
+
+      - alert: GarmPoolManagerDown
+        expr: |
+          {__name__=~"garm_(repository|organization|enterprise)_pool_manager_status"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pool manager for {{ $labels.name }} is not running"
+          description: "Runners for this entity will not be created or reaped. Check `garm-cli` for the failure reason."
+
+  - name: garm.control_plane
+    rules:
+      - alert: GarmWatcherEventsDropped
+        expr: increase(garm_watcher_notify_timeouts_total[10m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "GARM dropped database change notifications"
+          description: "Watcher backpressure caused committed DB writes to go unseen by internal workers. Caches and workers may have stale state; consider restarting the controller and investigating the wedged consumer."
+
+      - alert: GarmWatcherConsumerBacklog
+        expr: garm_watcher_consumer_queue_depth > 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GARM consumer {{ $labels.consumer }} is not keeping up"
+          description: "The {{ $labels.consumer }} consumer has a sustained event backlog of {{ $value }} events."
+
+      - alert: GarmScaleSetListenerStale
+        expr: (time() - garm_scaleset_listener_last_success_timestamp) > 300
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scale set {{ $labels.id }} listener is stale"
+          description: "No successful long-poll cycle in over 5 minutes. This scale set has silently stopped receiving scaling signals from GitHub."
+
+      - alert: GarmRateLimitNearExhaustion
+        expr: |
+          garm_github_rate_limit_remaining
+            / clamp_min(garm_github_rate_limit_limit, 1) < 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Credential {{ $labels.credential_name }} is near its API rate limit"
+          description: "Less than 10% of the API budget remains on {{ $labels.endpoint }}. Reconciliation stalls once it is exhausted."
+
+  - name: garm.capacity
+    rules:
+      - alert: GarmBootstrapTimeoutSpike
+        expr: |
+          sum by (provider, pool_owner, pool_id, scaleset_id) (
+            increase(garm_runner_lifecycle_events_total{outcome="bootstrap_timeout"}[30m])
+          ) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Runners for {{ $labels.pool_owner }} are timing out during bootstrap"
+          description: "{{ $value }} runners were reaped before becoming functional in 30m on provider {{ $labels.provider }} (pool {{ $labels.pool_id }}{{ $labels.scaleset_id }}). This usually means a broken image, network or userdata."
+
+      - alert: GarmProviderErrors
+        expr: |
+          sum by (provider, error_kind) (
+            increase(garm_provider_operation_errors_total[15m])
+          ) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "Provider {{ $labels.provider }} is failing operations ({{ $labels.error_kind }})"
+          description: "{{ $value }} failed provider operations in 15 minutes."
+
+      - alert: GarmJobQueueTimeSLO
+        # Adjust the 600s (10 minute) p95 target to your own SLO.
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(garm_job_queue_duration_seconds_bucket[30m]))
+          ) > 600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 job queue time is above the SLO"
+          description: "Jobs are waiting more than 10 minutes (p95) for a runner. Check pool utilization, provider errors and rate limits."
+
+      - alert: GarmRunnerDeletionsStuck
+        expr: |
+          count(garm_runner_status{status=~"pending_delete|deleting"}) > 0
+          and
+          sum(increase(garm_runner_lifecycle_events_total[30m])) == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Runner deletions appear stuck"
+          description: "Runners have been in the deletion lane for 30+ minutes with no lifecycle activity — possibly leaked compute."

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmErrors "github.com/cloudbase/garm/internal/errors"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -302,6 +304,9 @@ func (i *instanceManager) getProviderBaseParams() (common.ProviderBaseParams, er
 
 	return common.ProviderBaseParams{
 		ControllerInfo: info,
+		EntityType:     i.scaleSetEntity.EntityType,
+		EntityID:       i.scaleSetEntity.ID,
+		ScaleSetID:     i.scaleSet.ID,
 	}, nil
 }
 
@@ -335,6 +340,24 @@ func (i *instanceManager) handleDeleteInstanceInProvider(instance params.Instanc
 	return nil
 }
 
+// recordLifecycleEvent counts a runner removal decision made by this manager,
+// by outcome. The entity String() form is used for the owner label; a bare
+// repo name would be ambiguous across owners.
+func (i *instanceManager) recordLifecycleEvent(outcome string) {
+	var owner string
+	if cachedEntity, ok := cache.GetEntity(i.scaleSetEntity.ID); ok {
+		owner = cachedEntity.String()
+	}
+	metrics.RunnerLifecycleCount.WithLabelValues(
+		outcome,                           // label: outcome
+		i.scaleSet.ProviderName,           // label: provider
+		owner,                             // label: pool_owner
+		string(i.scaleSet.ScaleSetType()), // label: pool_type
+		"",                                // label: pool_id
+		strconv.FormatUint(uint64(i.scaleSet.ID), 10), // label: scaleset_id
+	).Inc()
+}
+
 func (i *instanceManager) consolidateState() error {
 	i.consolidateMux.Lock()
 	defer i.consolidateMux.Unlock()
@@ -359,6 +382,7 @@ func (i *instanceManager) consolidateState() error {
 		}
 		if err := i.handleCreateInstanceInProvider(instance); err != nil {
 			slog.ErrorContext(i.ctx, "creating instance in provider", "error", err)
+			i.recordLifecycleEvent(metrics.OutcomeProviderError)
 			if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstanceError, []byte(err.Error()), true); err != nil {
 				return fmt.Errorf("setting instance status to error: %w", err)
 			}
