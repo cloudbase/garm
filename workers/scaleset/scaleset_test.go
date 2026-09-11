@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,6 +43,14 @@ import (
 )
 
 const runnerRegistrationPath = "/actions/runner-registration"
+
+var registerTestLocker = sync.OnceValue(func() error {
+	locker, err := locking.NewLocalLocker(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	return locking.RegisterLocker(locker)
+})
 
 func TestDeletingInstancesDoNotCountAsRunnersButConsumeProviderSlots(t *testing.T) {
 	for _, status := range []commonParams.InstanceStatus{
@@ -82,9 +91,7 @@ func TestDeletingInstancesDoNotIncreaseScaleDownDelta(t *testing.T) {
 func TestScaleDownRemovesExcessIdleRunnerDespitePendingDeletion(t *testing.T) {
 	const entityID = "scale-down-repo"
 	ctx := context.Background()
-	locker, err := locking.NewLocalLocker(ctx, nil)
-	require.NoError(t, err)
-	require.NoError(t, locking.RegisterLocker(locker))
+	require.NoError(t, registerTestLocker())
 
 	var removals atomic.Int32
 	var server *httptest.Server
@@ -204,7 +211,9 @@ func TestReconcileRunnersCleansDeletedRowsAndReplacesStaleCache(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, w.reconcileRunners())
+	refreshed, err := w.reconcileRunners()
+	assert.NoError(t, err)
+	assert.True(t, refreshed)
 	assert.Equal(t, 1, w.runnerCount())
 	assert.Len(t, w.runners, 1)
 	assert.Contains(t, w.runners, "replacement")
@@ -231,7 +240,8 @@ func TestReconcileRunnersContinuesAfterCleanupFailure(t *testing.T) {
 		scaleSet: params.ScaleSet{ID: 4},
 	}
 
-	err := w.reconcileRunners()
+	refreshed, err := w.reconcileRunners()
+	assert.True(t, refreshed)
 	assert.ErrorContains(t, err, "deleting instance failed")
 	assert.NotContains(t, w.runners, "cleaned")
 }
@@ -339,7 +349,9 @@ func TestReconcileDeletedRunnerCreatesOneReplacement(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, w.reconcileRunners())
+	refreshed, err := w.reconcileRunners()
+	require.NoError(t, err)
+	require.True(t, refreshed)
 	w.handleScaleUp()
 	w.handleScaleUp()
 
