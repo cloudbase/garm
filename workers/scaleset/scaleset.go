@@ -656,17 +656,23 @@ func (w *Worker) consolidateProviderState() error {
 		}
 		legacyRunners, err := w.provider.ListInstances(w.ctx, legacyID, listParams)
 		if err != nil {
-			return fmt.Errorf("listing instances by legacy pseudo pool ID: %w", err)
-		}
-		if len(legacyRunners) == 0 {
+			// it seems that some providers (like k8s) err out even during a list
+			// operation. If we got here, the ListInstances() call using the new
+			// ID, worked. So we just ignore the error, set w.legacyPoolIDDrained = true
+			// and hope for the best.
+			slog.WarnContext(w.ctx, "failed to list instances using legacy ID; ignoring", "error", err)
 			w.legacyPoolIDDrained = true
-		}
-		for _, runner := range legacyRunners {
-			if _, ok := providerRunnersByName[runner.Name]; ok {
-				continue
+		} else {
+			if len(legacyRunners) == 0 {
+				w.legacyPoolIDDrained = true
 			}
-			providerRunnersByName[runner.Name] = runner
-			providerRunners = append(providerRunners, runner)
+			for _, runner := range legacyRunners {
+				if _, ok := providerRunnersByName[runner.Name]; ok {
+					continue
+				}
+				providerRunnersByName[runner.Name] = runner
+				providerRunners = append(providerRunners, runner)
+			}
 		}
 	}
 
