@@ -149,7 +149,7 @@ func (s *UserTestSuite) TestCreateUserMissingUsernameEmail() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("missing username, password or email"), err.Error())
+	s.Require().Equal("missing username, password or email", err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserUsernameAlreadyExist() {
@@ -158,7 +158,7 @@ func (s *UserTestSuite) TestCreateUserUsernameAlreadyExist() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("error creating user: username already exists"), err.Error())
+	s.Require().Equal("error creating user: username already exists", err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
@@ -167,7 +167,7 @@ func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("error creating user: email already exists"), err.Error())
+	s.Require().Equal("error creating user: email already exists", err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserDBCreateErr() {
@@ -267,7 +267,7 @@ func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
 		WithArgs(s.Fixtures.Users[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Users[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `users` SET")).
+		ExpectExec("UPDATE `users` SET").
 		WillReturnError(fmt.Errorf("saving user mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 

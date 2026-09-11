@@ -171,8 +171,8 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	scaleSetID := l.scaleSetIDLabel()
 	for _, job := range body {
 		metrics.ScaleSetMessagesCount.WithLabelValues(
-			scaleSetID,              // label: id
-			string(job.MessageType), // label: message_type
+			scaleSetID,      // label: id
+			job.MessageType, // label: message_type
 		).Inc()
 		switch job.MessageType {
 		case params.MessageTypeJobAssigned:
