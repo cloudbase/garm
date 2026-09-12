@@ -2350,6 +2350,12 @@ export interface Job {
      */
     'runner_name'?: string;
     /**
+     * ScaleSetID is the garm ID of the scale set this job was assigned to, if it came in through a scale set listener.
+     * @type {number}
+     * @memberof Job
+     */
+    'scale_set_id'?: number;
+    /**
      * ScaleSetJobID is the job ID when generated for a scale set.
      * @type {string}
      * @memberof Job
@@ -3027,6 +3033,20 @@ export interface RunnerPrefix {
  * @export
  * @interface ScaleSet
  */
+/**
+ * RunnerScaleSetStatistic is the last runner scale set statistic received from GitHub on the message session.
+ * @export
+ * @interface RunnerScaleSetStatistic
+ */
+export interface RunnerScaleSetStatistic {
+    'totalAvailableJobs'?: number;
+    'totalAcquiredJobs'?: number;
+    'totalAssignedJobs'?: number;
+    'totalRunningJobs'?: number;
+    'totalRegisteredRunners'?: number;
+    'totalBusyRunners'?: number;
+    'totalIdleRunners'?: number;
+}
 export interface ScaleSet {
     /**
      * 
@@ -3184,6 +3204,12 @@ export interface ScaleSet {
      * @memberof ScaleSet
      */
     'proxy_name'?: string;
+    /**
+     * Statistics is the last runner scale set statistic received from GitHub on the message session.
+     * @type {RunnerScaleSetStatistic}
+     * @memberof ScaleSet
+     */
+    'statistics'?: RunnerScaleSetStatistic;
     /**
      * 
      * @type {string}
