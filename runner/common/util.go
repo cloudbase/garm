@@ -42,6 +42,12 @@ type GithubEntityOperations interface {
 	GetEntity() params.ForgeEntity
 	// GithubBaseURL returns the base URL for the github or GHES API.
 	GithubBaseURL() *url.URL
+	// LastRateLimit returns the most recent rate limit values the client
+	// observed on forge API responses. The second return value is false
+	// when no rate limit information was observed yet, or when the forge
+	// does not report rate limits (Gitea, or GHES with rate limiting
+	// disabled).
+	LastRateLimit() (params.GithubRateLimit, bool)
 }
 
 type RateLimitClient interface {

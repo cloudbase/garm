@@ -79,6 +79,10 @@ func (s *stubGithubClient) GithubBaseURL() *url.URL {
 	return nil
 }
 
+func (s *stubGithubClient) LastRateLimit() (params.GithubRateLimit, bool) {
+	return params.GithubRateLimit{}, false
+}
+
 func (s *stubGithubClient) RateLimit(_ context.Context) (*github.RateLimits, error) {
 	return nil, s.err
 }

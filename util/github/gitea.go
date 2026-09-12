@@ -243,5 +243,6 @@ func (g *githubClient) createGiteaEntityHook(ctx context.Context, hook *github.H
 	default:
 		return nil, errors.New("invalid entity type")
 	}
+	err = parseError(nil, err)
 	return ret, err
 }

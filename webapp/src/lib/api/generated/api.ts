@@ -3766,6 +3766,12 @@ export interface UpdateScaleSetParams {
      * @type {boolean}
      * @memberof UpdateScaleSetParams
      */
+    'disable_update'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdateScaleSetParams
+     */
     'enable_shell'?: boolean;
     /**
      * 
