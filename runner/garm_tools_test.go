@@ -234,7 +234,7 @@ func (s *GARMToolsTestSuite) TestCreateGARMToolPaginationCleanup() {
 			OSArch:      commonParams.Amd64,
 			Version:     fmt.Sprintf("v0.0.%d", i),
 		}
-		reader := bytes.NewReader([]byte(fmt.Sprintf("version %d binary", i)))
+		reader := bytes.NewReader(fmt.Appendf(nil, "version %d binary", i))
 		_, err := s.Runner.CreateGARMTool(s.AdminContext, param, reader)
 		s.Require().NoError(err)
 	}
@@ -347,7 +347,7 @@ func (s *GARMToolsTestSuite) TestDeleteGarmToolSuccess() {
 func (s *GARMToolsTestSuite) TestDeleteGarmToolDeletesAllVersions() {
 	// Create multiple versions using windows/arm64
 	for i := 1; i <= 5; i++ {
-		reader := bytes.NewReader([]byte(fmt.Sprintf("version %d", i)))
+		reader := bytes.NewReader(fmt.Appendf(nil, "version %d", i))
 		// CreateGARMTool only keeps the latest, so we need to use the store directly
 		// to create multiple versions
 		tags := windowsARM64ToolsTags
@@ -431,7 +431,7 @@ func (s *GARMToolsTestSuite) TestListAllGARMToolsMultiplePlatforms() {
 			OSArch:      p.osArch,
 			Version:     "v1.0.0",
 		}
-		reader := bytes.NewReader([]byte(fmt.Sprintf("%s %s binary", p.osType, p.osArch)))
+		reader := bytes.NewReader(fmt.Appendf(nil, "%s %s binary", p.osType, p.osArch))
 		_, err := s.Runner.CreateGARMTool(s.AdminContext, param, reader)
 		s.Require().NoError(err)
 	}
