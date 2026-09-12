@@ -13,7 +13,7 @@
 	import DataTable from '$lib/components/DataTable.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { getForgeIcon, filterCredentials, changePerPage, paginateItems, getAuthTypeBadge } from '$lib/utils/common.js';
+	import { getForgeIcon, filterCredentials, changePerPage, paginateItems, getAuthTypeBadge, validateReservePercentage } from '$lib/utils/common.js';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { handleFileInputAsBase64 } from '$lib/utils/file';
 	import Badge from '$lib/components/Badge.svelte';
@@ -282,6 +282,11 @@
 
 	async function handleCreateCredentials() {
 		try {
+			const reserveError = validateReservePercentage(formData.reserve_usage_percentage);
+			if (reserveError) {
+				toastStore.error('Create Failed', reserveError);
+				return;
+			}
 			// Use selected forge type to determine which API to call
 			if (selectedForgeType === 'github') {
 				// Build the correct nested structure for GitHub credentials
@@ -339,8 +344,13 @@
 
 	async function handleUpdateCredentials() {
 		if (!editingCredential || !editingCredential.id) return;
-		
+
 		try {
+			const reserveError = validateReservePercentage(formData.reserve_usage_percentage);
+			if (reserveError) {
+				toastStore.error('Update Failed', reserveError);
+				return;
+			}
 			const updateParams = buildUpdateParams();
 			
 			// Only proceed if there are changes to apply
@@ -759,17 +769,20 @@
 								<label for="edit_reserve_usage_percentage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 									Reserved percentage
 								</label>
-								<input
-									type="number"
-									id="edit_reserve_usage_percentage"
-									bind:value={formData.reserve_usage_percentage}
-									min="0"
-									max="100"
-									class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-									placeholder="10"
-								/>
+								<div class="flex items-center space-x-3">
+									<input
+										type="range"
+										id="edit_reserve_usage_percentage"
+										bind:value={formData.reserve_usage_percentage}
+										min="0"
+										max="50"
+										step="1"
+										class="w-full h-1 bg-gray-300 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
+									/>
+									<span class="w-12 text-right text-sm text-gray-700 dark:text-gray-300 tabular-nums">{formData.reserve_usage_percentage}%</span>
+								</div>
 								<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-									Percentage of the hourly rate limit to reserve (0-100). A value between 5% and 20% should be safe on most setups.
+									Percentage of the hourly rate limit to reserve (at most 50%). A value between 5% and 20% should be safe on most setups.
 								</p>
 							</div>
 						{/if}

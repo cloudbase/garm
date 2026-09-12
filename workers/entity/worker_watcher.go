@@ -91,7 +91,7 @@ func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayloa
 
 	switch event.Operation {
 	case dbCommon.UpdateOperation:
-		slog.DebugContext(w.ctx, "got delete operation")
+		slog.DebugContext(w.ctx, "got update operation")
 		w.mux.Lock()
 		defer w.mux.Unlock()
 		if w.Entity.Credentials.GetID() != creds.GetID() {

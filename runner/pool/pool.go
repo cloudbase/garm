@@ -528,7 +528,40 @@ func jobIDFromLabels(labels []string) int64 {
 	return 0
 }
 
-func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string, alwaysRun bool) {
+// rateLimitTier classifies pool loops by how they consume forge API quota.
+type rateLimitTier int
+
+const (
+	// tierInternal marks loops that make no forge API calls. They are never
+	// paused by rate limits.
+	tierInternal rateLimitTier = iota
+	// tierNormal marks loops whose forge API usage is not critical (scaling
+	// up, reconciling state, reaping). They pause once the remaining quota
+	// dips into the configured reserve.
+	tierNormal
+	// tierCritical marks loops that execute already-decided work, such as
+	// removing runners that finished their jobs. They pause only when the
+	// quota is fully exhausted.
+	tierCritical
+)
+
+// rateLimitReached reports whether a loop of the given tier should pause due
+// to the entity credentials' forge rate limit, and when the quota resets.
+// This is orthogonal to the manager running state: an unauthorized error
+// disables the manager until valid credentials produce a successful tools
+// update, regardless of the rate limit quota resetting in the meantime.
+func (r *basePoolManager) rateLimitReached(tier rateLimitTier) (bool, time.Time) {
+	switch tier {
+	case tierCritical:
+		return cache.EntityRateLimitExhausted(r.entity.ID)
+	case tierNormal:
+		return cache.EntityRateLimitReached(r.entity.ID)
+	default:
+		return false, time.Time{}
+	}
+}
+
+func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string, alwaysRun bool, tier rateLimitTier) {
 	slog.InfoContext(
 		r.ctx, "starting loop for entity",
 		"loop_name", name)
@@ -543,6 +576,7 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 		r.wg.Done()
 	}()
 
+	rateLimited := false
 	for {
 		shouldRun := r.managerIsRunning
 		if alwaysRun {
@@ -552,6 +586,21 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 		case true:
 			select {
 			case <-ticker.C:
+				if limited, resetAt := r.rateLimitReached(tier); limited {
+					if !rateLimited {
+						slog.InfoContext(
+							r.ctx, "rate limit reached; pausing loop until the quota resets",
+							"loop_name", name, "reset_at", resetAt)
+						rateLimited = true
+					}
+					continue
+				}
+				if rateLimited {
+					slog.InfoContext(
+						r.ctx, "rate limit lifted; resuming loop",
+						"loop_name", name)
+					rateLimited = false
+				}
 				if err := f(); err != nil {
 					slog.With(slog.Any("error", err)).ErrorContext(
 						r.ctx, "error in loop",
@@ -1938,16 +1987,18 @@ func (r *basePoolManager) Start() error {
 		case <-initializeEntity:
 		}
 		defer close(initializeEntity)
-		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
-		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)
+		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false, tierNormal)
+		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false, tierNormal)
 		// always run the delete pending instances routine. This way we can still remove existing runners, even if the pool is not running.
-		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", true)
-		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false)
-		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false)
-		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false)
-		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true)
-		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false)
-		go r.startLoopForFunction(r.reconcileStaleJobs, common.PoolStaleJobReconcileInterval, "stale_job_reconciler", false)
+		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", true, tierCritical)
+		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false, tierNormal)
+		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false, tierNormal)
+		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false, tierNormal)
+		// updateTools reads the tools cache; it makes no forge API calls and is
+		// also the path that re-enables the manager after an unauthorized error.
+		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true, tierInternal)
+		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false, tierNormal)
+		go r.startLoopForFunction(r.reconcileStaleJobs, common.PoolStaleJobReconcileInterval, "stale_job_reconciler", false, tierNormal)
 	}()
 	return nil
 }

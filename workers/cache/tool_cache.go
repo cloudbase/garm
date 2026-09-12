@@ -278,7 +278,16 @@ reset:
 	now := time.Now().UTC()
 	if now.After(t.lastUpdate.Add(time.Duration(githubToolsUpdateDeadline) * time.Minute)) {
 		slog.DebugContext(t.ctx, "last update after deadline", "last_update", t.lastUpdate, "deadline", t.lastUpdate.Add(time.Duration(githubToolsUpdateDeadline)*time.Minute))
-		if err := t.updateTools(); err != nil {
+		// The tools updater is a critical consumer: pool managers are
+		// disabled when the tools cache expires (1 hour validity), so it
+		// keeps refreshing even when the remaining quota has dipped into the
+		// configured reserve, and only skips calls that are guaranteed to
+		// fail. Skip silently: the call cannot succeed and a status event
+		// per tick would just spam the entity event log. With the 1 minute
+		// tick, a refresh happens at most a minute after the quota resets.
+		if limited, resetAt := cache.EntityRateLimitExhausted(t.entity.ID); limited {
+			slog.DebugContext(t.ctx, "rate limit exhausted; deferring tools update", "reset_at", resetAt)
+		} else if err := t.updateTools(); err != nil {
 			slog.ErrorContext(t.ctx, "updating tools", "error", err)
 			t.addStatusEvent(fmt.Sprintf("failed to update tools: %q", err), params.EventError)
 		} else {
@@ -302,6 +311,11 @@ reset:
 		case <-timer.C:
 			now := time.Now().UTC()
 			if !now.After(t.lastUpdate.Add(time.Duration(githubToolsUpdateDeadline) * time.Minute)) {
+				continue
+			}
+			// See the comment on the check in the reset section above.
+			if limited, resetAt := cache.EntityRateLimitExhausted(t.entity.ID); limited {
+				slog.DebugContext(t.ctx, "rate limit exhausted; deferring tools update", "reset_at", resetAt)
 				continue
 			}
 			slog.DebugContext(t.ctx, "updating tools")

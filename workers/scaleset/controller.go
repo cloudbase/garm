@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
@@ -243,6 +244,14 @@ func (c *Controller) retryFailedScaleSets() {
 	defer c.mux.Unlock()
 
 	if !c.running {
+		return
+	}
+
+	// Starting a scale set worker involves several forge calls (runner
+	// group lookup, scale set reconciliation), which cannot succeed on an
+	// exhausted quota. Retrying would only churn logs and backoff state.
+	if limited, resetAt := cache.EntityRateLimitExhausted(c.Entity.ID); limited {
+		slog.DebugContext(c.ctx, "rate limit exhausted; deferring scale set retries", "reset_at", resetAt)
 		return
 	}
 

@@ -239,12 +239,27 @@ func (w *Worker) consolidateRunnerLoop() {
 	ticker := time.NewTicker(common.PoolReapTimeoutInterval)
 	defer ticker.Stop()
 
+	rateLimited := false
 	for {
 		select {
 		case _, ok := <-ticker.C:
 			if !ok {
 				slog.InfoContext(w.ctx, "consolidate ticker closed")
 				return
+			}
+			// Consolidation lists all runners from the forge and fans out
+			// into the scale set workers' reap and cleanup routines which are
+			// all non-critical forge API consumers. Skip while rate limited.
+			if limited, resetAt := cache.EntityRateLimitReached(w.Entity.ID); limited {
+				if !rateLimited {
+					slog.InfoContext(w.ctx, "rate limit reached; pausing runner consolidation until the quota resets", "reset_at", resetAt)
+					rateLimited = true
+				}
+				continue
+			}
+			if rateLimited {
+				slog.InfoContext(w.ctx, "rate limit lifted; resuming runner consolidation")
+				rateLimited = false
 			}
 			if err := w.consolidateRunnerState(); err != nil {
 				w.addStatusEvent(fmt.Sprintf("failed to consolidate runner state: %q", err.Error()), params.EventError)
