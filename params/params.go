@@ -1276,6 +1276,16 @@ type ForgeCredentials struct {
 
 	ForgeType EndpointType `json:"forge_type,omitempty"`
 
+	// ReserveUsageEnabled toggles whether or not to allocate a certain
+	// percentage of the available rate limit to critical operations such
+	// as delete operations for runners that have finished their jobs.
+	ReserveUsageEnabled bool `json:"reserve_usage_enabled,omitempty"`
+	// ReserveUsagePercentage is the percentage of available rate limit reserved
+	// for critical operations. Setting this value too high will negatively impact
+	// normal operations. A value between 5% and 20% should be safe on most setups.
+	// Adjust this based on your usage patterns.
+	ReserveUsagePercentage int `json:"reserve_usage_percentage,omitempty"`
+
 	Repositories  []Repository     `json:"repositories,omitempty"`
 	Organizations []Organization   `json:"organizations,omitempty"`
 	Enterprises   []Enterprise     `json:"enterprises,omitempty"`

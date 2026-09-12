@@ -38,6 +38,8 @@ var (
 	credentialsPrivateKeyPath    string
 	credentialsType              string
 	credentialsEndpoint          string
+	credentialsReserveEnabled    bool
+	credentialsReservePercent    int
 )
 
 // credentialsCmd represents the credentials command
@@ -117,7 +119,7 @@ var githubCredentialsUpdateCmd = &cobra.Command{
 	Short:        "Update a github credential",
 	Long:         "Update a github credential",
 	SilenceUsage: true,
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -135,7 +137,7 @@ var githubCredentialsUpdateCmd = &cobra.Command{
 			return fmt.Errorf("invalid credential ID: %s", args[0])
 		}
 
-		updateParams, err := parseCredentialsUpdateParams()
+		updateParams, err := parseCredentialsUpdateParams(cmd)
 		if err != nil {
 			return err
 		}
@@ -222,6 +224,8 @@ func init() {
 	githubCredentialsUpdateCmd.Flags().Int64Var(&credentialsAppInstallationID, "app-installation-id", 0, "If the credential is an app, the installation ID")
 	githubCredentialsUpdateCmd.Flags().Int64Var(&credentialsAppID, "app-id", 0, "If the credential is an app, the app ID")
 	githubCredentialsUpdateCmd.Flags().StringVar(&credentialsPrivateKeyPath, "private-key-path", "", "If the credential is an app, the path to the private key file")
+	githubCredentialsUpdateCmd.Flags().BoolVar(&credentialsReserveEnabled, "reserve-usage-enabled", false, "Reserve a percentage of the rate limit for critical operations (such as runner deletion)")
+	githubCredentialsUpdateCmd.Flags().IntVar(&credentialsReservePercent, "reserve-usage-percentage", 0, "Percentage of the rate limit to reserve for critical operations (0-100). A value between 5 and 20 should be safe on most setups")
 
 	githubCredentialsListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 
@@ -238,6 +242,8 @@ func init() {
 	githubCredentialsAddCmd.Flags().StringVar(&credentialsPrivateKeyPath, "private-key-path", "", "If the credential is an app, the path to the private key file")
 	githubCredentialsAddCmd.Flags().StringVar(&credentialsType, "auth-type", "", "The type of the credential")
 	githubCredentialsAddCmd.Flags().StringVar(&credentialsEndpoint, "endpoint", "", "The endpoint to associate the credential with")
+	githubCredentialsAddCmd.Flags().BoolVar(&credentialsReserveEnabled, "reserve-usage-enabled", false, "Reserve a percentage of the rate limit for critical operations (such as runner deletion)")
+	githubCredentialsAddCmd.Flags().IntVar(&credentialsReservePercent, "reserve-usage-percentage", 0, "Percentage of the rate limit to reserve for critical operations (0-100). A value between 5 and 20 should be safe on most setups")
 
 	githubCredentialsAddCmd.MarkFlagsMutuallyExclusive("pat-oauth-token", "app-installation-id")
 	githubCredentialsAddCmd.MarkFlagsMutuallyExclusive("pat-oauth-token", "app-id")
@@ -285,6 +291,8 @@ func parseCredentialsAddParams() (ret params.CreateGithubCredentialsParams, err 
 	ret.Description = credentialsDescription
 	ret.AuthType = params.ForgeAuthType(credentialsType)
 	ret.Endpoint = credentialsEndpoint
+	ret.ReserveUsageEnabled = credentialsReserveEnabled
+	ret.ReserveUsagePercentage = credentialsReservePercent
 	switch ret.AuthType {
 	case params.ForgeAuthTypePAT:
 		ret.PAT.OAuth2Token = credentialsOAuthToken
@@ -303,7 +311,7 @@ func parseCredentialsAddParams() (ret params.CreateGithubCredentialsParams, err 
 	return ret, nil
 }
 
-func parseCredentialsUpdateParams() (params.UpdateGithubCredentialsParams, error) {
+func parseCredentialsUpdateParams(cmd *cobra.Command) (params.UpdateGithubCredentialsParams, error) {
 	var updateParams params.UpdateGithubCredentialsParams
 
 	if credentialsAppInstallationID != 0 || credentialsAppID != 0 || credentialsPrivateKeyPath != "" {
@@ -316,6 +324,16 @@ func parseCredentialsUpdateParams() (params.UpdateGithubCredentialsParams, error
 
 	if credentialsDescription != "" {
 		updateParams.Description = &credentialsDescription
+	}
+
+	// The zero values are meaningful for these two, so only send them if
+	// the flag was explicitly set on the command line.
+	if cmd.Flags().Changed("reserve-usage-enabled") {
+		updateParams.ReserveUsageEnabled = &credentialsReserveEnabled
+	}
+
+	if cmd.Flags().Changed("reserve-usage-percentage") {
+		updateParams.ReserveUsagePercentage = &credentialsReservePercent
 	}
 
 	if credentialsOAuthToken != "" {
@@ -390,6 +408,10 @@ func formatOneGithubCredential(cred params.ForgeCredentials) {
 	t.AppendRow(table.Row{"Upload URL", cred.UploadBaseURL})
 	t.AppendRow(table.Row{"Type", cred.AuthType})
 	t.AppendRow(table.Row{"Endpoint", cred.Endpoint.Name})
+	t.AppendRow(table.Row{"Reserve usage enabled", cred.ReserveUsageEnabled})
+	if cred.ReserveUsageEnabled {
+		t.AppendRow(table.Row{"Reserve usage percentage", fmt.Sprintf("%d%%", cred.ReserveUsagePercentage)})
+	}
 	if resetMinutes > 0 {
 		t.AppendRow(table.Row{"", ""})
 		t.AppendRow(table.Row{"Remaining API requests", cred.RateLimit.Remaining})

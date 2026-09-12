@@ -207,7 +207,7 @@ func (s *FileStoreTestSuite) TestListFileObjects() {
 func (s *FileStoreTestSuite) TestListFileObjectsPagination() {
 	// Create more files to test pagination
 	for i := 0; i < 5; i++ {
-		content := []byte(fmt.Sprintf("File %d", i))
+		content := fmt.Appendf(nil, "File %d", i)
 		param := params.CreateFileObjectParams{
 			Name: fmt.Sprintf("page-test-%d.txt", i),
 			Size: int64(len(content)),
@@ -548,7 +548,7 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsEmptyTags() {
 func (s *FileStoreTestSuite) TestSearchFileObjectByTagsPagination() {
 	// Create multiple files with the same tag
 	for i := 0; i < 5; i++ {
-		content := []byte(fmt.Sprintf("Pagination test file %d", i))
+		content := fmt.Appendf(nil, "Pagination test file %d", i)
 		param := params.CreateFileObjectParams{
 			Name: fmt.Sprintf("page-search-%d.txt", i),
 			Size: int64(len(content)),
@@ -768,7 +768,7 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsOrderByCreatedAt() {
 func (s *FileStoreTestSuite) TestPaginationFieldsLastPage() {
 	// Create exactly 5 files
 	for i := 0; i < 5; i++ {
-		content := []byte(fmt.Sprintf("Last page test %d", i))
+		content := fmt.Appendf(nil, "Last page test %d", i)
 		param := params.CreateFileObjectParams{
 			Name: fmt.Sprintf("last-page-test-%d.txt", i),
 			Size: int64(len(content)),

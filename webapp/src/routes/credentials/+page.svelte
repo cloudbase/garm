@@ -72,6 +72,8 @@
 		app_id: string;
 		installation_id: string;
 		private_key_bytes: string;
+		reserve_usage_enabled: boolean;
+		reserve_usage_percentage: number;
 	} = {
 		name: '',
 		description: '',
@@ -80,7 +82,9 @@
 		oauth2_token: '',
 		app_id: '',
 		installation_id: '',
-		private_key_bytes: ''
+		private_key_bytes: '',
+		reserve_usage_enabled: false,
+		reserve_usage_percentage: 0
 	};
 	// Track original values for comparison during updates
 	let originalFormData: typeof formData = { ...formData };
@@ -159,7 +163,9 @@
 			oauth2_token: '',
 			app_id: '',
 			installation_id: '',
-			private_key_bytes: ''
+			private_key_bytes: '',
+			reserve_usage_enabled: credential.reserve_usage_enabled || false,
+			reserve_usage_percentage: credential.reserve_usage_percentage || 0
 		};
 		selectedAuthType = (credential['auth-type'] as typeof AuthType[keyof typeof AuthType]) || AuthType.PAT;
 		// Store original values for comparison
@@ -184,7 +190,9 @@
 			oauth2_token: '',
 			app_id: '',
 			installation_id: '',
-			private_key_bytes: ''
+			private_key_bytes: '',
+			reserve_usage_enabled: false,
+			reserve_usage_percentage: 0
 		};
 		originalFormData = { ...formData };
 		selectedAuthType = AuthType.PAT;
@@ -216,7 +224,18 @@
 				updateParams.description = formData.description.trim();
 			}
 		}
-		
+
+		// Rate limit reserve settings only exist on GitHub credentials.
+		if (editingCredential?.forge_type === 'github') {
+			if (formData.reserve_usage_enabled !== originalFormData.reserve_usage_enabled) {
+				updateParams.reserve_usage_enabled = formData.reserve_usage_enabled;
+			}
+
+			if (formData.reserve_usage_percentage !== originalFormData.reserve_usage_percentage) {
+				updateParams.reserve_usage_percentage = formData.reserve_usage_percentage;
+			}
+		}
+
 		// Only include credential fields if the checkbox is checked and fields have values
 		if (wantToChangeCredentials && editingCredential) {
 			if (editingCredential['auth-type'] === AuthType.PAT) {
@@ -270,7 +289,9 @@
 					name: formData.name.trim(),
 					description: formData.description.trim(),
 					endpoint: formData.endpoint.trim(),
-					auth_type: formData.auth_type
+					auth_type: formData.auth_type,
+					reserve_usage_enabled: formData.reserve_usage_enabled,
+					reserve_usage_percentage: formData.reserve_usage_percentage
 				};
 
 				if (formData.auth_type === AuthType.PAT) {
@@ -715,6 +736,45 @@
 					</div>
 					<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Authentication type cannot be changed after creation</p>
 				</div>
+
+				{#if editingCredential.forge_type === 'github'}
+					<!-- Rate limit reserve -->
+					<div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+						<div class="flex items-center">
+							<input
+								id="edit_reserve_usage_enabled"
+								type="checkbox"
+								bind:checked={formData.reserve_usage_enabled}
+								class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+							/>
+							<label for="edit_reserve_usage_enabled" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+								Reserve rate limit for critical operations
+							</label>
+						</div>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							Sets aside a slice of this credential's API rate limit for critical operations, such as deleting runners that finished their jobs. Runner creation pauses when only the reserved budget is left.
+						</p>
+						{#if formData.reserve_usage_enabled}
+							<div class="mt-3">
+								<label for="edit_reserve_usage_percentage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Reserved percentage
+								</label>
+								<input
+									type="number"
+									id="edit_reserve_usage_percentage"
+									bind:value={formData.reserve_usage_percentage}
+									min="0"
+									max="100"
+									class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+									placeholder="10"
+								/>
+								<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+									Percentage of the hourly rate limit to reserve (0-100). A value between 5% and 20% should be safe on most setups.
+								</p>
+							</div>
+						{/if}
+					</div>
+				{/if}
 
 				<!-- Credentials Update Checkbox -->
 				<div class="border-t border-gray-200 dark:border-gray-700 pt-4">
