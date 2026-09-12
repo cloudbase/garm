@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/v84/github"
@@ -44,6 +45,13 @@ type githubClient struct {
 
 	entity params.ForgeEntity
 	cli    *github.Client
+
+	// limits holds the most recent rate limit values observed on any
+	// response from this client, including error responses. Rate limited
+	// (403/429) responses also carry these headers, so this stays accurate
+	// while the quota is exhausted.
+	mux    sync.Mutex
+	limits params.GithubRateLimit
 }
 
 func (g *githubClient) ListEntityHooks(ctx context.Context, opts *github.ListOptions) (ret []*github.Hook, response *github.Response, err error) {
@@ -69,9 +77,10 @@ func (g *githubClient) ListEntityHooks(ctx context.Context, opts *github.ListOpt
 	default:
 		return nil, nil, fmt.Errorf("invalid entity type: %s", g.entity.EntityType)
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
+	err = parseError(response, err)
 	return ret, response, err
 }
 
@@ -100,9 +109,10 @@ func (g *githubClient) GetEntityHook(ctx context.Context, id int64) (ret *github
 		return nil, errors.New("invalid entity type")
 	}
 
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
+	err = parseError(response, err)
 	return ret, err
 }
 
@@ -128,9 +138,10 @@ func (g *githubClient) createGithubEntityHook(ctx context.Context, hook *github.
 	default:
 		return nil, errors.New("invalid entity type")
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
+	err = parseError(response, err)
 	return ret, err
 }
 
@@ -168,9 +179,10 @@ func (g *githubClient) DeleteEntityHook(ctx context.Context, id int64) (ret *git
 	default:
 		return nil, errors.New("invalid entity type")
 	}
-	if err == nil && ret != nil {
+	if ret != nil {
 		g.recordLimits(ret.Rate)
 	}
+	err = parseError(ret, err)
 	return ret, err
 }
 
@@ -198,9 +210,10 @@ func (g *githubClient) PingEntityHook(ctx context.Context, id int64) (ret *githu
 		return nil, errors.New("invalid entity type")
 	}
 
-	if err == nil && ret != nil {
+	if ret != nil {
 		g.recordLimits(ret.Rate)
 	}
+	err = parseError(ret, err)
 	return ret, err
 }
 
@@ -234,9 +247,10 @@ func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListR
 	default:
 		return nil, nil, errors.New("invalid entity type")
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
+	err = parseError(response, err)
 	return ret, response, err
 }
 
@@ -270,9 +284,36 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 	default:
 		return nil, nil, errors.New("invalid entity type")
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
+	err = parseError(response, err)
+	return ret, response, err
+}
+
+func (g *githubClient) GetWorkflowJobByID(ctx context.Context, owner, repo string, jobID int64) (*github.WorkflowJob, *github.Response, error) {
+	var ret *github.WorkflowJob
+	var response *github.Response
+	var err error
+
+	metrics.GithubOperationCount.WithLabelValues(
+		"GetWorkflowJobByID",  // label: operation
+		g.entity.LabelScope(), // label: scope
+	).Inc()
+	defer func() {
+		if err != nil {
+			metrics.GithubOperationFailedCount.WithLabelValues(
+				"GetWorkflowJobByID",  // label: operation
+				g.entity.LabelScope(), // label: scope
+			).Inc()
+		}
+	}()
+
+	ret, response, err = g.ActionsService.GetWorkflowJobByID(ctx, owner, repo, jobID)
+	if response != nil {
+		g.recordLimits(response.Rate)
+	}
+	err = parseError(response, err)
 	return ret, response, err
 }
 
@@ -290,7 +331,7 @@ func parseError(response *github.Response, err error) error {
 	case http.StatusUnprocessableEntity:
 		return runnerErrors.ErrBadRequest
 	default:
-		if statusCode >= 100 && statusCode < 300 {
+		if statusCode >= 100 && statusCode < 300 && err == nil {
 			return nil
 		}
 		if err != nil {
@@ -346,7 +387,7 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) e
 	default:
 		return errors.New("invalid entity type")
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
 
@@ -387,10 +428,10 @@ func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*gith
 	default:
 		return nil, nil, errors.New("invalid entity type")
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
-
+	err = parseError(response, err)
 	return ret, response, err
 }
 
@@ -407,18 +448,15 @@ func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, e
 			entity.LabelScope(),            // label: scope
 		).Inc()
 		runnerGroups, ghResp, err := g.ListOrganizationRunnerGroups(ctx, entity.Owner, &opts)
-		if err != nil {
+		if ghResp != nil {
+			g.recordLimits(ghResp.Rate)
+		}
+		if err := parseError(ghResp, err); err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListOrganizationRunnerGroups", // label: operation
 				entity.LabelScope(),            // label: scope
 			).Inc()
-			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-				return 0, fmt.Errorf("error fetching runners: %w", runnerErrors.ErrUnauthorized)
-			}
 			return 0, fmt.Errorf("error fetching runners: %w", err)
-		}
-		if ghResp != nil {
-			g.recordLimits(ghResp.Rate)
 		}
 
 		for _, runnerGroup := range runnerGroups.RunnerGroups {
@@ -447,18 +485,15 @@ func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, ent
 			entity.LabelScope(), // label: scope
 		).Inc()
 		runnerGroups, ghResp, err := g.enterprise.ListRunnerGroups(ctx, entity.Owner, &opts)
-		if err != nil {
+		if ghResp != nil {
+			g.recordLimits(ghResp.Rate)
+		}
+		if err := parseError(ghResp, err); err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListRunnerGroups",  // label: operation
 				entity.LabelScope(), // label: scope
 			).Inc()
-			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-				return 0, fmt.Errorf("error fetching runners: %w", runnerErrors.ErrUnauthorized)
-			}
 			return 0, fmt.Errorf("error fetching runners: %w", err)
-		}
-		if ghResp != nil {
-			g.recordLimits(ghResp.Rate)
 		}
 		for _, runnerGroup := range runnerGroups.RunnerGroups {
 			if runnerGroup.Name != nil && *runnerGroup.Name == rgName {
@@ -536,7 +571,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.GenerateEnterpriseJITConfig(ctx, g.entity.Owner, &req)
 	}
-	if err == nil && response != nil {
+	if response != nil {
 		g.recordLimits(response.Rate)
 	}
 	if err != nil {
@@ -544,10 +579,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 			"GetEntityJITConfig",  // label: operation
 			g.entity.LabelScope(), // label: scope
 		).Inc()
-		if response != nil && response.StatusCode == http.StatusUnauthorized {
-			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
-		}
-		return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+		return nil, nil, fmt.Errorf("failed to get JIT config: %w", parseError(response, err))
 	}
 
 	defer func(run *github.Runner) {
@@ -598,13 +630,38 @@ func (g *githubClient) GithubBaseURL() *url.URL {
 	return g.cli.BaseURL
 }
 
+// LastRateLimit returns the most recent rate limit values this client has
+// observed on forge API responses. The second return value is false when no
+// rate limit information was observed yet, or when the forge does not report
+// rate limits (Gitea, or GHES with rate limiting disabled).
+func (g *githubClient) LastRateLimit() (params.GithubRateLimit, bool) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	if g.limits.Limit == 0 {
+		return params.GithubRateLimit{}, false
+	}
+	return g.limits, true
+}
+
 func (g *githubClient) recordLimits(core github.Rate) {
+	// A zero limit means the forge did not send rate limit headers (Gitea,
+	// or GHES with rate limiting disabled). There is nothing to record, and
+	// recording the zero value would read as an exhausted quota.
+	if core.Limit == 0 {
+		return
+	}
 	limit := params.GithubRateLimit{
 		Limit:     core.Limit,
 		Used:      core.Used,
 		Remaining: core.Remaining,
 		Reset:     core.Reset.Unix(),
 	}
+
+	g.mux.Lock()
+	g.limits = limit
+	g.mux.Unlock()
+
 	cache.SetCredentialsRateLimit(g.entity.Credentials.ID, limit)
 
 	// Record Prometheus metrics

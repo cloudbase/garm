@@ -489,6 +489,61 @@ func (_c *GithubEntityOperations_GithubBaseURL_Call) RunAndReturn(run func() *ur
 	return _c
 }
 
+// LastRateLimit provides a mock function with no fields
+func (_m *GithubEntityOperations) LastRateLimit() (params.GithubRateLimit, bool) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for LastRateLimit")
+	}
+
+	var r0 params.GithubRateLimit
+	var r1 bool
+	if rf, ok := ret.Get(0).(func() (params.GithubRateLimit, bool)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() params.GithubRateLimit); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(params.GithubRateLimit)
+	}
+
+	if rf, ok := ret.Get(1).(func() bool); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	return r0, r1
+}
+
+// GithubEntityOperations_LastRateLimit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LastRateLimit'
+type GithubEntityOperations_LastRateLimit_Call struct {
+	*mock.Call
+}
+
+// LastRateLimit is a helper method to define mock.On call
+func (_e *GithubEntityOperations_Expecter) LastRateLimit() *GithubEntityOperations_LastRateLimit_Call {
+	return &GithubEntityOperations_LastRateLimit_Call{Call: _e.mock.On("LastRateLimit")}
+}
+
+func (_c *GithubEntityOperations_LastRateLimit_Call) Run(run func()) *GithubEntityOperations_LastRateLimit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *GithubEntityOperations_LastRateLimit_Call) Return(_a0 params.GithubRateLimit, _a1 bool) *GithubEntityOperations_LastRateLimit_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *GithubEntityOperations_LastRateLimit_Call) RunAndReturn(run func() (params.GithubRateLimit, bool)) *GithubEntityOperations_LastRateLimit_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListEntityHooks provides a mock function with given fields: ctx, opts
 func (_m *GithubEntityOperations) ListEntityHooks(ctx context.Context, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
 	ret := _m.Called(ctx, opts)
