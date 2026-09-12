@@ -7,7 +7,7 @@
 	import { eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { extractAPIError } from '$lib/utils/apiError';
-	import { getForgeIcon } from '$lib/utils/common.js';
+	import { getForgeIcon, validateReservePercentage } from '$lib/utils/common.js';
 
 	const AuthType = { PAT: 'pat', APP: 'app' } as const;
 
@@ -74,6 +74,11 @@
 	});
 
 	async function handleCreate() {
+		const reserveError = validateReservePercentage(formData.reserve_usage_percentage);
+		if (reserveError) {
+			error = reserveError;
+			return;
+		}
 		creating = true;
 		error = '';
 		try {

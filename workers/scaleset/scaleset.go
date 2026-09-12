@@ -102,6 +102,20 @@ type Worker struct {
 	mux     sync.Mutex
 	running bool
 	quit    chan struct{}
+
+	// authFailed marks that the forge rejected our credentials. While set,
+	// the listener is not restarted and scaling is paused, instead of
+	// hammering the forge with calls that cannot succeed. The latch clears
+	// when the entity worker installs a fresh client after a credentials
+	// update, and is retried periodically as a safety valve. This is kept
+	// separate from rate limiting: a quota reset must not resume a worker
+	// whose credentials are still rejected.
+	authFailed    bool
+	authFailedCli common.GithubClient
+	authFailureAt time.Time
+	// scalingPauseReason tracks why scaling is paused, so pause/resume
+	// transitions are logged once instead of on every autoscale tick.
+	scalingPauseReason string
 }
 
 func (w *Worker) ensureScaleSetInGitHub() error {
@@ -890,10 +904,109 @@ func (w *Worker) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
 	return true
 }
 
+// forgeAuthRetryInterval is how often we probe the forge again while the
+// auth failure latch is set, in case access was restored out of band (for
+// example an app installation that was unsuspended, or a PAT authorized
+// for an org enforcing SAML SSO) without a credentials update in GARM.
+const forgeAuthRetryInterval = 5 * time.Minute
+
+// markAuthFailure latches the auth failure state after a forge call was
+// rejected as unauthorized. Callers must not hold w.mux.
+func (w *Worker) markAuthFailure() {
+	// The scale set API maps both 401 and 403 to ErrUnauthorized. A fully
+	// exhausted quota can also produce 403 responses; treat that as a rate
+	// limit condition, not an auth failure — the rate limit gate handles it
+	// and clears on its own when the quota resets.
+	if limited, _ := cache.EntityRateLimitExhausted(w.entity.ID); limited {
+		slog.WarnContext(w.ctx, "forge call rejected while rate limit is exhausted; treating as rate limited")
+		return
+	}
+	cli, ok := cache.GetGithubClient(w.entity.ID)
+	if !ok {
+		cli = nil
+	}
+	w.mux.Lock()
+	w.authFailed = true
+	w.authFailedCli = cli
+	w.authFailureAt = time.Now()
+	w.mux.Unlock()
+	slog.WarnContext(w.ctx, "forge rejected our credentials; pausing scale set forge operations until credentials are updated")
+}
+
+func (w *Worker) clearAuthFailureLocked() {
+	if w.authFailed {
+		slog.InfoContext(w.ctx, "forge credentials accepted again; resuming scale set forge operations")
+	}
+	w.authFailed = false
+	w.authFailedCli = nil
+}
+
+func (w *Worker) clearAuthFailure() {
+	w.mux.Lock()
+	defer w.mux.Unlock()
+	w.clearAuthFailureLocked()
+}
+
+// forgeAuthBlockedLocked reports whether forge operations should stay paused
+// due to a previously latched auth failure. Callers must hold w.mux.
+func (w *Worker) forgeAuthBlockedLocked() bool {
+	if !w.authFailed {
+		return false
+	}
+	// A credentials update makes the entity worker install a fresh client in
+	// the cache. Give the new client a chance immediately.
+	if cli, ok := cache.GetGithubClient(w.entity.ID); ok && cli != w.authFailedCli {
+		w.clearAuthFailureLocked()
+		return false
+	}
+	// Safety valve: probe again periodically even without a credentials
+	// change. On failure the latch is simply re-armed with a fresh timestamp.
+	if time.Since(w.authFailureAt) >= forgeAuthRetryInterval {
+		return false
+	}
+	return true
+}
+
+// scalingPausedLocked reports whether scaling in either direction should
+// pause. Scaling talks to the forge (JIT config generation on the way up,
+// runner removal on the way down), so it pauses while the credentials are
+// rejected or while the remaining quota has dipped into the configured
+// reserve. The two conditions are independent: a rate limit reset does not
+// resume a worker whose credentials are still rejected, and vice versa.
+// Pause and resume transitions are logged once. Callers must hold w.mux.
+func (w *Worker) scalingPausedLocked() bool {
+	var reason string
+	if w.forgeAuthBlockedLocked() {
+		reason = "forge rejected our credentials"
+	} else if limited, resetAt := cache.EntityRateLimitReached(w.entity.ID); limited {
+		reason = fmt.Sprintf("rate limit reached; quota resets at %s", resetAt.UTC().Format(time.RFC3339))
+	}
+	if reason != w.scalingPauseReason {
+		if reason == "" {
+			slog.InfoContext(w.ctx, "resuming scale set scaling")
+		} else {
+			slog.InfoContext(w.ctx, "pausing scale set scaling", "reason", reason)
+		}
+		w.scalingPauseReason = reason
+	}
+	return reason != ""
+}
+
 func (w *Worker) sessionLoopMayRun() bool {
 	w.mux.Lock()
 	defer w.mux.Unlock()
-	return w.scaleSet.Enabled
+	if !w.scaleSet.Enabled || w.forgeAuthBlockedLocked() {
+		return false
+	}
+	// While the quota is fully exhausted, session (re)creation cannot
+	// succeed either: it needs a runner registration token, which is the
+	// one REST call in the message pipeline. Everything downstream (the
+	// broker long poll, session refresh against the actions service) uses
+	// session or admin tokens and does not consume the REST quota, so an
+	// established listener keeps running and only session (re)creation is
+	// held back. It resumes on its own once the quota resets.
+	limited, _ := cache.EntityRateLimitExhausted(w.entity.ID)
+	return !limited
 }
 
 func (w *Worker) keepListenerAlive() {
@@ -910,6 +1023,11 @@ Loop:
 		// noop if already started.
 		if err := w.listener.Start(); err != nil {
 			slog.ErrorContext(w.ctx, "error starting listener", "error", err, "consumer_id", w.consumerID)
+			if errors.Is(err, runnerErrors.ErrUnauthorized) {
+				// Latch the auth failure; sessionLoopMayRun() keeps us parked
+				// until credentials are updated or the retry interval elapses.
+				w.markAuthFailure()
+			}
 			if canceled := w.sleepWithCancel(2 * time.Second); canceled {
 				slog.InfoContext(w.ctx, "worker is stopped; exiting keepListenerAlive")
 				return
@@ -917,6 +1035,7 @@ Loop:
 			// we failed to start the listener. Try again.
 			continue
 		}
+		w.clearAuthFailure()
 
 		select {
 		case <-w.quit:
@@ -939,15 +1058,20 @@ Loop:
 			w.mux.Unlock()
 			for {
 				w.mux.Lock()
-				// In case the scaleset was disabled while we were in the
-				// backoff sleep.
-				if !w.scaleSet.Enabled {
+				// In case the scaleset was disabled or the credentials were
+				// rejected while we were in the backoff sleep. The outer loop
+				// parks until the condition clears.
+				if !w.scaleSet.Enabled || w.forgeAuthBlockedLocked() {
 					w.mux.Unlock()
 					continue Loop
 				}
 				slog.DebugContext(w.ctx, "attempting to restart")
 				if err := w.listener.Start(); err != nil {
 					w.mux.Unlock()
+					if errors.Is(err, runnerErrors.ErrUnauthorized) {
+						w.markAuthFailure()
+						continue Loop
+					}
 					switch backoff {
 					case 0:
 						backoff = 5 * time.Second
@@ -963,6 +1087,7 @@ Loop:
 					continue
 				}
 				backoff = 0
+				w.clearAuthFailureLocked()
 				w.mux.Unlock()
 				continue Loop
 			}
@@ -1220,6 +1345,14 @@ func (w *Worker) handleAutoScale() {
 				if err := w.handleInstanceCleanup(instance); err != nil {
 					slog.ErrorContext(w.ctx, "error cleaning up instance", "instance_id", instance.ID, "error", err)
 				}
+			}
+
+			// Instance cleanup above is database-only and always runs; the
+			// scaling decisions below talk to the forge and pause while rate
+			// limited or while our credentials are rejected.
+			if w.scalingPausedLocked() {
+				w.mux.Unlock()
+				continue
 			}
 
 			if w.runnerCount() == w.targetRunners() {

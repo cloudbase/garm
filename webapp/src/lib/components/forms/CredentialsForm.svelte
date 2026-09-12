@@ -214,17 +214,20 @@
 				<label for="{idPrefix}reserve-usage-percentage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 					Reserved percentage
 				</label>
-				<input
-					type="number"
-					id="{idPrefix}reserve-usage-percentage"
-					bind:value={formData.reserve_usage_percentage}
-					min="0"
-					max="100"
-					class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-					placeholder="10"
-				/>
+				<div class="flex items-center space-x-3">
+					<input
+						type="range"
+						id="{idPrefix}reserve-usage-percentage"
+						bind:value={formData.reserve_usage_percentage}
+						min="0"
+						max="50"
+						step="1"
+						class="w-full h-1 bg-gray-300 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
+					/>
+					<span class="w-12 text-right text-sm text-gray-700 dark:text-gray-300 tabular-nums">{formData.reserve_usage_percentage}%</span>
+				</div>
 				<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-					Percentage of the hourly rate limit to reserve (0-100). A value between 5% and 20% should be safe on most setups.
+					Percentage of the hourly rate limit to reserve (at most 50%). A value between 5% and 20% should be safe on most setups.
 				</p>
 			</div>
 		{/if}

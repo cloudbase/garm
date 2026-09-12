@@ -472,7 +472,7 @@ export interface CreateGithubCredentialsParams {
      */
     'reserve_usage_enabled'?: boolean;
     /**
-     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
+     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations, so it is capped at 50%. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
      * @type {number}
      * @memberof CreateGithubCredentialsParams
      */
@@ -1313,7 +1313,7 @@ export interface ForgeCredentials {
      */
     'reserve_usage_enabled'?: boolean;
     /**
-     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
+     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations, so it is capped at 50%. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
      * @type {number}
      * @memberof ForgeCredentials
      */
@@ -3596,7 +3596,7 @@ export interface UpdateGithubCredentialsParams {
      */
     'reserve_usage_enabled'?: boolean;
     /**
-     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
+     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations, so it is capped at 50%. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
      * @type {number}
      * @memberof UpdateGithubCredentialsParams
      */

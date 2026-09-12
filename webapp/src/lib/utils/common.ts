@@ -306,3 +306,21 @@ export function getPaginationInfo(currentPage: number, perPage: number, totalIte
 	return `Showing ${start} to ${end} of ${totalItems} results`;
 }
 
+
+/**
+ * Highest allowed value for the rate limit reserve percentage. Mirrors the
+ * server-side cap (params.MaxReserveUsagePercentage): reserving more than
+ * half of the quota leaves too little for normal operations.
+ */
+export const MAX_RESERVE_USAGE_PERCENTAGE = 50;
+
+/**
+ * Validates the rate limit reserve percentage. Returns an error message, or
+ * null when the value is valid.
+ */
+export function validateReservePercentage(percentage: number): string | null {
+	if (!Number.isInteger(percentage) || percentage < 0 || percentage > MAX_RESERVE_USAGE_PERCENTAGE) {
+		return `Reserved percentage must be an integer between 0 and ${MAX_RESERVE_USAGE_PERCENTAGE}.`;
+	}
+	return null;
+}

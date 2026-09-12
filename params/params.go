@@ -1282,8 +1282,8 @@ type ForgeCredentials struct {
 	ReserveUsageEnabled bool `json:"reserve_usage_enabled,omitempty"`
 	// ReserveUsagePercentage is the percentage of available rate limit reserved
 	// for critical operations. Setting this value too high will negatively impact
-	// normal operations. A value between 5% and 20% should be safe on most setups.
-	// Adjust this based on your usage patterns.
+	// normal operations, so it is capped at 50%. A value between 5% and 20%
+	// should be safe on most setups. Adjust this based on your usage patterns.
 	ReserveUsagePercentage int `json:"reserve_usage_percentage,omitempty"`
 
 	Repositories  []Repository     `json:"repositories,omitempty"`
@@ -1300,6 +1300,52 @@ type ForgeCredentials struct {
 
 func (g ForgeCredentials) GetID() uint {
 	return g.ID
+}
+
+// reserveThreshold returns the number of API calls held in reserve for
+// critical operations (such as removing runners that finished their jobs).
+// Zero when usage reservation is disabled or no rate limit was observed.
+func (g ForgeCredentials) reserveThreshold() int {
+	if !g.ReserveUsageEnabled || g.RateLimit == nil {
+		return 0
+	}
+	return g.RateLimit.Limit * g.ReserveUsagePercentage / 100
+}
+
+// rateLimitReached reports whether the remaining quota has dropped to or
+// below the given threshold, and when the quota resets. The reset time is
+// returned whenever rate limit info was recorded, regardless of the verdict.
+// It is the zero time only when no info is available (Gitea, GHES with rate
+// limiting disabled, or no forge response observed yet). When no rate limits
+// are available, the credentials are considered unlimited. A quota whose
+// reset time has passed is treated as refreshed, even if we have not yet
+// observed a fresh response confirming it, otherwise a controller that
+// stopped making API calls due to the limit would never notice the reset.
+func (g ForgeCredentials) rateLimitReached(threshold int) (bool, time.Time) {
+	if g.RateLimit == nil || g.RateLimit.Limit == 0 {
+		return false, time.Time{}
+	}
+	resetAt := g.RateLimit.ResetAt()
+	if !time.Now().Before(resetAt) {
+		return false, resetAt
+	}
+	return g.RateLimit.Remaining <= threshold, resetAt
+}
+
+// RateLimitReached reports whether these credentials should be considered
+// rate limited for normal (non-critical) operations, and when the quota
+// resets. When usage reservation is enabled, normal operations are
+// considered limited once the remaining quota dips into the reserved
+// percentage, keeping the reserve available for critical operations.
+func (g ForgeCredentials) RateLimitReached() (bool, time.Time) {
+	return g.rateLimitReached(g.reserveThreshold())
+}
+
+// CriticalRateLimitReached reports whether even critical operations (such
+// as removing runners that finished their jobs) should back off, meaning
+// the quota is fully exhausted, and when it resets.
+func (g ForgeCredentials) CriticalRateLimitReached() (bool, time.Time) {
+	return g.rateLimitReached(0)
 }
 
 func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {

@@ -520,6 +520,12 @@ func (g GithubApp) Validate() error {
 	return nil
 }
 
+// MaxReserveUsagePercentage is the highest allowed value for
+// ReserveUsagePercentage. Reserving more than half of the quota for
+// critical operations leaves too little for normal operations and
+// effectively breaks scaling.
+const MaxReserveUsagePercentage = 50
+
 // swagger:model CreateGithubCredentialsParams
 type CreateGithubCredentialsParams struct {
 	Name        string        `json:"name,omitempty"`
@@ -535,8 +541,8 @@ type CreateGithubCredentialsParams struct {
 	ReserveUsageEnabled bool `json:"reserve_usage_enabled,omitempty"`
 	// ReserveUsagePercentage is the percentage of available rate limit reserved
 	// for critical operations. Setting this value too high will negatively impact
-	// normal operations. A value between 5% and 20% should be safe on most setups.
-	// Adjust this based on your usage patterns.
+	// normal operations, so it is capped at 50%. A value between 5% and 20%
+	// should be safe on most setups. Adjust this based on your usage patterns.
 	ReserveUsagePercentage int `json:"reserve_usage_percentage,omitempty"`
 }
 
@@ -549,8 +555,8 @@ func (c CreateGithubCredentialsParams) Validate() error {
 		return runnerErrors.NewBadRequestError("missing endpoint")
 	}
 
-	if c.ReserveUsagePercentage > 100 || c.ReserveUsagePercentage < 0 {
-		return runnerErrors.NewBadRequestError("value for reserve_usage_percentage bust be an int between 0 and 100")
+	if c.ReserveUsagePercentage > MaxReserveUsagePercentage || c.ReserveUsagePercentage < 0 {
+		return runnerErrors.NewBadRequestError("value for reserve_usage_percentage must be an int between 0 and %d", MaxReserveUsagePercentage)
 	}
 
 	switch c.AuthType {
@@ -586,8 +592,8 @@ type UpdateGithubCredentialsParams struct {
 	ReserveUsageEnabled *bool `json:"reserve_usage_enabled,omitempty"`
 	// ReserveUsagePercentage is the percentage of available rate limit reserved
 	// for critical operations. Setting this value too high will negatively impact
-	// normal operations. A value between 5% and 20% should be safe on most setups.
-	// Adjust this based on your usage patterns.
+	// normal operations, so it is capped at 50%. A value between 5% and 20%
+	// should be safe on most setups. Adjust this based on your usage patterns.
 	ReserveUsagePercentage *int `json:"reserve_usage_percentage,omitempty"`
 }
 
@@ -608,8 +614,8 @@ func (u UpdateGithubCredentialsParams) Validate() error {
 		}
 	}
 
-	if u.ReserveUsagePercentage != nil && (*u.ReserveUsagePercentage > 100 || *u.ReserveUsagePercentage < 0) {
-		return runnerErrors.NewBadRequestError("value for reserve_usage_percentage bust be an int between 0 and 100")
+	if u.ReserveUsagePercentage != nil && (*u.ReserveUsagePercentage > MaxReserveUsagePercentage || *u.ReserveUsagePercentage < 0) {
+		return runnerErrors.NewBadRequestError("value for reserve_usage_percentage must be an int between 0 and %d", MaxReserveUsagePercentage)
 	}
 
 	return nil
