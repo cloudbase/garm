@@ -225,7 +225,7 @@ func (s *ObjectStoreTestSuite) TestDeleteFileObjectWithGarmAgentTag() {
 func (s *ObjectStoreTestSuite) TestListFileObjects() {
 	// Create additional test files
 	for i := 1; i <= 3; i++ {
-		content := []byte(fmt.Sprintf("test file %d", i))
+		content := fmt.Appendf(nil, "test file %d", i)
 		param := params.CreateFileObjectParams{
 			Name: fmt.Sprintf("list-test-%d.txt", i),
 			Size: int64(len(content)),
@@ -257,7 +257,7 @@ func (s *ObjectStoreTestSuite) TestListFileObjectsWithTags() {
 	// Create files with specific tags
 	specificTag := "specific-list-tag"
 	for i := 1; i <= 2; i++ {
-		content := []byte(fmt.Sprintf("tagged file %d", i))
+		content := fmt.Appendf(nil, "tagged file %d", i)
 		param := params.CreateFileObjectParams{
 			Name: fmt.Sprintf("tagged-list-%d.txt", i),
 			Size: int64(len(content)),
@@ -285,7 +285,7 @@ func (s *ObjectStoreTestSuite) TestListFileObjectsWithTags() {
 func (s *ObjectStoreTestSuite) TestListFileObjectsPagination() {
 	// Create multiple files for pagination test
 	for i := 1; i <= 10; i++ {
-		content := []byte(fmt.Sprintf("pagination file %d", i))
+		content := fmt.Appendf(nil, "pagination file %d", i)
 		param := params.CreateFileObjectParams{
 			Name: fmt.Sprintf("page-test-%d.txt", i),
 			Size: int64(len(content)),
@@ -441,7 +441,7 @@ func (s *ObjectStoreTestSuite) TestGetFileObjectReaderNotFound() {
 func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTags() {
 	// Create multiple test files with specific tags
 	for i := 1; i <= 5; i++ {
-		content := []byte(fmt.Sprintf("test file %d", i))
+		content := fmt.Appendf(nil, "test file %d", i)
 		var tags []string
 		if i <= 3 {
 			// First 3 files have matching tags
