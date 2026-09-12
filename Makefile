@@ -66,11 +66,15 @@ build-webui: ## Build GARM web UI (for local development)
 	cp -r webapp/build/* webapp/assets/
 
 .PHONY: generate
+# GOEXPERIMENT=nojsonv2: go 1.27 aliases json.RawMessage to jsontext.Value,
+# which go-swagger no longer recognizes as a special case. It falls back to
+# modeling the underlying []byte as an array of uint8 instead of an opaque
+# JSON object, breaking ExtraSpecs typing in the generated clients.
 generate: ## Run go generate after checking required tools are in PATH
 	@echo Checking required tools...
 	@which openapi-generator-cli > /dev/null || (echo "Error: openapi-generator-cli not found in PATH" && exit 1)
 	@echo Running go generate
-	@$(GO) generate ./...
+	@GOEXPERIMENT=nojsonv2 $(GO) generate ./...
 
 test: verify go-test ## Run tests
 
