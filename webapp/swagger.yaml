@@ -291,6 +291,22 @@ definitions:
                 x-go-name: Name
             pat:
                 $ref: '#/definitions/GithubPAT'
+            reserve_usage_enabled:
+                description: |-
+                    ReserveUsageEnabled toggles whether or not to allocate a certain
+                    percentage of the available rate limit to critical operations such
+                    as delete operations for runners that have finished their jobs.
+                type: boolean
+                x-go-name: ReserveUsageEnabled
+            reserve_usage_percentage:
+                description: |-
+                    ReserveUsagePercentage is the percentage of available rate limit reserved
+                    for critical operations. Setting this value too high will negatively impact
+                    normal operations. A value between 5% and 20% should be safe on most setups.
+                    Adjust this based on your usage patterns.
+                format: int64
+                type: integer
+                x-go-name: ReserveUsagePercentage
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateGithubEndpointParams:
@@ -791,6 +807,22 @@ definitions:
                     $ref: '#/definitions/Repository'
                 type: array
                 x-go-name: Repositories
+            reserve_usage_enabled:
+                description: |-
+                    ReserveUsageEnabled toggles whether or not to allocate a certain
+                    percentage of the available rate limit to critical operations such
+                    as delete operations for runners that have finished their jobs.
+                type: boolean
+                x-go-name: ReserveUsageEnabled
+            reserve_usage_percentage:
+                description: |-
+                    ReserveUsagePercentage is the percentage of available rate limit reserved
+                    for critical operations. Setting this value too high will negatively impact
+                    normal operations. A value between 5% and 20% should be safe on most setups.
+                    Adjust this based on your usage patterns.
+                format: int64
+                type: integer
+                x-go-name: ReserveUsagePercentage
             updated_at:
                 format: date-time
                 type: string
@@ -2328,6 +2360,22 @@ definitions:
                 x-go-name: Name
             pat:
                 $ref: '#/definitions/GithubPAT'
+            reserve_usage_enabled:
+                description: |-
+                    ReserveUsageEnabled toggles whether or not to allocate a certain
+                    percentage of the available rate limit to critical operations such
+                    as delete operations for runners that have finished their jobs.
+                type: boolean
+                x-go-name: ReserveUsageEnabled
+            reserve_usage_percentage:
+                description: |-
+                    ReserveUsagePercentage is the percentage of available rate limit reserved
+                    for critical operations. Setting this value too high will negatively impact
+                    normal operations. A value between 5% and 20% should be safe on most setups.
+                    Adjust this based on your usage patterns.
+                format: int64
+                type: integer
+                x-go-name: ReserveUsagePercentage
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateGithubEndpointParams:

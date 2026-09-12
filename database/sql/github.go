@@ -274,12 +274,14 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 		}
 
 		creds = GithubCredentials{
-			Name:         param.Name,
-			Description:  param.Description,
-			EndpointName: &endpoint.Name,
-			AuthType:     param.AuthType,
-			Payload:      data,
-			UserID:       &userID,
+			Name:                   param.Name,
+			Description:            param.Description,
+			EndpointName:           &endpoint.Name,
+			AuthType:               param.AuthType,
+			Payload:                data,
+			UserID:                 &userID,
+			ReserveUsageEnabled:    param.ReserveUsageEnabled,
+			ReserveUsagePercentage: param.ReserveUsagePercentage,
 		}
 
 		if err := tx.Create(&creds).Error; err != nil {
@@ -431,6 +433,12 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 		}
 		if param.Description != nil && *param.Description != creds.Description {
 			updates["description"] = *param.Description
+		}
+		if param.ReserveUsageEnabled != nil && *param.ReserveUsageEnabled != creds.ReserveUsageEnabled {
+			updates["reserve_usage_enabled"] = *param.ReserveUsageEnabled
+		}
+		if param.ReserveUsagePercentage != nil && *param.ReserveUsagePercentage != creds.ReserveUsagePercentage {
+			updates["reserve_usage_percentage"] = *param.ReserveUsagePercentage
 		}
 
 		var data []byte

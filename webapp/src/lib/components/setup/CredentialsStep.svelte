@@ -40,7 +40,9 @@
 		oauth2_token: '',
 		app_id: '',
 		installation_id: '',
-		private_key_bytes: ''
+		private_key_bytes: '',
+		reserve_usage_enabled: false,
+		reserve_usage_percentage: 0
 	};
 
 	$: isFormValid = (() => {
@@ -80,7 +82,9 @@
 					name: formData.name.trim(),
 					description: formData.description.trim(),
 					endpoint: endpointName,
-					auth_type: selectedAuthType
+					auth_type: selectedAuthType,
+					reserve_usage_enabled: formData.reserve_usage_enabled,
+					reserve_usage_percentage: formData.reserve_usage_percentage
 				};
 				if (selectedAuthType === AuthType.PAT) {
 					githubParams.pat = { oauth2_token: formData.oauth2_token.trim() };

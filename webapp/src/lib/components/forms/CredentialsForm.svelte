@@ -18,7 +18,9 @@
 		oauth2_token: '',
 		app_id: '',
 		installation_id: '',
-		private_key_bytes: ''
+		private_key_bytes: '',
+		reserve_usage_enabled: false,
+		reserve_usage_percentage: 0
 	};
 	export let selectedAuthType: typeof AuthType[keyof typeof AuthType] = AuthType.PAT;
 	export let forgeType: 'github' | 'gitea' | '' = '';
@@ -41,6 +43,8 @@
 		formData.app_id = '';
 		formData.installation_id = '';
 		formData.private_key_bytes = '';
+		formData.reserve_usage_enabled = false;
+		formData.reserve_usage_percentage = 0;
 		selectedAuthType = AuthType.PAT;
 		dispatch('forgeTypeSelect', event.detail);
 	}
@@ -185,6 +189,45 @@
 			class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 			placeholder={forgeType === 'github' || forgeType === '' ? 'ghp_xxxxxxxxxxxxxxxxxxxx' : 'your-access-token'}
 		/>
+	</div>
+{/if}
+
+<!-- Rate limit reserve -->
+{#if forgeType === 'github'}
+	<div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+		<div class="flex items-center">
+			<input
+				id="{idPrefix}reserve-usage-enabled"
+				type="checkbox"
+				bind:checked={formData.reserve_usage_enabled}
+				class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+			/>
+			<label for="{idPrefix}reserve-usage-enabled" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+				Reserve rate limit for critical operations
+			</label>
+		</div>
+		<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+			Sets aside a slice of this credential's API rate limit for critical operations, such as deleting runners that finished their jobs. Runner creation pauses when only the reserved budget is left.
+		</p>
+		{#if formData.reserve_usage_enabled}
+			<div class="mt-3">
+				<label for="{idPrefix}reserve-usage-percentage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+					Reserved percentage
+				</label>
+				<input
+					type="number"
+					id="{idPrefix}reserve-usage-percentage"
+					bind:value={formData.reserve_usage_percentage}
+					min="0"
+					max="100"
+					class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+					placeholder="10"
+				/>
+				<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+					Percentage of the hourly rate limit to reserve (0-100). A value between 5% and 20% should be safe on most setups.
+				</p>
+			</div>
+		{/if}
 	</div>
 {/if}
 

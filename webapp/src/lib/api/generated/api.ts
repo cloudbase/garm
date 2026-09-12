@@ -465,6 +465,18 @@ export interface CreateGithubCredentialsParams {
      * @memberof CreateGithubCredentialsParams
      */
     'pat'?: GithubPAT;
+    /**
+     * ReserveUsageEnabled toggles whether or not to allocate a certain percentage of the available rate limit to critical operations such as delete operations for runners that have finished their jobs.
+     * @type {boolean}
+     * @memberof CreateGithubCredentialsParams
+     */
+    'reserve_usage_enabled'?: boolean;
+    /**
+     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
+     * @type {number}
+     * @memberof CreateGithubCredentialsParams
+     */
+    'reserve_usage_percentage'?: number;
 }
 /**
  * 
@@ -1294,6 +1306,18 @@ export interface ForgeCredentials {
      * @memberof ForgeCredentials
      */
     'repositories'?: Array<Repository>;
+    /**
+     * ReserveUsageEnabled toggles whether or not to allocate a certain percentage of the available rate limit to critical operations such as delete operations for runners that have finished their jobs.
+     * @type {boolean}
+     * @memberof ForgeCredentials
+     */
+    'reserve_usage_enabled'?: boolean;
+    /**
+     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
+     * @type {number}
+     * @memberof ForgeCredentials
+     */
+    'reserve_usage_percentage'?: number;
     /**
      * 
      * @type {string}
@@ -3565,6 +3589,18 @@ export interface UpdateGithubCredentialsParams {
      * @memberof UpdateGithubCredentialsParams
      */
     'pat'?: GithubPAT;
+    /**
+     * ReserveUsageEnabled toggles whether or not to allocate a certain percentage of the available rate limit to critical operations such as delete operations for runners that have finished their jobs.
+     * @type {boolean}
+     * @memberof UpdateGithubCredentialsParams
+     */
+    'reserve_usage_enabled'?: boolean;
+    /**
+     * ReserveUsagePercentage is the percentage of available rate limit reserved for critical operations. Setting this value too high will negatively impact normal operations. A value between 5% and 20% should be safe on most setups. Adjust this based on your usage patterns.
+     * @type {number}
+     * @memberof UpdateGithubCredentialsParams
+     */
+    'reserve_usage_percentage'?: number;
 }
 /**
  * 

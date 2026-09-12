@@ -528,6 +528,16 @@ type CreateGithubCredentialsParams struct {
 	AuthType    ForgeAuthType `json:"auth_type,omitempty"`
 	PAT         GithubPAT     `json:"pat,omitempty"`
 	App         GithubApp     `json:"app,omitempty"`
+
+	// ReserveUsageEnabled toggles whether or not to allocate a certain
+	// percentage of the available rate limit to critical operations such
+	// as delete operations for runners that have finished their jobs.
+	ReserveUsageEnabled bool `json:"reserve_usage_enabled,omitempty"`
+	// ReserveUsagePercentage is the percentage of available rate limit reserved
+	// for critical operations. Setting this value too high will negatively impact
+	// normal operations. A value between 5% and 20% should be safe on most setups.
+	// Adjust this based on your usage patterns.
+	ReserveUsagePercentage int `json:"reserve_usage_percentage,omitempty"`
 }
 
 func (c CreateGithubCredentialsParams) Validate() error {
@@ -537,6 +547,10 @@ func (c CreateGithubCredentialsParams) Validate() error {
 
 	if c.Endpoint == "" {
 		return runnerErrors.NewBadRequestError("missing endpoint")
+	}
+
+	if c.ReserveUsagePercentage > 100 || c.ReserveUsagePercentage < 0 {
+		return runnerErrors.NewBadRequestError("value for reserve_usage_percentage bust be an int between 0 and 100")
 	}
 
 	switch c.AuthType {
@@ -566,6 +580,15 @@ type UpdateGithubCredentialsParams struct {
 	Description *string    `json:"description,omitempty"`
 	PAT         *GithubPAT `json:"pat,omitempty"`
 	App         *GithubApp `json:"app,omitempty"`
+	// ReserveUsageEnabled toggles whether or not to allocate a certain
+	// percentage of the available rate limit to critical operations such
+	// as delete operations for runners that have finished their jobs.
+	ReserveUsageEnabled *bool `json:"reserve_usage_enabled,omitempty"`
+	// ReserveUsagePercentage is the percentage of available rate limit reserved
+	// for critical operations. Setting this value too high will negatively impact
+	// normal operations. A value between 5% and 20% should be safe on most setups.
+	// Adjust this based on your usage patterns.
+	ReserveUsagePercentage *int `json:"reserve_usage_percentage,omitempty"`
 }
 
 func (u UpdateGithubCredentialsParams) Validate() error {
@@ -583,6 +606,10 @@ func (u UpdateGithubCredentialsParams) Validate() error {
 		if err := u.App.Validate(); err != nil {
 			return fmt.Errorf("invalid app: %w", err)
 		}
+	}
+
+	if u.ReserveUsagePercentage != nil && (*u.ReserveUsagePercentage > 100 || *u.ReserveUsagePercentage < 0) {
+		return runnerErrors.NewBadRequestError("value for reserve_usage_percentage bust be an int between 0 and 100")
 	}
 
 	return nil

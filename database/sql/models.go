@@ -565,6 +565,12 @@ type GithubCredentials struct {
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName"`
 	EndpointName *string        `gorm:"index"`
 
+	// ReserveUsageEnabled toggles whether or not to allocate a certain
+	// percentage of the available rate limit to critical operations such
+	// as delete operations for runners that have finished their jobs.
+	ReserveUsageEnabled    bool
+	ReserveUsagePercentage int
+
 	Repositories  []Repository   `gorm:"foreignKey:CredentialsID"`
 	Organizations []Organization `gorm:"foreignKey:CredentialsID"`
 	Enterprises   []Enterprise   `gorm:"foreignKey:CredentialsID"`

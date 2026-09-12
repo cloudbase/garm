@@ -418,6 +418,12 @@
 							{new Date((credential.rate_limit.reset || 0) * 1000).toLocaleString()}
 						</dd>
 					</div>
+					<div>
+						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Reserved for critical operations</dt>
+						<dd class="mt-1 text-sm text-gray-900 dark:text-white">
+							{credential.reserve_usage_enabled ? `${credential.reserve_usage_percentage || 0}%` : 'Disabled'}
+						</dd>
+					</div>
 				</dl>
 			</div>
 		{/if}

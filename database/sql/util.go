@@ -1139,19 +1139,21 @@ func (s *sqlDatabase) sqlToCommonForgeCredentials(creds GithubCredentials) (para
 	}
 
 	commonCreds := params.ForgeCredentials{
-		ID:                 creds.ID,
-		Name:               creds.Name,
-		Description:        creds.Description,
-		APIBaseURL:         creds.Endpoint.APIBaseURL,
-		BaseURL:            creds.Endpoint.BaseURL,
-		UploadBaseURL:      creds.Endpoint.UploadBaseURL,
-		CABundle:           creds.Endpoint.CACertBundle,
-		AuthType:           creds.AuthType,
-		CreatedAt:          creds.CreatedAt,
-		UpdatedAt:          creds.UpdatedAt,
-		ForgeType:          creds.Endpoint.EndpointType,
-		Endpoint:           ep,
-		CredentialsPayload: data,
+		ID:                     creds.ID,
+		Name:                   creds.Name,
+		Description:            creds.Description,
+		APIBaseURL:             creds.Endpoint.APIBaseURL,
+		BaseURL:                creds.Endpoint.BaseURL,
+		UploadBaseURL:          creds.Endpoint.UploadBaseURL,
+		CABundle:               creds.Endpoint.CACertBundle,
+		AuthType:               creds.AuthType,
+		CreatedAt:              creds.CreatedAt,
+		UpdatedAt:              creds.UpdatedAt,
+		ForgeType:              creds.Endpoint.EndpointType,
+		Endpoint:               ep,
+		CredentialsPayload:     data,
+		ReserveUsageEnabled:    creds.ReserveUsageEnabled,
+		ReserveUsagePercentage: creds.ReserveUsagePercentage,
 	}
 
 	for _, repo := range creds.Repositories {
