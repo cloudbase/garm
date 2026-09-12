@@ -51,14 +51,14 @@ groups:
 
       - alert: GarmForgeAPIErrorRate
         expr: |
-          sum(increase(garm_github_errors_total[15m]))
-            / clamp_min(sum(increase(garm_github_operations_total[15m])), 1) > 0.2
+          sum by (endpoint) (increase(garm_github_errors_total[15m]))
+            / clamp_min(sum by (endpoint) (increase(garm_github_operations_total[15m])), 1) > 0.2
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "GARM forge API calls are failing"
-          description: "More than 20% of forge API calls failed over the last 15 minutes. Check credential validity (expired PAT?) and endpoint reachability; `sum by (operation) (increase(garm_github_errors_total[15m]))` names the failing operations."
+          summary: "GARM API calls to forge endpoint {{ $labels.endpoint }} are failing"
+          description: "More than 20% of API calls to forge endpoint {{ $labels.endpoint }} failed over the last 15 minutes. Check credential validity (expired PAT?) and endpoint reachability; `sum by (operation) (increase(garm_github_errors_total{endpoint=\"{{ $labels.endpoint }}\"}[15m]))` names the failing operations."
 
       - alert: GarmCredentialExpiringSoon
         expr: |

@@ -21,15 +21,15 @@ var (
 		Namespace: metricsNamespace,
 		Subsystem: metricsGithubSubsystem,
 		Name:      "operations_total",
-		Help:      "Total number of github operation attempts",
-	}, []string{"operation", "scope"})
+		Help:      "Total number of forge (github, gitea) operation attempts",
+	}, []string{"operation", "scope", "endpoint"})
 
 	GithubOperationFailedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,
 		Subsystem: metricsGithubSubsystem,
 		Name:      "errors_total",
-		Help:      "Total number of failed github operation attempts",
-	}, []string{"operation", "scope"})
+		Help:      "Total number of failed forge (github, gitea) operation attempts",
+	}, []string{"operation", "scope", "endpoint"})
 
 	// GitHub rate limit metrics
 	GithubRateLimitLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{

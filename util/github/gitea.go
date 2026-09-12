@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/go-github/v84/github"
 
-	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -221,16 +220,10 @@ func (g *githubClient) removeGiteaInstanceRunner(ctx context.Context, runnerID i
 }
 
 func (g *githubClient) createGiteaEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
-	metrics.GithubOperationCount.WithLabelValues(
-		"CreateHook",          // label: operation
-		g.entity.LabelScope(), // label: scope
-	).Inc()
+	g.recordOp("CreateHook")
 	defer func() {
 		if err != nil {
-			metrics.GithubOperationFailedCount.WithLabelValues(
-				"CreateHook",          // label: operation
-				g.entity.LabelScope(), // label: scope
-			).Inc()
+			g.recordOpFailure("CreateHook")
 		}
 	}()
 	switch g.entity.EntityType {
