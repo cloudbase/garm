@@ -601,8 +601,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (operation) (rate(garm_github_operations_total[$__rate_interval]))",
-          "legendFormat": "{{operation}}",
+          "expr": "sum by (endpoint, operation) (rate(garm_github_operations_total[$__rate_interval]))",
+          "legendFormat": "{{endpoint}} \u00b7 {{operation}}",
           "refId": "A"
         }
       ]
@@ -673,8 +673,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (operation) (rate(garm_github_errors_total[$__rate_interval]))",
-          "legendFormat": "{{operation}}",
+          "expr": "sum by (endpoint, operation) (rate(garm_github_errors_total[$__rate_interval]))",
+          "legendFormat": "{{endpoint}} \u00b7 {{operation}}",
           "refId": "A"
         }
       ]

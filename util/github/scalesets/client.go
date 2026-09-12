@@ -76,10 +76,20 @@ type ScaleSetClient struct {
 	mux sync.Mutex
 }
 
+func (s *ScaleSetClient) endpointLabel() string {
+	creds := s.ghCli.GetEntity().Credentials
+	endpoint := creds.Endpoint.Name
+	if endpoint == "" {
+		endpoint = creds.BaseURL
+	}
+	return endpoint
+}
+
 func (s *ScaleSetClient) recordOperation(operation string) {
 	metrics.GithubOperationCount.WithLabelValues(
 		operation,
 		s.ghCli.GetEntity().LabelScope(),
+		s.endpointLabel(),
 	).Inc()
 }
 
@@ -87,6 +97,7 @@ func (s *ScaleSetClient) recordFailedOperation(operation string) {
 	metrics.GithubOperationFailedCount.WithLabelValues(
 		operation,
 		s.ghCli.GetEntity().LabelScope(),
+		s.endpointLabel(),
 	).Inc()
 }
 

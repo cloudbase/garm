@@ -231,8 +231,8 @@ A spike in `bootstrap_timeout` typically means a broken image, network or userda
 
 | Metric | Type | Labels |
 | -------- | ------ | -------- |
-| `garm_github_operations_total` | Counter | `operation`, `scope` |
-| `garm_github_errors_total` | Counter | `operation`, `scope` |
+| `garm_github_operations_total` | Counter | `operation`, `scope`, `endpoint` |
+| `garm_github_errors_total` | Counter | `operation`, `scope`, `endpoint` |
 | `garm_github_rate_limit_limit` | Gauge | `credential_name`, `credential_id`, `endpoint` |
 | `garm_github_rate_limit_remaining` | Gauge | `credential_name`, `credential_id`, `endpoint` |
 | `garm_github_rate_limit_used` | Gauge | `credential_name`, `credential_id`, `endpoint` |
@@ -240,6 +240,8 @@ A spike in `bootstrap_timeout` typically means a broken image, network or userda
 | `garm_github_token_expiration_timestamp` | Gauge | `credential_name`, `credential_id`, `endpoint` |
 
 The `scope` label is `Repository`, `Organization`, or `Enterprise`. The `operation` label takes one of the values listed below.
+
+Despite the `github` in their names (kept for backwards compatibility), these metrics cover **all** forge API traffic — GitHub, GHES, Gitea and Forgejo alike. The `endpoint` label carries the name of the endpoint the credential belongs to (for example `github.com` or the name you gave your Gitea endpoint), so error rates can be attributed to a specific forge: `sum by (endpoint) (rate(garm_github_errors_total[5m]))`.
 
 `garm_github_token_expiration_timestamp` records when a credential's token expires, as reported by the forge on API responses. It is only emitted for PAT credentials whose token has an expiration set; app credentials are excluded since their tokens rotate automatically. Alert on `(garm_github_token_expiration_timestamp - time()) < 14 * 24 * 3600` to rotate tokens before an expiry turns into a wall of API errors.
 
@@ -296,7 +298,7 @@ GARM's internal workers (caches, entity workers, scale set workers, the provider
 | `garm_watcher_notify_timeouts_total` | Counter | (none) |
 | `garm_watcher_consumer_queue_depth` | Gauge | `consumer` |
 
-`garm_watcher_events_total` counts every database change event published to the watcher — the change-feed heartbeat of the controller. The `entity_type` and `operation` labels match the values documented under [Database events](#database-events).
+`garm_watcher_events_total` counts every database change event published to the watcher (the change-feed heartbeat of the controller). The `entity_type` and `operation` labels match the values documented under [Database events](#database-events).
 
 `garm_watcher_notify_timeouts_total` counts change notifications that were **dropped** because the watcher could not accept them within the notify timeout. The database write itself succeeded, but downstream consumers never saw the event, so in-memory state may have diverged from the database. Any nonzero value is worth alerting on.
 
