@@ -257,7 +257,7 @@ func (s *ScaleSetsTestSuite) TestScaleSetOperations() {
 	s.T().Run("Set scale set last message ID and desired count", func(_ *testing.T) {
 		err = s.Store.SetScaleSetLastMessageID(s.adminCtx, orgScaleSet.ID, 20)
 		s.Require().NoError(err)
-		err = s.Store.SetScaleSetDesiredRunnerCount(s.adminCtx, orgScaleSet.ID, 5)
+		err = s.Store.SetScaleSetRunnerStatistics(s.adminCtx, orgScaleSet.ID, params.RunnerScaleSetStatistic{TotalAssignedJobs: 5})
 		s.Require().NoError(err)
 		orgScaleSetByID, err := s.Store.GetScaleSetByID(s.adminCtx, orgScaleSet.ID)
 		s.Require().NoError(err)
