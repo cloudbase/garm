@@ -94,4 +94,4 @@ Providers are external executables that GARM calls to manage runner lifecycle in
 
 ## Community
 
-Whether you're running into issues or just want to drop by and say "hi", feel free to [join us on Slack](https://communityinviter.com/apps/garm-hq/garm).
+Whether you're running into issues or just want to drop by and say "hi", feel free to [join us on Slack](https://inviter.co/garm).
