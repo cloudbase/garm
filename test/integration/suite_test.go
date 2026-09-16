@@ -94,15 +94,17 @@ func (suite *GarmSuite) SetupSuite() {
 	suite.authToken = openapiRuntimeClient.BearerToken(token)
 	suite.baseURL = baseURL
 	suite.apiToken = token
-
-	// The event consumer listens for database change events for the entire
-	// lifetime of the test suite. Tests wait for conditions over the
-	// consumed events instead of polling the API.
-	suite.events = suite.startEventConsumer()
 	t.Log("Log in successful")
 
 	err = setControllerURLs(suite.cli, suite.authToken, baseURL)
 	suite.Require().NoError(err, "error setting controller URLs")
+
+	// The event consumer listens for database change events for the entire
+	// lifetime of the test suite. Tests wait for conditions over the
+	// consumed events instead of polling the API. It can only connect once
+	// the controller URLs are set: until then, the API (including the
+	// events websocket endpoint) refuses requests with a 409.
+	suite.events = suite.startEventConsumer()
 
 	suite.credentialsName = os.Getenv("CREDENTIALS_NAME")
 	suite.EnsureTestCredentials(suite.credentialsName, suite.ghToken, "github.com")
