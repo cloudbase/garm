@@ -26,7 +26,6 @@ import (
 	clientEndpoints "github.com/cloudbase/garm/client/endpoints"
 	clientFirstRun "github.com/cloudbase/garm/client/first_run"
 	clientInstances "github.com/cloudbase/garm/client/instances"
-	clientJobs "github.com/cloudbase/garm/client/jobs"
 	clientLogin "github.com/cloudbase/garm/client/login"
 	clientMetricsToken "github.com/cloudbase/garm/client/metrics_token"
 	clientOrganizations "github.com/cloudbase/garm/client/organizations"
@@ -191,17 +190,6 @@ func getControllerInfo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthIn
 		return params.ControllerInfo{}, err
 	}
 	return controllerInfoResponse.Payload, nil
-}
-
-// listJobs lists all the jobs configured in GARM.
-func listJobs(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.Jobs, error) {
-	listJobsResponse, err := apiCli.Jobs.ListJobs(
-		clientJobs.NewListJobsParams(),
-		apiAuthToken)
-	if err != nil {
-		return nil, err
-	}
-	return listJobsResponse.Payload, nil
 }
 
 // getMetricsToken returns the metrics token.
