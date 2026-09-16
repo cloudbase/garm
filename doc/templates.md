@@ -41,7 +41,12 @@ garm-cli template copy system-github-linux my-custom-template
 
 # Edit the template in the built-in TUI editor
 garm-cli template edit my-custom-template
+
+# Or edit it in your own $EDITOR
+garm-cli template edit my-custom-template --external
 ```
+
+Templates are syntax-checked when created or updated. If the template fails to parse, the CLI shows the error and drops you back into the editor instead of saving a broken template. If a template error only surfaces when the template is rendered for a runner (for example a missing key in the template context), the runner reports the error back to GARM and is marked as `failed`, so the problem shows up in the runner's status events instead of leaving the runner stuck in `installing`.
 
 You can also download a template to a file for inspection:
 

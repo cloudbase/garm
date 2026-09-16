@@ -24,6 +24,44 @@ Verify sync status:
 garm-cli controller show
 ```
 
+### Pinning the garm-agent version
+
+By default, GARM tracks the **latest** garm-agent release from the configured tools URL. If a new agent release introduces a requirement your environment is not ready for, you can pin the controller to a known good version:
+
+```bash
+garm-cli controller update --garm-agent-version=v0.1.0
+```
+
+Setting it back to `latest` resumes tracking the newest release:
+
+```bash
+garm-cli controller update --garm-agent-version=latest
+```
+
+To see what is available, list the synced tools and the releases known from the cached release index (the pinned version and what `latest` resolves to are marked):
+
+```bash
+garm-cli controller tools list
+garm-cli controller tools list --online
+```
+
+Release notes for a specific version can be viewed directly from the CLI:
+
+```bash
+garm-cli controller tools show-release v0.1.1
+```
+
+### Allowing insecure agent connections
+
+Agents connect back to GARM over TLS. For local development, testing, or as a temporary stopgap while an environment transitions to TLS, deployed agents can be configured to connect over plain http/ws:
+
+```bash
+garm-cli controller update --allow-insecure-agent=true
+```
+
+> [!CAUTION]
+> With this enabled, the agent token is sent in plain text. Do not use it in production. This option requires garm-agent v0.1.1 or newer.
+
 ### Enabling shell access on a pool
 
 ```bash

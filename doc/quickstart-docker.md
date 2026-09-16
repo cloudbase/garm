@@ -178,6 +178,16 @@ garm-cli init --name="my_garm" --url http://garm.example.com
 
 You will be prompted for a username, email, and password. These are your admin credentials.
 
+If you are automating the setup, pass the credentials as flags instead. Use `--password-file` rather than `--password` to keep the password out of process arguments and shell history:
+
+```bash
+garm-cli init --name="my_garm" --url http://garm.example.com \
+  --username admin --email admin@example.com \
+  --password-file /path/to/password-file
+```
+
+The same `--password-file` flag is accepted by `garm-cli profile add` and `garm-cli profile login`.
+
 The output shows your admin user and controller details:
 
 ```bash

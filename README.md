@@ -54,6 +54,8 @@ Pick the quickstart that matches your setup:
 
 For Kubernetes deployments, see the [GARM operator](https://github.com/mercedes-benz/garm-operator/). To build from source, see [Building from Source](/doc/building-from-source.md).
 
+If you get stuck, the **[FAQ](/doc/faq.md)** covers the most common problems: webhooks that don't fire, GHES quirks, stuck runners, pools that won't scale and more.
+
 ## Documentation
 
 Full documentation lives in the [doc/](/doc/README.md) directory:

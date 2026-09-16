@@ -16,6 +16,7 @@ GARM needs credentials to interact with GitHub or Gitea: creating runners, manag
     - [List credentials](#list-credentials)
     - [Show credential details](#show-credential-details)
     - [Delete a credential](#delete-a-credential)
+  - [Rate limit usage reservation](#rate-limit-usage-reservation)
   - [Gitea credentials](#gitea-credentials)
     - [Create a Gitea token](#create-a-gitea-token)
     - [Add Gitea credentials to GARM](#add-gitea-credentials-to-garm)
@@ -126,6 +127,32 @@ The detail view shows which repositories, organizations, and enterprises are cur
 ```bash
 garm-cli github credentials delete 1
 ```
+
+## Rate limit usage reservation
+
+GARM records the API rate limit values returned with every forge response and can pause work when the quota runs low. On top of that, each GitHub credential can **reserve a slice of its rate limit quota for critical operations** — removing runners that finished their jobs or were marked for deletion. Those operations directly impact IaaS cost: if GARM cannot delete finished runners, you keep paying for idle machines.
+
+```bash
+garm-cli github credentials update 1 \
+  --reserve-usage-enabled=true \
+  --reserve-usage-percentage=10
+```
+
+The same flags are available on `garm-cli github credentials add`, and the setting can also be changed from the Web UI credentials forms.
+
+How it behaves:
+
+- While the remaining quota is above the reserved threshold, everything runs normally.
+- Once the remaining quota dips into the reserve, **non-critical operations pause**: scaling up, reacting to new jobs, periodic reconciliation and cleanup sweeps. Critical operations (executing already-decided runner deletions) keep running from the reserve.
+- When the quota is fully exhausted, everything that needs a forge API call pauses.
+- Paused operations **resume automatically** once the quota resets.
+
+The percentage is capped at **50%**. Reserving more than half of the quota would starve normal operations. A value between 5% and 20% is safe on most setups; adjust based on your usage patterns.
+
+> [!NOTE]
+> This is a GitHub (and GHES with rate limiting enabled) feature. Gitea does not report rate limits, so the setting has no effect there. Credentials that have never seen a rate limited response are never paused.
+
+The current rate limit values for each credential are visible in `garm-cli github credentials show` and are exported as Prometheus metrics (see [monitoring](monitoring.md)).
 
 ## Gitea credentials
 

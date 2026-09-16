@@ -39,8 +39,6 @@ type (
 )
 
 const (
-	// MySQLBackend represents the MySQL DB backend
-	MySQLBackend DBBackendType = "mysql"
 	// SQLiteBackend represents the SQLite3 DB backend
 	SQLiteBackend DBBackendType = "sqlite3"
 	// PostgreSQLBackend represents the PostgreSQL DB backend
@@ -298,7 +296,6 @@ func (p *Provider) Validate() error {
 type Database struct {
 	Debug      bool          `toml:"debug" json:"debug"`
 	DbBackend  DBBackendType `toml:"backend" json:"backend"`
-	MySQL      MySQL         `toml:"mysql" json:"mysql"`
 	SQLite     SQLite        `toml:"sqlite3" json:"sqlite3"`
 	PostgreSQL PostgreSQL    `toml:"postgresql" json:"postgresql"`
 	// Passphrase is used to encrypt any sensitive info before
@@ -316,11 +313,6 @@ func (d *Database) GormParams() (dbType DBBackendType, uri string, err error) {
 	}
 	dbType = d.DbBackend
 	switch dbType {
-	case MySQLBackend:
-		uri, err = d.MySQL.ConnectionString()
-		if err != nil {
-			return "", "", fmt.Errorf("error fetching mysql connection string: %w", err)
-		}
 	case SQLiteBackend:
 		uri, err = d.SQLite.ConnectionString()
 		if err != nil {
@@ -374,10 +366,6 @@ func (d *Database) Validate() error {
 	}
 
 	switch d.DbBackend {
-	case MySQLBackend:
-		if err := d.MySQL.Validate(); err != nil {
-			return fmt.Errorf("validating mysql config: %w", err)
-		}
 	case SQLiteBackend:
 		if err := d.SQLite.Validate(); err != nil {
 			return fmt.Errorf("validating sqlite3 config: %w", err)
@@ -437,37 +425,6 @@ func (s *SQLite) connectionStringForDBFile(dbFile string) string {
 
 func (s *SQLite) ConnectionString() (string, error) {
 	return s.connectionStringForDBFile(s.DBFile), nil
-}
-
-// MySQL is the config entry for the mysql section
-type MySQL struct {
-	Username     string `toml:"username" json:"username"`
-	Password     string `toml:"password" json:"password"`
-	Hostname     string `toml:"hostname" json:"hostname"`
-	DatabaseName string `toml:"database" json:"database"`
-}
-
-// Validate validates a Database config entry
-func (m *MySQL) Validate() error {
-	if m.Username == "" || m.Password == "" || m.Hostname == "" || m.DatabaseName == "" {
-		return fmt.Errorf(
-			"database, username, password, hostname are mandatory parameters for the database section")
-	}
-	return nil
-}
-
-// ConnectionString returns a gorm compatible connection string
-func (m *MySQL) ConnectionString() (string, error) {
-	if err := m.Validate(); err != nil {
-		return "", err
-	}
-
-	connString := fmt.Sprintf(
-		"%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True&loc=Local&timeout=5s",
-		m.Username, m.Password,
-		m.Hostname, m.DatabaseName,
-	)
-	return connString, nil
 }
 
 // PostgreSQL is the config entry for the postgresql section
