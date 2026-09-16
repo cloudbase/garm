@@ -56,15 +56,6 @@ func getDefaultAPIServerConfig() APIServer {
 	}
 }
 
-func getMySQLDefaultConfig() MySQL {
-	return MySQL{
-		Username:     "test",
-		Password:     "test",
-		Hostname:     "127.0.0.1",
-		DatabaseName: "garm",
-	}
-}
-
 func getPostgresDefaultConfig() PostgreSQL {
 	return PostgreSQL{
 		Username: "test",
@@ -351,24 +342,6 @@ func TestDatabaseConfig(t *testing.T) {
 			errString: "validating sqlite3 config: no valid db_file was specified",
 		},
 		{
-			name: "mysql backend is misconfigured",
-			cfg: Database{
-				DbBackend:  MySQLBackend,
-				MySQL:      MySQL{},
-				Passphrase: cfg.Passphrase,
-			},
-			errString: "validating mysql config: database, username, password, hostname are mandatory parameters for the database section",
-		},
-		{
-			name: "mysql backend is configured and valid",
-			cfg: Database{
-				DbBackend:  MySQLBackend,
-				MySQL:      getMySQLDefaultConfig(),
-				Passphrase: cfg.Passphrase,
-			},
-			errString: "",
-		},
-		{
 			name: "postgresql backend is misconfigured",
 			cfg: Database{
 				DbBackend:  PostgreSQLBackend,
@@ -420,17 +393,8 @@ func TestGormParams(t *testing.T) {
 	require.Equal(t, SQLiteBackend, dbType)
 	require.Equal(t, filepath.Join(dir, "garm.db?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate&_auto_vacuum=incremental&_busy_timeout=5000"), uri)
 
-	cfg.DbBackend = MySQLBackend
-	cfg.MySQL = getMySQLDefaultConfig()
-	cfg.SQLite = SQLite{}
-
-	dbType, uri, err = cfg.GormParams()
-	require.Nil(t, err)
-	require.Equal(t, MySQLBackend, dbType)
-	require.Equal(t, "test:test@tcp(127.0.0.1)/garm?charset=utf8&parseTime=True&loc=Local&timeout=5s", uri)
-
 	cfg.DbBackend = PostgreSQLBackend
-	cfg.MySQL = MySQL{}
+	cfg.SQLite = SQLite{}
 	cfg.PostgreSQL = getPostgresDefaultConfig()
 
 	dbType, uri, err = cfg.GormParams()
@@ -750,12 +714,12 @@ func TestNewConfig(t *testing.T) {
 	require.Equal(t, "0.0.0.0", cfg.APIServer.Bind)
 	require.Equal(t, 9998, cfg.APIServer.Port)
 	require.Equal(t, false, cfg.APIServer.UseTLS)
-	require.Equal(t, DBBackendType("mysql"), cfg.Database.DbBackend)
+	require.Equal(t, DBBackendType("postgresql"), cfg.Database.DbBackend)
 	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.Database.Passphrase)
-	require.Equal(t, "test", cfg.Database.MySQL.Username)
-	require.Equal(t, "test", cfg.Database.MySQL.Password)
-	require.Equal(t, "127.0.0.1", cfg.Database.MySQL.Hostname)
-	require.Equal(t, "garm", cfg.Database.MySQL.DatabaseName)
+	require.Equal(t, "test", cfg.Database.PostgreSQL.Username)
+	require.Equal(t, "test", cfg.Database.PostgreSQL.Password)
+	require.Equal(t, "127.0.0.1", cfg.Database.PostgreSQL.Hostname)
+	require.Equal(t, "garm", cfg.Database.PostgreSQL.Database)
 	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.JWTAuth.Secret)
 	require.Equal(t, timeToLive("48h"), cfg.JWTAuth.TimeToLive)
 }

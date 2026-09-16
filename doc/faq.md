@@ -5,6 +5,7 @@
     - [What is GARM?](#what-is-garm)
     - [Which forges does GARM support?](#which-forges-does-garm-support)
     - [What infrastructure providers are available?](#what-infrastructure-providers-are-available)
+    - [How do I upgrade GARM?](#how-do-i-upgrade-garm)
     - [What database does GARM use?](#what-database-does-garm-use)
   - [Scaling](#scaling)
     - [Can GARM scale to zero?](#can-garm-scale-to-zero)
@@ -32,6 +33,8 @@
     - [Is the GARM API secure?](#is-the-garm-api-secure)
     - [Should I use the Webhook Base URL or Controller Webhook URL?](#should-i-use-the-webhook-base-url-or-controller-webhook-url)
   - [Troubleshooting](#troubleshooting)
+    - [I lost my admin password. How do I reset it?](#i-lost-my-admin-password-how-do-i-reset-it)
+    - [What happens when my credentials hit the forge API rate limit?](#what-happens-when-my-credentials-hit-the-forge-api-rate-limit)
     - [GARM creates runners but they don't appear in GitHub](#garm-creates-runners-but-they-dont-appear-in-github)
     - [Jobs are queued but no runners are created](#jobs-are-queued-but-no-runners-are-created)
 
@@ -51,9 +54,18 @@ GARM (GitHub Actions Runner Manager) is an open-source tool that manages GitHub 
 
 Amazon EC2, Azure, CloudStack, GCP, Incus, Kubernetes, LXD, OpenStack, and Oracle OCI. You can also [build your own provider](https://github.com/cloudbase/garm/blob/main/doc/external_provider.md).
 
+### How do I upgrade GARM?
+
+Stop the service, replace the binary, and start it again — database migrations run automatically at startup. Two things to be aware of:
+
+- Starting with v0.2.2, GARM uses a new migration system. If you are on a version **older than v0.2.1**, you must first upgrade to v0.2.1 and then to the newer version. Direct upgrades from older versions will not migrate correctly.
+- Starting with v0.2.2, the `garm` daemon uses double-dash flags: `-config` becomes `--config`. Update your systemd unit (or whatever supervises the process) accordingly.
+
+Always back up your database before upgrading.
+
 ### What database does GARM use?
 
-SQLite3 only. The database is a single file on disk, requiring no external database server.
+SQLite3 by default — a single file on disk, requiring no external database server. PostgreSQL is also supported for deployments that prefer an external database. See the [database section in the configuration guide](/doc/configuration.md#database) for details.
 
 ## Scaling
 
@@ -209,6 +221,24 @@ GARM uses JWT authentication. The API should be placed behind a reverse proxy wi
 Always prefer the **Controller Webhook URL**. It's unique to your GARM instance and allows multiple GARM controllers to coexist in the same repo/org. The Controller Webhook URL includes the Controller ID in the path.
 
 ## Troubleshooting
+
+### I lost my admin password. How do I reset it?
+
+The `garm` daemon binary (not `garm-cli`) has an `admin` subcommand that operates directly on the database. Run it on the GARM server, pointing at the daemon config so it can access the database:
+
+```bash
+# List admin users
+garm --config /etc/garm/config.toml admin list
+
+# Reset the password for an admin user
+garm --config /etc/garm/config.toml admin password-reset --new-password '<new password>' admin
+```
+
+The new password must be reasonably strong or the command will refuse it.
+
+### What happens when my credentials hit the forge API rate limit?
+
+GARM tracks the rate limit values returned with every forge API response. When the quota is exhausted, workers that need forge API calls pause and resume automatically once the quota resets — runners already provisioned keep serving jobs. You can also reserve a slice of the quota for critical cleanup operations so finished runners still get removed (and stop costing money) while the quota is nearly spent. See [rate limit usage reservation](credentials.md#rate-limit-usage-reservation).
 
 ### GARM creates runners but they don't appear in GitHub
 

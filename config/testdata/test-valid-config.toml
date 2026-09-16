@@ -9,14 +9,16 @@
   use_tls = false
 
 [database]
-  backend = "mysql"
+  backend = "postgresql"
   passphrase = "bocyasicgatEtenOubwonIbsudNutDom"
 
-  [database.mysql]
+  [database.postgresql]
     username = "test"
     password = "test"
     hostname = "127.0.0.1"
+    port = 5432
     database = "garm"
+    sslmode = "disable"
 
 [jwt_auth]
   secret = "bocyasicgatEtenOubwonIbsudNutDom"

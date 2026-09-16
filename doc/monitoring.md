@@ -245,6 +245,8 @@ Despite the `github` in their names (kept for backwards compatibility), these me
 
 `garm_github_token_expiration_timestamp` records when a credential's token expires, as reported by the forge on API responses. It is only emitted for PAT credentials whose token has an expiration set; app credentials are excluded since their tokens rotate automatically. Alert on `(garm_github_token_expiration_timestamp - time()) < 14 * 24 * 3600` to rotate tokens before an expiry turns into a wall of API errors.
 
+The rate limit gauges are also what drives GARM's own throttling: when a credential's remaining quota dips into its configured reserve, non-critical worker loops pause until the quota resets (see [rate limit usage reservation](credentials.md#rate-limit-usage-reservation)). If `garm_github_rate_limit_remaining` trends toward the reserve, GARM is about to stop scaling up for that credential.
+
 **GitHub client operations** (hooks, runners, registration tokens):
 
 | Operation | Description |
