@@ -392,11 +392,57 @@ func (s *sqlDatabase) initSchema(tx *gorm.DB) error {
 	return nil
 }
 
+// withoutForeignKeys runs fn with SQLite foreign key enforcement disabled and
+// verifies referential integrity afterwards. It is a no-op on other backends.
+//
+// SQLite cannot alter constraints in place, so GORM's migrator rebuilds a
+// table (create temp, copy, DROP TABLE, RENAME) to add a foreign key. With
+// foreign keys enforced, the DROP TABLE of a parent fails as soon as any
+// child row references it, i.e. on every deployment that has instances or
+// jobs at upgrade time. GORM's SQLite driver disables enforcement around
+// some of these rebuilds but not all (the constraint-creation path does
+// not), so guard the whole migration run here. PRAGMA foreign_keys is a
+// no-op inside a transaction, which is why this sits outside gormigrate
+// (UseTransaction is false) and relies on the single pooled connection.
+func (s *sqlDatabase) withoutForeignKeys(fn func() error) error {
+	if s.cfg.DbBackend != config.SQLiteBackend {
+		return fn()
+	}
+	if err := s.conn.Exec("PRAGMA foreign_keys = OFF").Error; err != nil {
+		return fmt.Errorf("disabling foreign keys: %w", err)
+	}
+	runErr := fn()
+	if err := s.conn.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
+		return errors.Join(runErr, fmt.Errorf("re-enabling foreign keys: %w", err))
+	}
+	if runErr != nil {
+		return runErr
+	}
+	// Enforcement was off while the schema changed; make sure nothing slipped
+	// through before the database is used.
+	var violations []struct {
+		Table  string `gorm:"column:table"`
+		Rowid  int64  `gorm:"column:rowid"`
+		Parent string `gorm:"column:parent"`
+		Fkid   int64  `gorm:"column:fkid"`
+	}
+	if err := s.conn.Raw("PRAGMA foreign_key_check").Scan(&violations).Error; err != nil {
+		return fmt.Errorf("checking foreign keys after migration: %w", err)
+	}
+	if len(violations) > 0 {
+		v := violations[0]
+		return fmt.Errorf("%d foreign key violation(s) after migration, first: table %s rowid %d references %s", len(violations), v.Table, v.Rowid, v.Parent)
+	}
+	return nil
+}
+
 func (s *sqlDatabase) migrateDB() error {
 	m := gormigrate.New(s.conn, gormigrate.DefaultOptions, migrations.All())
 	m.InitSchema(s.initSchema)
 
-	if err := m.Migrate(); err != nil {
+	if err := s.withoutForeignKeys(func() error {
+		return m.Migrate()
+	}); err != nil {
 		return fmt.Errorf("error running migrations: %w", err)
 	}
 
