@@ -7,7 +7,7 @@
 # GitHub Actions Runner Manager (GARM)
 
 [![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
-[![slack](https://img.shields.io/badge/slack-garm-brightgreen.svg?logo=slack)](https://communityinviter.com/apps/garm-hq/garm)
+[![slack](https://img.shields.io/badge/slack-garm-brightgreen.svg?logo=slack)](https://inviter.co/garm)
 
 GARM is an open-source, self-hosted runner manager for [GitHub Actions](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners) and [Gitea Actions](https://github.com/go-gitea/gitea/). It automatically creates, scales, and destroys ephemeral runner instances across multiple clouds and infrastructure providers from a single controller.
 
