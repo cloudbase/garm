@@ -172,10 +172,19 @@ func (m Migrator) CreateIndex(value interface{}, name string) error {
 
 func (m Migrator) RenameIndex(value interface{}, oldName, newName string) error {
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		currentSchema, _ := m.CurrentSchema(stmt, stmt.Table)
+		schema, _ := m.CurrentSchema(stmt, stmt.Table)
+		if schemaName, ok := schema.(string); ok {
+			// The table is qualified with an explicit schema: qualify the index too.
+			return m.DB.Exec(
+				"ALTER INDEX ?.? RENAME TO ?",
+				clause.Column{Name: schemaName}, clause.Column{Name: oldName}, clause.Column{Name: newName},
+			).Error
+		}
+		// Without an explicit schema, let the index resolve via the search_path;
+		// CURRENT_SCHEMA() is a function call and cannot qualify an identifier.
 		return m.DB.Exec(
-			"ALTER INDEX ?.? RENAME TO ?",
-			currentSchema, clause.Column{Name: oldName}, clause.Column{Name: newName},
+			"ALTER INDEX ? RENAME TO ?",
+			clause.Column{Name: oldName}, clause.Column{Name: newName},
 		).Error
 	})
 }
@@ -188,8 +197,14 @@ func (m Migrator) DropIndex(value interface{}, name string) error {
 			}
 		}
 
-		currentSchema, _ := m.CurrentSchema(stmt, stmt.Table)
-		return m.DB.Exec("DROP INDEX ?.?", currentSchema, clause.Column{Name: name}).Error
+		schema, _ := m.CurrentSchema(stmt, stmt.Table)
+		if schemaName, ok := schema.(string); ok {
+			// The table is qualified with an explicit schema: qualify the index too.
+			return m.DB.Exec("DROP INDEX ?.?", clause.Column{Name: schemaName}, clause.Column{Name: name}).Error
+		}
+		// Without an explicit schema, let the index resolve via the search_path;
+		// CURRENT_SCHEMA() is a function call and cannot qualify an identifier.
+		return m.DB.Exec("DROP INDEX ?", clause.Column{Name: name}).Error
 	})
 }
 
