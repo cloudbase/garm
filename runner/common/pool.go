@@ -31,6 +31,8 @@ const (
 	// in cases where we have a lot of runners spin up at the same time.
 	PoolToolUpdateInterval        = 5 * time.Minute
 	PoolStaleJobReconcileInterval = 5 * time.Minute
+	// PoolJobTombstoneReapInterval is how often we scan for expired job tombstones.
+	PoolJobTombstoneReapInterval = 1 * time.Minute
 
 	// BackoffTimer is the time we wait before attempting to make another request
 	// to the github API.

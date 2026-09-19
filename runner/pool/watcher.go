@@ -211,16 +211,69 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 		switch event.Operation {
 		case common.CreateOperation, common.UpdateOperation:
 			if params.JobStatus(job.Status) != params.JobStatusCompleted {
+				if r.jobUpdateIsStale(job) {
+					// update seems older than what we already know. Skip.
+					break
+				}
 				slog.DebugContext(r.ctx, "adding job to map", "job_id", job.ID, "job_status", job.Status)
 				r.jobs[job.ID] = job
 				break
 			}
 			fallthrough
 		case common.DeleteOperation:
-			delete(r.jobs, job.ID)
+			r.retireJob(job)
 		}
 		r.mux.Unlock()
 	}
+}
+
+// jobTombstoneTTL is how long we keep the job toombstone around. After this period
+// any toombstones are reaped as there is very little chance of any update to come
+// from the watcher.
+// In practice, this can be just a few seconds, but there is no reason to churn the
+// map that frequently, especially considering this will eat up very little memory.
+const jobTombstoneTTL = 10 * time.Minute
+
+// jobIsRetired reports whether the job was retired. A job is considered
+// retired when a "completed" status comes in for it. At that point, it's removed
+// from the cache, but we keep a toobstone for it so if a subsequent update comes
+// in from the watcher due to an ordering issue, we don't pet-cemetery the thing.
+// In practice this is hard to happen, but not impossible.
+func (r *basePoolManager) jobIsRetired(jobID int64) bool {
+	_, ok := r.jobTombstones[jobID]
+	return ok
+}
+
+// jobUpdateIsStale tells us if an update is older than what we already know about
+// the job, either from the cache or from a tombstone. The store notifies after the
+// transaction commits, so updates can reach us in a different order than they were
+// written.
+func (r *basePoolManager) jobUpdateIsStale(job params.Job) bool {
+	if recorded, ok := r.jobs[job.ID]; ok {
+		return job.UpdatedAt.Before(recorded.UpdatedAt)
+	}
+	return r.jobIsRetired(job.ID)
+}
+
+// retireJob removes the job from the cache and leaves a tombstone behind.
+func (r *basePoolManager) retireJob(job params.Job) {
+	delete(r.jobs, job.ID)
+	r.jobTombstones[job.ID] = time.Now()
+}
+
+// reapJobTombstones removes tombstones older than jobTombstoneTTL. Without it the
+// map grows for as long as the pool manager runs.
+func (r *basePoolManager) reapJobTombstones() error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	for jobID, retiredAt := range r.jobTombstones {
+		if time.Since(retiredAt) > jobTombstoneTTL {
+			slog.DebugContext(r.ctx, "reaping job tombstone", "job_id", jobID)
+			delete(r.jobTombstones, jobID)
+		}
+	}
+	return nil
 }
 
 func (r *basePoolManager) runWatcher() {
