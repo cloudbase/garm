@@ -246,9 +246,12 @@ func (s *sqlDatabase) migrateFileObjects() error {
 		return fmt.Errorf("error migrating legacy file object tracking table: %w", err)
 	}
 	m := gormigrate.New(s.objectsConn, fileObjectMigrationOptions, migrations.AllFileObjects())
-	m.InitSchema(func(tx *gorm.DB) error {
-		return tx.AutoMigrate(&FileObject{}, &FileBlob{}, &FileObjectTag{})
-	})
+	if !s.objectsConn.Migrator().HasTable("file_objects") {
+		// See migrateDB for why InitSchema is only used on empty databases.
+		m.InitSchema(func(tx *gorm.DB) error {
+			return tx.AutoMigrate(&FileObject{}, &FileBlob{}, &FileObjectTag{})
+		})
+	}
 
 	if err := m.Migrate(); err != nil {
 		return fmt.Errorf("error running file objects migrations: %w", err)
@@ -394,7 +397,14 @@ func (s *sqlDatabase) initSchema(tx *gorm.DB) error {
 
 func (s *sqlDatabase) migrateDB() error {
 	m := gormigrate.New(s.conn, gormigrate.DefaultOptions, migrations.All())
-	m.InitSchema(s.initSchema)
+	if !s.conn.Migrator().HasTable("users") {
+		// Empty database; create the schema in one step. A populated
+		// database without migration records predates gormigrate (v0.2.1
+		// or older) and must run the numbered migrations instead: its
+		// schema matches the 0001_baseline marker, and 0002 onwards bring
+		// it up to date.
+		m.InitSchema(s.initSchema)
+	}
 
 	if err := m.Migrate(); err != nil {
 		return fmt.Errorf("error running migrations: %w", err)
