@@ -50,6 +50,12 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      # Migration stubs are intentionally self-contained frozen copies.
+      # Repeated table names across migrations must not be shared constants.
+      - path: database/sql/migrations/
+        linters:
+          - goconst
     paths:
       - third_party$
       - builtin$
