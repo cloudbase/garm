@@ -117,6 +117,7 @@ func (s *PoolStressTestSuite) SetupTest() {
 		controllerInfo:   s.controllerInfo,
 		providers:        map[string]common.Provider{"test-provider": s.providerMock},
 		jobs:             make(map[int64]params.Job),
+		jobTombstones:    make(map[int64]time.Time),
 		checkedJobs:      make(map[int64]time.Time),
 		quit:             make(chan struct{}),
 		consumer:         &garmTesting.MockConsumer{},

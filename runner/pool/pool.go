@@ -129,6 +129,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		providers:      providers,
 		quit:           make(chan struct{}),
 		jobs:           make(map[int64]params.Job),
+		jobTombstones:  make(map[int64]time.Time),
 		checkedJobs:    make(map[int64]time.Time),
 		clientUpdateCh: make(chan struct{}, 1),
 		wg:             wg,
@@ -150,6 +151,9 @@ type basePoolManager struct {
 
 	store dbCommon.Store
 	jobs  map[int64]params.Job
+	// jobTombstones holds the IDs of the jobs we retired from the cache and when.
+	// Reaped by reapJobTombstones.
+	jobTombstones map[int64]time.Time
 
 	providers   map[string]common.Provider
 	tools       []commonParams.RunnerApplicationDownload
@@ -1999,6 +2003,9 @@ func (r *basePoolManager) Start() error {
 		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true, tierInternal)
 		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false, tierNormal)
 		go r.startLoopForFunction(r.reconcileStaleJobs, common.PoolStaleJobReconcileInterval, "stale_job_reconciler", false, tierNormal)
+		// Reaping only touches an in-memory map, so let it run even when the
+		// manager is paused. Otherwise tombstones pile up for the whole pause.
+		go r.startLoopForFunction(r.reapJobTombstones, common.PoolJobTombstoneReapInterval, "job_tombstone_reaper", true, tierInternal)
 	}()
 	return nil
 }
