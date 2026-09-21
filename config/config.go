@@ -239,6 +239,47 @@ type Default struct {
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
 	EnableLogStreamer *bool  `toml:"enable_log_streamer,omitempty" json:"enable-log-streamer,omitempty"`
 	DebugServer       bool   `toml:"debug_server" json:"debug-server"`
+
+	// HTTP2ReadIdleTimeout, if set to a value greater than 0, enables HTTP/2
+	// health checks on outbound connections to forges (github/gitea). A PING
+	// frame is sent on any HTTP/2 connection that has been idle for this
+	// duration; if the peer does not respond, the connection is closed and
+	// in-flight requests fail fast instead of hanging until the kernel TCP
+	// timeout (~15 minutes). Expressed as a duration string (ex: "5m").
+	// A value of 0 (the default) disables health checks, leaving behavior
+	// unchanged.
+	HTTP2ReadIdleTimeout duration `toml:"http2_read_idle_timeout,omitempty" json:"http2-read-idle-timeout,omitempty"`
+	// HTTP2PingTimeout is the amount of time to wait for a response to a
+	// health check PING frame before the connection is considered dead.
+	// Only used when HTTP2ReadIdleTimeout is set. Defaults to 15 seconds
+	// (the golang.org/x/net/http2 default) when unset.
+	HTTP2PingTimeout duration `toml:"http2_ping_timeout,omitempty" json:"http2-ping-timeout,omitempty"`
+}
+
+// duration is a time.Duration expressed as a string (ex: "5m", "30s").
+// An empty string parses to a duration of 0.
+type duration string
+
+func (d duration) ParseDuration() (time.Duration, error) {
+	if d == "" {
+		return 0, nil
+	}
+	parsed, err := time.ParseDuration(string(d))
+	if err != nil {
+		return 0, err
+	}
+	return parsed, nil
+}
+
+// Duration returns the configured duration or 0 if no value is configured
+// or the configured value is invalid.
+func (d duration) Duration() time.Duration {
+	parsed, err := d.ParseDuration()
+	if err != nil {
+		slog.With(slog.Any("error", err)).Error(fmt.Sprintf("defined duration %q is invalid", string(d)))
+		return 0
+	}
+	return parsed
 }
 
 func (d *Default) Validate() error {
@@ -259,6 +300,18 @@ func (d *Default) Validate() error {
 		if _, err := url.ParseRequestURI(d.WebhookURL); err != nil {
 			return fmt.Errorf("invalid webhook_url: %w", err)
 		}
+	}
+
+	readIdleTimeout, err := d.HTTP2ReadIdleTimeout.ParseDuration()
+	if err != nil {
+		return fmt.Errorf("invalid http2_read_idle_timeout: %w", err)
+	}
+	pingTimeout, err := d.HTTP2PingTimeout.ParseDuration()
+	if err != nil {
+		return fmt.Errorf("invalid http2_ping_timeout: %w", err)
+	}
+	if pingTimeout > 0 && readIdleTimeout == 0 {
+		return fmt.Errorf("http2_ping_timeout is set but http2_read_idle_timeout is not; ping timeout has no effect without a read idle timeout")
 	}
 	return nil
 }
