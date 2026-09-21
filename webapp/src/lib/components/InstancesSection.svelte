@@ -1,6 +1,10 @@
 <script lang="ts">
-	import type { Instance } from '$lib/api/generated/api.js';
+	import { onMount, onDestroy } from 'svelte';
+	import type { Instance, Job } from '$lib/api/generated/api.js';
 	import { resolve } from '$app/paths';
+	import { garmApi } from '$lib/api/client.js';
+	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
+	import { buildJobsByRunner } from '$lib/utils/jobs.js';
 	import DataTable from './DataTable.svelte';
 	import { EntityCell, StatusCell, GenericCell, ActionsCell } from './cells';
 
@@ -8,13 +12,55 @@
 	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | 'scaleset' | 'pool';
 	export let onDeleteInstance: (instance: Instance) => void;
 
+	// Jobs, so each runner can link back to the GitHub Actions job it is
+	// working on (or last worked on).
+	let jobs: Job[] = [];
+	let unsubscribeJobs: (() => void) | null = null;
+	$: jobsByRunner = buildJobsByRunner(jobs);
+
+	async function loadJobs() {
+		// Guarded so tests that mock a partial garmApi keep working.
+		if (typeof garmApi.listJobs !== 'function') return;
+		try {
+			jobs = await garmApi.listJobs();
+		} catch {
+			// The job column is best-effort; the rest of the table is unaffected.
+		}
+	}
+
+	function handleJobEvent(event: WebSocketEvent) {
+		const job = event.payload as Job;
+		if (event.operation === 'delete') {
+			const jobID = (event.payload as any).id ?? event.payload;
+			jobs = jobs.filter((j) => j.id !== jobID);
+		} else {
+			jobs = [...jobs.filter((j) => j.id !== job.id), job];
+		}
+	}
+
+	onMount(() => {
+		loadJobs();
+		unsubscribeJobs = websocketStore.subscribeToEntity(
+			'job',
+			['create', 'update', 'delete'],
+			handleJobEvent
+		);
+	});
+
+	onDestroy(() => {
+		if (unsubscribeJobs) {
+			unsubscribeJobs();
+			unsubscribeJobs = null;
+		}
+	});
+
 	// DataTable configuration for instances section
-	const columns = [
+	$: columns = [
 		{ 
 			key: 'name', 
 			title: 'Name',
 			cellComponent: EntityCell,
-			cellProps: { entityType: 'instance', nameField: 'name' }
+			cellProps: { entityType: 'instance', nameField: 'name', jobsByRunner }
 		},
 		{ 
 			key: 'status', 

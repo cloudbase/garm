@@ -1,12 +1,20 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount, onDestroy } from 'svelte';
+	import type { Job } from '$lib/api/generated/api.js';
+	import { jobUrl } from '$lib/utils/jobs.js';
 
 	export let item: any;
 	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | 'pool' | 'scaleset' | 'instance' | 'template' | 'object' | 'credentials' = 'repository';
 	export let showOwner: boolean = false;
 	export let showId: boolean = false;
 	export let fontMono: boolean = false;
+	// Optional (instances only): map of runner name -> job, to show a link to
+	// the GitHub Actions job the runner is working on under the runner name.
+	export let jobsByRunner: Map<string, Job> | undefined = undefined;
+
+	$: job = entityType === 'instance' && item?.name ? jobsByRunner?.get(item.name) : undefined;
+	$: jobLink = job ? jobUrl(job) : '';
 
 	$: entityName = getEntityName(item, entityType, showOwner, showId);
 	$: entityUrl = getEntityUrl(item, entityType);
@@ -160,6 +168,20 @@
 	{#if entityType === 'instance' && item?.provider_id}
 		<div class="text-sm text-gray-500 dark:text-gray-400 truncate">
 			{item.provider_id}
+		</div>
+	{/if}
+	{#if job}
+		<div class="text-sm truncate" title="{job.repository_owner}/{job.repository_name} · {job.status}">
+			{#if jobLink}
+				<a
+					href={jobLink}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-blue-600 dark:text-blue-400 hover:underline font-normal"
+				>{job.name || '(unnamed job)'}</a>
+			{:else}
+				<span class="text-gray-500 dark:text-gray-400 font-normal">{job.name || '(unnamed job)'}</span>
+			{/if}
 		</div>
 	{/if}
 </div>
