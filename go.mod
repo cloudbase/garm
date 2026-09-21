@@ -9,7 +9,7 @@ require (
 	github.com/cloudbase/garm-provider-common v0.1.10-0.20260707224136-4f5d9bf80949
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/gdamore/tcell/v2 v2.13.10
-	github.com/go-gormigrate/gormigrate/v2 v2.1.6
+	github.com/go-gormigrate/gormigrate/v2 v2.1.7
 	github.com/go-openapi/errors v0.22.8
 	github.com/go-openapi/runtime v0.33.2
 	github.com/go-openapi/strfmt v0.27.2
