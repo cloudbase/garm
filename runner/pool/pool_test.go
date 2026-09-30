@@ -791,6 +791,38 @@ func (s *PoolStressTestSuite) TestPersistJobToDB_AllowsForwardTransitions() {
 	}
 }
 
+func (s *PoolStressTestSuite) TestJobCacheMatchesStartupQuery() {
+	repoID := uuid.MustParse(s.entity.ID)
+	job := params.ScaleSetJobMessage{
+		JobID:       uuid.NewString(),
+		MessageType: params.MessageTypeJobAssigned,
+	}.ToJob()
+	job.RepoID = &repoID
+	scaleSetJob, err := s.store.CreateOrUpdateJob(s.adminCtx, job)
+	s.Require().NoError(err)
+	s.Require().Zero(scaleSetJob.WorkflowJobID)
+	s.Require().NotEmpty(scaleSetJob.ScaleSetJobID)
+
+	webhookJob, err := s.store.CreateOrUpdateJob(s.adminCtx, params.Job{
+		WorkflowJobID: 42,
+		Status:        string(params.JobStatusQueued),
+		RepoID:        &repoID,
+		Labels:        []string{"self-hosted", "linux", "x64"},
+	})
+	s.Require().NoError(err)
+
+	startup, err := s.store.ListEntityJobsByStatus(s.adminCtx, s.entity.EntityType, s.entity.ID, params.JobStatusQueued)
+	s.Require().NoError(err)
+	s.Require().Len(startup, 1)
+	s.Require().Equal(webhookJob.ID, startup[0].ID)
+
+	for _, stored := range []params.Job{scaleSetJob, webhookJob} {
+		s.mgr.handleWatcherEvent(jobEvent(dbCommon.CreateOperation, stored))
+	}
+	s.Require().Equal([]int64{webhookJob.ID}, queuedJobIDs(s.mgr))
+	s.Require().Equal(map[int64]params.Job{webhookJob.ID: webhookJob}, s.mgr.jobs)
+}
+
 func mustParseUUID(s string) uuid.UUID {
 	u, err := uuid.Parse(s)
 	if err != nil {

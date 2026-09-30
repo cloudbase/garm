@@ -151,6 +151,64 @@ func (s *WatcherJobCacheTestSuite) job(id int64, status params.JobStatus, update
 	return makeWatcherJob(id, status, updatedAt, &s.repoID)
 }
 
+func (s *WatcherJobCacheTestSuite) TestJobSourceFiltering() {
+	tests := []struct {
+		name          string
+		workflowJobID int64
+		scaleSetJobID string
+		labels        []string
+		wantCached    bool
+	}{
+		{
+			name:          "webhook job",
+			workflowJobID: 42,
+			labels:        []string{"self-hosted", "linux"},
+			wantCached:    true,
+		},
+		{
+			name:          "webhook job without labels",
+			workflowJobID: 42,
+			wantCached:    true,
+		},
+		{
+			name:          "scale set job without labels",
+			scaleSetJobID: uuid.NewString(),
+		},
+		{
+			name:          "scale set job with labels",
+			scaleSetJobID: uuid.NewString(),
+			labels:        []string{"self-hosted", "linux"},
+		},
+		{name: "missing workflow job ID"},
+		{name: "negative workflow job ID", workflowJobID: -1},
+	}
+
+	for _, tt := range tests {
+		for _, op := range []dbCommon.OperationType{dbCommon.CreateOperation, dbCommon.UpdateOperation} {
+			s.Run(tt.name+"/"+string(op), func() {
+				existing := s.job(1, params.JobStatusQueued, jobEventBaseTime)
+				mgr := s.newManager(existing)
+				job := s.job(2, params.JobStatusQueued, jobEventNewer)
+				job.WorkflowJobID = tt.workflowJobID
+				job.ScaleSetJobID = tt.scaleSetJobID
+				job.Labels = tt.labels
+
+				mgr.handleWatcherEvent(jobEvent(op, job))
+
+				want := map[int64]params.Job{existing.ID: existing}
+				wantQueued := []int64{existing.ID}
+				if tt.wantCached {
+					want[job.ID] = job
+					wantQueued = append(wantQueued, job.ID)
+				}
+				s.Require().Equal(want, mgr.jobs)
+				s.Require().Equal(wantQueued, queuedJobIDs(mgr))
+				s.Require().Empty(mgr.jobTombstones)
+			})
+		}
+	}
+}
+
 // buildJobBurst returns the events for a burst of concurrent jobs, in causal
 // order. Every job gets burstUpdatesPerJob events with increasing UpdatedAt, and
 // the three shapes are spread evenly across the burst. It also returns what the
