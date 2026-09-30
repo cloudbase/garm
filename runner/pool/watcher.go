@@ -202,6 +202,11 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 			slog.ErrorContext(r.ctx, "failed to cast payload to job")
 			return
 		}
+		// Match ListEntityJobsByStatus: scale-set jobs have no workflow job ID
+		// and are handled by the scale-set worker, not the pool manager.
+		if job.WorkflowJobID <= 0 {
+			return
+		}
 		if !job.BelongsTo(r.entity) {
 			slog.InfoContext(r.ctx, "job does not belong to entity", "worklof_job_id", job.WorkflowJobID, "scaleset_job_id", job.ScaleSetJobID, "job_id", job.ID)
 			return
