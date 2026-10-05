@@ -395,7 +395,12 @@ golang.org/x/crypto/internal/poly1305
 golang.org/x/mod/semver
 # golang.org/x/net v0.58.0
 ## explicit; go 1.25.0
+golang.org/x/net/http/httpguts
+golang.org/x/net/http2
+golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/internal/httpcommon
+golang.org/x/net/internal/httpsfv
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
 # golang.org/x/oauth2 v0.37.0

@@ -42,19 +42,26 @@ const requestTimeout = 60 * time.Second
 // runner polls the same broker with a 100 second client timeout.
 const longPollRequestTimeout = 100 * time.Second
 
+// newHTTPClient returns a client bounded by the given per-request timeout.
+// If HTTP/2 health checks are configured, the client also uses a transport
+// that PINGs idle connections, so a silently dead connection fails in-flight
+// requests as soon as the PING times out rather than only when the request
+// timeout fires.
+func newHTTPClient(timeout time.Duration) *http.Client {
+	client := params.NewHTTPClient()
+	client.Timeout = timeout
+	return client
+}
+
 func NewClient(cli common.GithubClient) (*ScaleSetClient, error) {
 	// Use separate clients for regular API calls against the scaleset API
 	// and the scaleset long poll message queue. The long poll is held open
 	// by the broker for up to ~50 seconds by design, so it cannot share the
 	// tighter timeout every other call gets.
 	return &ScaleSetClient{
-		ghCli: cli,
-		httpClient: &http.Client{
-			Timeout: requestTimeout,
-		},
-		longPollClient: &http.Client{
-			Timeout: longPollRequestTimeout,
-		},
+		ghCli:          cli,
+		httpClient:     newHTTPClient(requestTimeout),
+		longPollClient: newHTTPClient(longPollRequestTimeout),
 	}, nil
 }
 

@@ -146,6 +146,44 @@ func TestDefaultSectionConfig(t *testing.T) {
 			},
 			errString: "invalid metadata_url",
 		},
+		{
+			name: "HTTP2 health check timeouts are valid durations",
+			cfg: Default{
+				CallbackURL:          cfg.CallbackURL,
+				MetadataURL:          cfg.MetadataURL,
+				HTTP2ReadIdleTimeout: "5m",
+				HTTP2PingTimeout:     "30s",
+			},
+			errString: "",
+		},
+		{
+			name: "HTTP2ReadIdleTimeout must be a valid duration",
+			cfg: Default{
+				CallbackURL:          cfg.CallbackURL,
+				MetadataURL:          cfg.MetadataURL,
+				HTTP2ReadIdleTimeout: "bogus",
+			},
+			errString: "invalid http2_read_idle_timeout",
+		},
+		{
+			name: "HTTP2PingTimeout must be a valid duration",
+			cfg: Default{
+				CallbackURL:          cfg.CallbackURL,
+				MetadataURL:          cfg.MetadataURL,
+				HTTP2ReadIdleTimeout: "5m",
+				HTTP2PingTimeout:     "bogus",
+			},
+			errString: "invalid http2_ping_timeout",
+		},
+		{
+			name: "HTTP2PingTimeout requires HTTP2ReadIdleTimeout",
+			cfg: Default{
+				CallbackURL:      cfg.CallbackURL,
+				MetadataURL:      cfg.MetadataURL,
+				HTTP2PingTimeout: "30s",
+			},
+			errString: "http2_ping_timeout is set but http2_read_idle_timeout is not",
+		},
 	}
 
 	for _, tc := range tests {
