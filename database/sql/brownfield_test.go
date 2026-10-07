@@ -417,6 +417,37 @@ func TestConstraintParityOnPostgres(t *testing.T) {
 	}
 }
 
+// TestTagNameLengthOnPostgres exercises 0009 on a PostgreSQL database whose
+// tags.name column still has the original varchar(64) type.
+func TestTagNameLengthOnPostgres(t *testing.T) {
+	if os.Getenv("GARM_TEST_POSTGRES_DSN") == "" {
+		t.Skip("GARM_TEST_POSTGRES_DSN not set")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	watcher.InitWatcher(ctx)
+	defer watcher.CloseWatcher()
+
+	sqlDB, cfg := garmTesting.OpenTestPostgresDB(t)
+	store, err := newSQLStoreFromSQLDB(ctx, sqlDB, cfg)
+	require.NoError(t, err)
+	db := store.(*sqlDatabase)
+	t.Cleanup(func() { db.sqlDB.Close() })
+
+	require.NoError(t, db.conn.Exec("ALTER TABLE tags ALTER COLUMN name TYPE varchar(64)").Error)
+	require.NoError(t, db.conn.Exec("INSERT INTO tags (id, created_at, updated_at, name) VALUES (gen_random_uuid(), now(), now(), 'existing-tag')").Error)
+	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0009_tag_name_length'").Error)
+
+	require.NoError(t, db.migrateDB())
+
+	require.Contains(t, migrationIDs(t, db.conn, "migrations"), "0009_tag_name_length")
+	var maxLength int64
+	require.NoError(t, db.conn.Raw(
+		"SELECT character_maximum_length FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'tags' AND column_name = 'name'").Scan(&maxLength).Error)
+	require.EqualValues(t, 255, maxLength)
+	require.EqualValues(t, 1, countRows(t, db.conn, "tags"))
+}
+
 // TestFreshDatabaseUsesInitSchema ensures new installs keep taking the
 // single-step InitSchema path.
 func TestFreshDatabaseUsesInitSchema(t *testing.T) {
