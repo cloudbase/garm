@@ -94,7 +94,7 @@ type ControllerInfo struct {
 type Tag struct {
 	Base
 
-	Name      string      `gorm:"type:varchar(64);uniqueIndex"`
+	Name      string      `gorm:"type:varchar(255);uniqueIndex"`
 	Pools     []*Pool     `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	ScaleSets []*ScaleSet `gorm:"many2many:scaleset_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }

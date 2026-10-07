@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -280,6 +281,28 @@ func (s *PoolsTestSuite) TestEntityPoolOperations() {
 	pools, err = s.Store.FindPoolsMatchingAllTags(s.ctx, entity.EntityType, entity.ID, invalidTagsToMatch)
 	s.Require().NoError(err)
 	s.Require().Len(pools, 0)
+}
+
+// TestCreateEntityPoolWithLongTag ensures labels up to 255 characters are
+// stored, which PostgreSQL rejected while tags.name was varchar(64).
+func (s *PoolsTestSuite) TestCreateEntityPoolWithLongTag() {
+	entity, err := s.Fixtures.Org.GetEntity()
+	s.Require().NoError(err)
+	longTag := strings.Repeat("a", 255)
+
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, params.CreatePoolParams{
+		ProviderName: "test-provider",
+		MaxRunners:   4,
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+		Tags:         []string{longTag},
+	})
+	s.Require().NoError(err)
+
+	s.Require().Len(pool.Tags, 1)
+	s.Require().Equal(longTag, pool.Tags[0].Name)
 }
 
 func (s *PoolsTestSuite) TestListEntityInstances() {
