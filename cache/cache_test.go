@@ -14,6 +14,7 @@
 package cache
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -1696,6 +1697,58 @@ func (c *CacheTestSuite) TestReplaceEntityScaleSetsCleansUpRemovedScaleSets() {
 	// ss1 should no longer be accessible by ID.
 	_, ok := GetScaleSetByID(1)
 	c.Require().False(ok)
+}
+
+func (c *CacheTestSuite) TestConcurrentCredentialsAndEntityAccessDoesNotDeadlock() {
+	giteaEntity := params.ForgeEntity{
+		ID:         "5678",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "gitea",
+		Owner:      "gitea",
+		Credentials: params.ForgeCredentials{
+			ID:        2,
+			Name:      "gitea",
+			ForgeType: params.GiteaEndpointType,
+			Endpoint:  params.ForgeEndpoint{Name: "gitea"},
+		},
+	}
+	SetEntity(c.entity)
+	SetEntity(giteaEntity)
+	SetGithubCredentials(c.entity.Credentials)
+	SetGiteaCredentials(giteaEntity.Credentials)
+
+	// Credential and endpoint updates refresh the entity cache, while entity
+	// reads consult the credentials cache. Neither may hold its own lock
+	// while calling the other.
+	operations := []func(){
+		func() { SetGithubCredentials(c.entity.Credentials) },
+		func() { GetEntity(c.entity.ID) },
+		func() { EntityRateLimitReached(c.entity.ID) },
+		func() { SetEndpoint(giteaEntity.Credentials.Endpoint) },
+		func() { GetEntity(giteaEntity.ID) },
+		func() { GetAllEntities() },
+	}
+	var wg sync.WaitGroup
+	for _, operation := range operations {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 1000 {
+				operation()
+			}
+		}()
+	}
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		c.FailNow("concurrent cache operations deadlocked")
+	}
 }
 
 func TestCacheTestSuite(t *testing.T) {

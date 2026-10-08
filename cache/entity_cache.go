@@ -125,23 +125,24 @@ func (e *EntityCache) UpdateCredentialsInAffectedEntities(creds params.ForgeCred
 
 func (e *EntityCache) GetEntity(entityID string) (params.ForgeEntity, bool) {
 	e.mux.Lock()
-	defer e.mux.Unlock()
+	cache, ok := e.entities[entityID]
+	e.mux.Unlock()
 
-	if cache, ok := e.entities[entityID]; ok {
-		var creds params.ForgeCredentials
-		var ok bool
-		switch cache.Entity.Credentials.ForgeType {
-		case params.GithubEndpointType:
-			creds, ok = GetGithubCredentials(cache.Entity.Credentials.ID)
-		case params.GiteaEndpointType:
-			creds, ok = GetGiteaCredentials(cache.Entity.Credentials.ID)
-		}
-		if ok {
-			cache.Entity.Credentials = creds
-		}
-		return cache.Entity, true
+	if !ok {
+		return params.ForgeEntity{}, false
 	}
-	return params.ForgeEntity{}, false
+	return withCachedCredentials(cache.Entity), true
+}
+
+// withCachedCredentials returns the entity with the credentials cache's copy
+// of its credentials, which carries the latest rate limit values. Call it
+// without holding the entity cache lock; holding one cache's lock while
+// taking another's can deadlock.
+func withCachedCredentials(entity params.ForgeEntity) params.ForgeEntity {
+	if creds, ok := GetForgeCredentials(entity.Credentials.ForgeType, entity.Credentials.ID); ok {
+		entity.Credentials = creds
+	}
+	return entity
 }
 
 func (e *EntityCache) SetEntity(entity params.ForgeEntity) {
@@ -411,23 +412,14 @@ func (e *EntityCache) GetEntitiesUsingCredentials(creds params.ForgeCredentials)
 
 func (e *EntityCache) GetAllEntities() []params.ForgeEntity {
 	e.mux.Lock()
-	defer e.mux.Unlock()
-
 	var entities []params.ForgeEntity
 	for _, cache := range e.entities {
-		// Get the credentials from the credentials cache.
-		var creds params.ForgeCredentials
-		var ok bool
-		switch cache.Entity.Credentials.ForgeType {
-		case params.GithubEndpointType:
-			creds, ok = GetGithubCredentials(cache.Entity.Credentials.ID)
-		case params.GiteaEndpointType:
-			creds, ok = GetGiteaCredentials(cache.Entity.Credentials.ID)
-		}
-		if ok {
-			cache.Entity.Credentials = creds
-		}
 		entities = append(entities, cache.Entity)
+	}
+	e.mux.Unlock()
+
+	for i := range entities {
+		entities[i] = withCachedCredentials(entities[i])
 	}
 	sortByCreationDate(entities)
 	return entities

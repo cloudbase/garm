@@ -20,10 +20,8 @@ import (
 var endpointCache = newKeyedCache[string, params.ForgeEndpoint](0)
 
 func SetEndpoint(ep params.ForgeEndpoint) {
-	endpointCache.Update(func(endpoints map[string]params.ForgeEndpoint) {
-		endpoints[ep.Name] = ep
-		UpdateCredentialsUsingEndpoint(ep)
-	})
+	endpointCache.Set(ep.Name, ep)
+	UpdateCredentialsUsingEndpoint(ep)
 }
 
 func GetEndpoint(epName string) (params.ForgeEndpoint, bool) {

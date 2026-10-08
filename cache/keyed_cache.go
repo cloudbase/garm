@@ -92,7 +92,9 @@ func (c *keyedCache[K, T]) AsMap() map[K]T {
 }
 
 // Update runs a compound operation against the raw map while holding the
-// cache lock. The callback must not call back into this cache.
+// cache lock. The callback must not call into any cache, including this one.
+// Caches call each other, so holding one cache's lock while taking another's
+// can deadlock.
 func (c *keyedCache[K, T]) Update(fn func(map[K]T)) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
