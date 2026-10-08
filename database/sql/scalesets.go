@@ -16,6 +16,7 @@ package sql
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -525,7 +526,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
+func (s *sqlDatabase) SetScaleSetRunnerStatistics(_ context.Context, scaleSetID uint, stats params.RunnerScaleSetStatistic) (err error) {
 	var scaleSet params.ScaleSet
 	var rowsAffected int64
 	defer func() {
@@ -538,8 +539,13 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetI
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
+		asJSON, err := json.Marshal(stats)
+		if err != nil {
+			return fmt.Errorf("error marshaling runner statistics: %w", err)
+		}
 		result := tx.Model(&dbSet).Updates(map[string]interface{}{
-			"desired_runner_count": desiredRunnerCount,
+			"desired_runner_count": stats.TotalAssignedJobs,
+			"runner_statistics":    datatypes.JSON(asJSON),
 		})
 		if result.Error != nil {
 			return fmt.Errorf("error saving database entry: %w", result.Error)
