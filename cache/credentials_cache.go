@@ -41,27 +41,31 @@ func (g *credentialCache) SetCredentialsRateLimit(credsID uint, rateLimit params
 }
 
 func (g *credentialCache) UpdateCredentialsUsingEndpoint(ep params.ForgeEndpoint) {
+	var updated []params.ForgeCredentials
 	g.Update(func(cache map[uint]params.ForgeCredentials) {
 		for _, creds := range cache {
 			if creds.Endpoint.Name == ep.Name {
 				creds.Endpoint = ep
 				cache[creds.ID] = creds
-				UpdateCredentialsInAffectedEntities(creds)
+				updated = append(updated, creds)
 			}
 		}
 	})
+	// Refresh the entity cache only after releasing this cache's lock.
+	// Holding one cache's lock while taking another's can deadlock.
+	for _, creds := range updated {
+		UpdateCredentialsInAffectedEntities(creds)
+	}
 }
 
 func (g *credentialCache) SetCredentials(credentials params.ForgeCredentials) {
-	g.Update(func(cache map[uint]params.ForgeCredentials) {
-		// Credentials sourced from the database carry no rate limit info, so
-		// an update clears the recorded values. That is fine as an update may
-		// be a token swap, and rate limits are per token. The clients record
-		// fresh values on every forge response and the cache worker's rate
-		// limit loop repolls within 30 seconds either way.
-		cache[credentials.ID] = credentials
-		UpdateCredentialsInAffectedEntities(credentials)
-	})
+	// Credentials sourced from the database carry no rate limit info, so
+	// an update clears the recorded values. That is fine as an update may
+	// be a token swap, and rate limits are per token. The clients record
+	// fresh values on every forge response and the cache worker's rate
+	// limit loop repolls within 30 seconds either way.
+	g.Set(credentials.ID, credentials)
+	UpdateCredentialsInAffectedEntities(credentials)
 }
 
 func (g *credentialCache) GetAllCredentials() []params.ForgeCredentials {
