@@ -36,3 +36,13 @@ var JobStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	"repository",
 	"requested_labels",
 })
+
+// JobCount is a low-cardinality aggregate metric that counts jobs
+// by status, entity_type (repository, organization, enterprise),
+// and entity_name.
+var JobCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	Namespace: metricsNamespace,
+	Subsystem: metricsJobsSubsystem,
+	Name:      "count",
+	Help:      "Count of jobs by status and entity",
+}, []string{"status", "entity_type", "entity_name"})
