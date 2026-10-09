@@ -383,6 +383,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: ScaleSet
+    ScaleSetJob:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ScaleSetJob
+    ScaleSetJobs:
+        items:
+            $ref: '#/definitions/ScaleSetJob'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ScaleSetJobs
     ScaleSets:
         items:
             $ref: '#/definitions/ScaleSet'
@@ -2982,6 +2998,42 @@ paths:
             summary: List runner instances in a scale set.
             tags:
                 - instances
+    /scalesets/{scalesetID}/jobs:
+        get:
+            operationId: ListScaleSetJobs
+            parameters:
+                - description: ID of the scale set whose jobs to fetch.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSetJobs
+                    schema:
+                        $ref: '#/definitions/ScaleSetJobs'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List jobs handled by one scale set.
+            tags:
+                - scalesets
+    /scalesets/jobs:
+        get:
+            operationId: ListAllScaleSetJobs
+            responses:
+                "200":
+                    description: ScaleSetJobs
+                    schema:
+                        $ref: '#/definitions/ScaleSetJobs'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List jobs handled by all scale sets.
+            tags:
+                - scalesets
     /templates:
         get:
             operationId: ListTemplates

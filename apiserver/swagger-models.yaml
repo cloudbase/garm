@@ -146,6 +146,22 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  ScaleSetJobs:
+    type: array
+    x-go-type:
+        type: ScaleSetJobs
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/ScaleSetJob'
+  ScaleSetJob:
+    type: object
+    x-go-type:
+        type: ScaleSetJob
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   Repositories:
     type: array
     x-go-type:

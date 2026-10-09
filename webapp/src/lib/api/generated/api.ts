@@ -15420,6 +15420,39 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
         },
         /**
          * 
+         * @summary List jobs handled by all scale sets.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listAllScaleSetJobs: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/scalesets/jobs`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary List enterprise scale sets.
          * @param {string} enterpriseID Enterprise ID.
          * @param {*} [options] Override http request option.
@@ -15504,6 +15537,43 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
             assertParamExists('listRepoScaleSets', 'repoID', repoID)
             const localVarPath = `/repositories/{repoID}/scalesets`
                 .replace(`{${"repoID"}}`, encodeURIComponent(String(repoID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List jobs handled by one scale set.
+         * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listScaleSetJobs: async (scalesetID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'scalesetID' is not null or undefined
+            assertParamExists('listScaleSetJobs', 'scalesetID', scalesetID)
+            const localVarPath = `/scalesets/{scalesetID}/jobs`
+                .replace(`{${"scalesetID"}}`, encodeURIComponent(String(scalesetID)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -15685,6 +15755,18 @@ export const ScalesetsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary List jobs handled by all scale sets.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listAllScaleSetJobs(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ScaleSetJob>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listAllScaleSetJobs(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ScalesetsApi.listAllScaleSetJobs']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary List enterprise scale sets.
          * @param {string} enterpriseID Enterprise ID.
          * @param {*} [options] Override http request option.
@@ -15720,6 +15802,19 @@ export const ScalesetsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.listRepoScaleSets(repoID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ScalesetsApi.listRepoScaleSets']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List jobs handled by one scale set.
+         * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listScaleSetJobs(scalesetID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ScaleSetJob>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listScaleSetJobs(scalesetID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ScalesetsApi.listScaleSetJobs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -15813,6 +15908,15 @@ export const ScalesetsApiFactory = function (configuration?: Configuration, base
         },
         /**
          * 
+         * @summary List jobs handled by all scale sets.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listAllScaleSetJobs(options?: RawAxiosRequestConfig): AxiosPromise<Array<ScaleSetJob>> {
+            return localVarFp.listAllScaleSetJobs(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary List enterprise scale sets.
          * @param {string} enterpriseID Enterprise ID.
          * @param {*} [options] Override http request option.
@@ -15840,6 +15944,16 @@ export const ScalesetsApiFactory = function (configuration?: Configuration, base
          */
         listRepoScaleSets(repoID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ScaleSet>> {
             return localVarFp.listRepoScaleSets(repoID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List jobs handled by one scale set.
+         * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listScaleSetJobs(scalesetID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ScaleSetJob>> {
+            return localVarFp.listScaleSetJobs(scalesetID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -15936,6 +16050,17 @@ export class ScalesetsApi extends BaseAPI {
 
     /**
      * 
+     * @summary List jobs handled by all scale sets.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ScalesetsApi
+     */
+    public listAllScaleSetJobs(options?: RawAxiosRequestConfig) {
+        return ScalesetsApiFp(this.configuration).listAllScaleSetJobs(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary List enterprise scale sets.
      * @param {string} enterpriseID Enterprise ID.
      * @param {*} [options] Override http request option.
@@ -15968,6 +16093,18 @@ export class ScalesetsApi extends BaseAPI {
      */
     public listRepoScaleSets(repoID: string, options?: RawAxiosRequestConfig) {
         return ScalesetsApiFp(this.configuration).listRepoScaleSets(repoID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List jobs handled by one scale set.
+     * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ScalesetsApi
+     */
+    public listScaleSetJobs(scalesetID: string, options?: RawAxiosRequestConfig) {
+        return ScalesetsApiFp(this.configuration).listScaleSetJobs(scalesetID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

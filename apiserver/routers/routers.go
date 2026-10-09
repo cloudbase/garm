@@ -311,6 +311,10 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// List all pools
 	apiRouter.Handle("/scalesets/", http.HandlerFunc(han.ListAllScaleSetsHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/scalesets", http.HandlerFunc(han.ListAllScaleSetsHandler)).Methods("GET", "OPTIONS")
+	// List all scale set jobs. Must be registered before the {scalesetID}
+	// routes or "jobs" is parsed as a scale set ID.
+	apiRouter.Handle("/scalesets/jobs/", http.HandlerFunc(han.ListAllScaleSetJobsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/scalesets/jobs", http.HandlerFunc(han.ListAllScaleSetJobsHandler)).Methods("GET", "OPTIONS")
 	// Get one pool
 	apiRouter.Handle("/scalesets/{scalesetID}/", http.HandlerFunc(han.GetScaleSetByIDHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/scalesets/{scalesetID}", http.HandlerFunc(han.GetScaleSetByIDHandler)).Methods("GET", "OPTIONS")
@@ -323,6 +327,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// List pool instances
 	apiRouter.Handle("/scalesets/{scalesetID}/instances/", http.HandlerFunc(han.ListScaleSetInstancesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/scalesets/{scalesetID}/instances", http.HandlerFunc(han.ListScaleSetInstancesHandler)).Methods("GET", "OPTIONS")
+	// List jobs handled by one scale set
+	apiRouter.Handle("/scalesets/{scalesetID}/jobs/", http.HandlerFunc(han.ListScaleSetJobsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/scalesets/{scalesetID}/jobs", http.HandlerFunc(han.ListScaleSetJobsHandler)).Methods("GET", "OPTIONS")
 
 	/////////////
 	// Runners //

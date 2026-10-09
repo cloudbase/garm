@@ -678,7 +678,8 @@ func instanceDetailText(inst params.Instance, data renderData, noMessages string
 
 	b.WriteString("\n[yellow]Status messages:[-]\n")
 	if len(inst.StatusMessages) == 0 {
-		b.WriteString(noMessages + "\n")
+		b.WriteString(noMessages)
+		b.WriteString("\n")
 	}
 	const maxMessages = 20
 	msgs := inst.StatusMessages
