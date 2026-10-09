@@ -486,16 +486,19 @@ func paginationInfo(total int64, page, pageSize uint64) (pageInfo, error) {
 	if page == 0 {
 		page = 1
 	}
-	if pageSize == 0 || pageSize > math.MaxInt {
-		pageSize = 25
+	// Convert under an explicit bound so an oversized value falls back to
+	// the default instead of overflowing int.
+	limit := 25
+	if pageSize > 0 && pageSize <= math.MaxInt {
+		limit = int(pageSize)
 	}
 
 	var pages uint64
 	if total > 0 {
-		pages = (uint64(total) + pageSize - 1) / pageSize
+		pages = (uint64(total) + uint64(limit) - 1) / uint64(limit)
 	}
 
-	offset := (page - 1) * pageSize
+	offset := (page - 1) * uint64(limit)
 	if offset > math.MaxInt {
 		return pageInfo{}, fmt.Errorf("offset exceeds max int size: %d", offset)
 	}
@@ -503,7 +506,7 @@ func paginationInfo(total int64, page, pageSize uint64) (pageInfo, error) {
 	info := pageInfo{
 		page:   page,
 		pages:  pages,
-		limit:  int(pageSize),
+		limit:  limit,
 		offset: int(offset),
 	}
 	if page < pages {

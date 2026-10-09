@@ -33,6 +33,7 @@ import (
 	apiClientController "github.com/cloudbase/garm/client/controller_info"
 	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientJobs "github.com/cloudbase/garm/client/jobs"
+	apiClientScaleSets "github.com/cloudbase/garm/client/scalesets"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	wsEvents "github.com/cloudbase/garm/workers/websocket/events"
@@ -59,6 +60,7 @@ var topEventTypes = []dbCommon.DatabaseEntityType{
 	dbCommon.ScaleSetEntityType,
 	dbCommon.InstanceEntityType,
 	dbCommon.JobEntityType,
+	dbCommon.ScaleSetJobEntityType,
 	dbCommon.ControllerEntityType,
 }
 
@@ -74,9 +76,10 @@ const (
 // topState holds the mutable state updated by WebSocket handlers.
 type topState struct {
 	mu           sync.Mutex
-	instances    map[string]params.Instance // keyed by instance ID
-	jobs         map[int64]params.Job       // keyed by job ID
-	lastSnapshot *metrics.MetricsSnapshot   // latest metrics snapshot, patched by events
+	instances    map[string]params.Instance  // keyed by instance ID
+	jobs         map[int64]params.Job        // keyed by job ID
+	scaleSetJobs map[uint]params.ScaleSetJob // keyed by record ID
+	lastSnapshot *metrics.MetricsSnapshot    // latest metrics snapshot, patched by events
 	controller   *params.ControllerInfo
 
 	conn       connState
@@ -88,15 +91,17 @@ type topState struct {
 	// connect and periodically). Events that arrive while a seed is in
 	// flight are fresher than the seed response; touched* records the keys
 	// they modified or deleted so reconcile leaves those alone.
-	seeding          bool
-	touchedInstances map[string]struct{}
-	touchedJobs      map[int64]struct{}
+	seeding             bool
+	touchedInstances    map[string]struct{}
+	touchedJobs         map[int64]struct{}
+	touchedScaleSetJobs map[uint]struct{}
 }
 
 func newTopState() *topState {
 	return &topState{
-		instances: make(map[string]params.Instance),
-		jobs:      make(map[int64]params.Job),
+		instances:    make(map[string]params.Instance),
+		jobs:         make(map[int64]params.Job),
+		scaleSetJobs: make(map[uint]params.ScaleSetJob),
 	}
 }
 
@@ -115,6 +120,7 @@ func (s *topState) beginSeed() {
 	s.seeding = true
 	s.touchedInstances = make(map[string]struct{})
 	s.touchedJobs = make(map[int64]struct{})
+	s.touchedScaleSetJobs = make(map[uint]struct{})
 }
 
 func (s *topState) abortSeed() {
@@ -123,13 +129,14 @@ func (s *topState) abortSeed() {
 	s.seeding = false
 	s.touchedInstances = nil
 	s.touchedJobs = nil
+	s.touchedScaleSetJobs = nil
 }
 
 // reconcile folds a seed response into the state: entries the seed lists are
 // upserted, entries it does not list are removed. Keys touched by events
 // since beginSeed are skipped entirely — the event stream is fresher than
 // the REST response.
-func (s *topState) reconcile(instances []params.Instance, jobs []params.Job) {
+func (s *topState) reconcile(instances []params.Instance, jobs []params.Job, scaleSetJobs []params.ScaleSetJob) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -173,9 +180,30 @@ func (s *topState) reconcile(instances []params.Instance, jobs []params.Job) {
 		delete(s.jobs, id)
 	}
 
+	seenScaleSetJobs := make(map[uint]struct{}, len(scaleSetJobs))
+	for _, j := range scaleSetJobs {
+		if j.ID == 0 {
+			continue
+		}
+		seenScaleSetJobs[j.ID] = struct{}{}
+		if _, touched := s.touchedScaleSetJobs[j.ID]; !touched {
+			s.scaleSetJobs[j.ID] = j
+		}
+	}
+	for id := range s.scaleSetJobs {
+		if _, seen := seenScaleSetJobs[id]; seen {
+			continue
+		}
+		if _, touched := s.touchedScaleSetJobs[id]; touched {
+			continue
+		}
+		delete(s.scaleSetJobs, id)
+	}
+
 	s.seeding = false
 	s.touchedInstances = nil
 	s.touchedJobs = nil
+	s.touchedScaleSetJobs = nil
 	s.lastUpdate = time.Now()
 }
 
@@ -201,6 +229,7 @@ type renderData struct {
 	scaleSets    []metrics.MetricsScaleSet
 	instances    []params.Instance
 	jobs         []params.Job
+	scaleSetJobs []params.ScaleSetJob
 	controller   *params.ControllerInfo
 	conn         connState
 	connDetail   string
@@ -217,6 +246,7 @@ func (s *topState) copyData() renderData {
 		haveSnapshot: s.lastSnapshot != nil,
 		instances:    slices.Collect(maps.Values(s.instances)),
 		jobs:         slices.Collect(maps.Values(s.jobs)),
+		scaleSetJobs: slices.Collect(maps.Values(s.scaleSetJobs)),
 		conn:         s.conn,
 		connDetail:   s.connDetail,
 		lastUpdate:   s.lastUpdate,
@@ -249,6 +279,39 @@ func applyEvent[E any](list []E, item E, match func(E) bool, isDelete bool) []E 
 // applyChange folds a single WebSocket event into the state. Pool, scale set
 // and entity events patch the latest metrics snapshot; until the first
 // snapshot arrives they are dropped, as the snapshot will include them anyway.
+// applyJobEvent folds a job event into the state. The caller holds the lock.
+func (s *topState) applyJobEvent(payload json.RawMessage, isDelete bool) {
+	var job params.Job
+	if err := json.Unmarshal(payload, &job); err != nil || job.ID == 0 {
+		return
+	}
+	if s.seeding {
+		s.touchedJobs[job.ID] = struct{}{}
+	}
+	if isDelete {
+		delete(s.jobs, job.ID)
+	} else {
+		s.jobs[job.ID] = job
+	}
+}
+
+// applyScaleSetJobEvent folds a scale set job event into the state. The
+// caller holds the lock.
+func (s *topState) applyScaleSetJobEvent(payload json.RawMessage, isDelete bool) {
+	var job params.ScaleSetJob
+	if err := json.Unmarshal(payload, &job); err != nil || job.ID == 0 {
+		return
+	}
+	if s.seeding {
+		s.touchedScaleSetJobs[job.ID] = struct{}{}
+	}
+	if isDelete {
+		delete(s.scaleSetJobs, job.ID)
+	} else {
+		s.scaleSetJobs[job.ID] = job
+	}
+}
+
 func (s *topState) applyChange(cp changePayload) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -270,18 +333,9 @@ func (s *topState) applyChange(cp changePayload) {
 			s.instances[inst.ID] = inst
 		}
 	case dbCommon.JobEntityType:
-		var job params.Job
-		if err := json.Unmarshal(cp.Payload, &job); err != nil || job.ID == 0 {
-			return
-		}
-		if s.seeding {
-			s.touchedJobs[job.ID] = struct{}{}
-		}
-		if isDelete {
-			delete(s.jobs, job.ID)
-		} else {
-			s.jobs[job.ID] = job
-		}
+		s.applyJobEvent(cp.Payload, isDelete)
+	case dbCommon.ScaleSetJobEntityType:
+		s.applyScaleSetJobEvent(cp.Payload, isDelete)
 	case dbCommon.ControllerEntityType:
 		var info params.ControllerInfo
 		if err := json.Unmarshal(cp.Payload, &info); err != nil {
@@ -344,7 +398,7 @@ func seedTop(state *topState) error {
 		state.abortSeed()
 		return fmt.Errorf("failed to list instances: %w", err)
 	}
-	// The TUI tracks active jobs, which is what the listing returns by
+	// The TUI tracks active jobs, which is what the listings return by
 	// default. Walk the pages so a busy deployment seeds completely.
 	listJobsReq := apiClientJobs.NewListJobsParams()
 	pageSize := int64(200)
@@ -364,7 +418,25 @@ func seedTop(state *topState) error {
 		}
 		page++
 	}
-	state.reconcile(instResp.Payload, jobs)
+
+	listScaleSetJobsReq := apiClientScaleSets.NewListAllScaleSetJobsParams()
+	listScaleSetJobsReq.PageSize = &pageSize
+	var scaleSetJobs []params.ScaleSetJob
+	page = 1
+	for {
+		listScaleSetJobsReq.Page = &page
+		scaleSetJobsResp, err := apiCli.Scalesets.ListAllScaleSetJobs(listScaleSetJobsReq, authToken)
+		if err != nil {
+			state.abortSeed()
+			return fmt.Errorf("failed to list scale set jobs: %w", err)
+		}
+		scaleSetJobs = append(scaleSetJobs, scaleSetJobsResp.Payload.Results...)
+		if scaleSetJobsResp.Payload.NextPage == nil {
+			break
+		}
+		page++
+	}
+	state.reconcile(instResp.Payload, jobs, scaleSetJobs)
 
 	// Controller info is nice-to-have header decoration; it also arrives
 	// via controller events, so a failure here is not fatal.

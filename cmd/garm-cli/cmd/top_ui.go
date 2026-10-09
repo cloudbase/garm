@@ -601,6 +601,9 @@ func (ui *topUI) openDetails(ref *rowRef) {
 	case params.Job:
 		ui.detail.SetTitle(fmt.Sprintf(" Job: %s ", truncateText(item.Name, 60)))
 		ui.detail.SetText(jobDetailText(item))
+	case params.ScaleSetJob:
+		ui.detail.SetTitle(fmt.Sprintf(" Scale set job: %s ", truncateText(item.Name, 60)))
+		ui.detail.SetText(scaleSetJobDetailText(item))
 	case capacityRow:
 		title := strings.ToUpper(item.kind[:1]) + item.kind[1:]
 		ui.detail.SetTitle(fmt.Sprintf(" %s: %s ", title, item.name))
@@ -730,6 +733,45 @@ func jobDetailText(job params.Job) string {
 	}
 	if !job.CompletedAt.IsZero() {
 		b.WriteString(detailField("Completed", job.CompletedAt.Local().Format(time.DateTime)))
+	}
+	b.WriteString(detailField("Run URL", job.WorkflowRunURL))
+	return b.String()
+}
+
+func scaleSetJobDetailText(job params.ScaleSetJob) string {
+	var b strings.Builder
+	b.WriteString(detailField("Name", job.Name))
+	b.WriteString(detailField("Job ID", job.ScaleSetJobID))
+	if job.WorkflowRunID != 0 {
+		b.WriteString(detailField("Run ID", strconv.FormatInt(job.WorkflowRunID, 10)))
+	}
+	status := job.Status
+	if job.Result != "" {
+		status = fmt.Sprintf("%s (%s)", job.Status, job.Result)
+	}
+	b.WriteString(detailField("Status", status))
+	if job.ScaleSetID != 0 {
+		b.WriteString(detailField("Scale set", strconv.FormatUint(uint64(job.ScaleSetID), 10)))
+	}
+	if job.RepositoryOwner != "" || job.RepositoryName != "" {
+		b.WriteString(detailField("Repository", job.RepositoryOwner+"/"+job.RepositoryName))
+	}
+	b.WriteString(detailField("Runner", job.RunnerName))
+	if job.RunnerGroupName != "" {
+		b.WriteString(detailField("Runner group", job.RunnerGroupName))
+	}
+	b.WriteString(detailField("Labels", strings.Join(job.RequestLabels, ", ")))
+	if !job.QueueTime.IsZero() {
+		b.WriteString(detailField("Queued", job.QueueTime.Local().Format(time.DateTime)))
+	}
+	if !job.ScaleSetAssignTime.IsZero() {
+		b.WriteString(detailField("Assigned", job.ScaleSetAssignTime.Local().Format(time.DateTime)))
+	}
+	if !job.RunnerAssignTime.IsZero() {
+		b.WriteString(detailField("Started", job.RunnerAssignTime.Local().Format(time.DateTime)))
+	}
+	if !job.FinishTime.IsZero() {
+		b.WriteString(detailField("Finished", job.FinishTime.Local().Format(time.DateTime)))
 	}
 	b.WriteString(detailField("Run URL", job.WorkflowRunURL))
 	return b.String()
@@ -1049,8 +1091,8 @@ func (ui *topUI) renderSummary(data renderData) {
 	}
 
 	queued, inProgress, completed := 0, 0, 0
-	for _, j := range data.jobs {
-		switch params.JobStatus(j.Status) {
+	for _, j := range jobRows(data) {
+		switch params.JobStatus(j.status) {
 		case params.JobStatusQueued:
 			queued++
 		case params.JobStatusInProgress:
@@ -1428,55 +1470,106 @@ func (ui *topUI) renderInstances(data renderData) {
 	ui.restoreSelection(panelInstances)
 }
 
-// renderJobs renders the jobs panel. It sorts the slice in place.
+// jobRow is the unified view of webhook and scale set jobs in the jobs
+// panel.
+type jobRow struct {
+	key        string
+	name       string
+	status     string
+	conclusion string
+	source     string
+	repo       string
+	runner     string
+	labels     string
+	createdAt  time.Time
+	updatedAt  time.Time
+	item       any
+}
+
+func jobRows(data renderData) []jobRow {
+	rows := make([]jobRow, 0, len(data.jobs)+len(data.scaleSetJobs))
+	for _, job := range data.jobs {
+		rows = append(rows, jobRow{
+			key:        "job:" + strconv.FormatInt(job.ID, 10),
+			name:       job.Name,
+			status:     job.Status,
+			conclusion: job.Conclusion,
+			source:     "workflow",
+			repo:       job.RepositoryOwner + "/" + job.RepositoryName,
+			runner:     job.RunnerName,
+			labels:     strings.Join(job.Labels, ","),
+			createdAt:  job.CreatedAt,
+			updatedAt:  job.UpdatedAt,
+			item:       job,
+		})
+	}
+	for _, job := range data.scaleSetJobs {
+		rows = append(rows, jobRow{
+			key:        "ssjob:" + strconv.FormatUint(uint64(job.ID), 10),
+			name:       job.Name,
+			status:     job.Status,
+			conclusion: job.Result,
+			source:     "scaleset",
+			repo:       job.RepositoryOwner + "/" + job.RepositoryName,
+			runner:     job.RunnerName,
+			labels:     strings.Join(job.RequestLabels, ","),
+			createdAt:  job.CreatedAt,
+			updatedAt:  job.UpdatedAt,
+			item:       job,
+		})
+	}
+	return rows
+}
+
+// renderJobs renders the jobs panel with both webhook and scale set jobs.
 func (ui *topUI) renderJobs(data renderData) {
 	table := ui.tables[panelJobs]
 	filter := ui.filters[panelJobs]
 	table.Clear()
-	setTableHeader(table, []string{"NAME", "STATUS", "REPO", "RUNNER", "LABELS", "AGE"}, -1)
+	setTableHeader(table, []string{"NAME", "SOURCE", "STATUS", "REPO", "RUNNER", "LABELS", "AGE"}, -1)
 
 	// Sort: in_progress first, then queued, then completed; within group by
-	// update time desc, with the ID as a stable tiebreaker.
-	jobs := data.jobs
-	slices.SortFunc(jobs, func(a, b params.Job) int {
+	// update time desc, with the key as a stable tiebreaker.
+	jobs := jobRows(data)
+	slices.SortFunc(jobs, func(a, b jobRow) int {
 		return cmp.Or(
-			cmp.Compare(jobStatusPriorities[a.Status], jobStatusPriorities[b.Status]),
-			b.UpdatedAt.Compare(a.UpdatedAt),
-			cmp.Compare(a.ID, b.ID),
+			cmp.Compare(jobStatusPriorities[a.status], jobStatusPriorities[b.status]),
+			b.updatedAt.Compare(a.updatedAt),
+			cmp.Compare(a.key, b.key),
 		)
 	})
 
 	row := 1
 	for _, job := range jobs {
-		statusStr := job.Status
+		statusStr := job.status
 		statusColor := jobStatusColors[statusStr]
-		if job.Conclusion != "" && params.JobStatus(job.Status) == params.JobStatusCompleted {
-			statusStr = job.Conclusion
-			statusColor = jobConclusionColors[job.Conclusion]
+		if job.conclusion != "" && params.JobStatus(job.status) == params.JobStatusCompleted {
+			statusStr = job.conclusion
+			statusColor = jobConclusionColors[job.conclusion]
 		}
 
-		repoStr := ""
-		if job.RepositoryOwner != "" && job.RepositoryName != "" {
-			repoStr = job.RepositoryOwner + "/" + job.RepositoryName
+		repoStr := job.repo
+		if repoStr == "/" {
+			repoStr = ""
 		}
 
-		runnerStr := job.RunnerName
+		runnerStr := job.runner
 		if runnerStr == "" {
 			runnerStr = "-"
 		}
-		labels := strings.Join(job.Labels, ",")
-		if !matchesFilter(filter, job.Name, statusStr, repoStr, runnerStr, labels) {
+		if !matchesFilter(filter, job.name, job.source, statusStr, repoStr, runnerStr, job.labels) {
 			continue
 		}
 
-		nameCell := tview.NewTableCell(truncateText(job.Name, 40)).SetExpansion(1).
-			SetReference(&rowRef{key: "job:" + strconv.FormatInt(job.ID, 10), item: job})
+		nameCell := tview.NewTableCell(truncateText(job.name, 40)).SetExpansion(1).
+			SetReference(&rowRef{key: job.key, item: job.item})
 		table.SetCell(row, 0, nameCell)
-		table.SetCell(row, 1, tview.NewTableCell(statusStr).SetTextColor(statusColor).SetExpansion(1))
-		table.SetCell(row, 2, tview.NewTableCell(repoStr).SetExpansion(1))
-		table.SetCell(row, 3, tview.NewTableCell(runnerStr).SetExpansion(1))
-		table.SetCell(row, 4, tview.NewTableCell(truncateText(labels, 30)).SetExpansion(1))
-		table.SetCell(row, 5, tview.NewTableCell(formatDuration(time.Since(job.CreatedAt))).SetExpansion(1))
+		table.SetCell(row, 1, tview.NewTableCell(job.source).SetExpansion(1))
+		table.SetCell(row, 2, tview.NewTableCell(statusStr).SetTextColor(statusColor).SetExpansion(1))
+		table.SetCell(row, 3, tview.NewTableCell(repoStr).SetExpansion(1))
+		table.SetCell(row, 4, tview.NewTableCell(runnerStr).SetExpansion(1))
+		table.SetCell(row, 5, tview.NewTableCell(truncateText(job.labels, 30)).SetExpansion(1))
+		table.SetCell(row, 6, tview.NewTableCell(formatDuration(time.Since(job.createdAt))).SetExpansion(1))
 		row++
 	}
 	table.SetTitle(panelTitle(panelNames[panelJobs], row-1, len(jobs), filter))
@@ -1596,6 +1689,11 @@ var jobConclusionColors = map[string]tcell.Color{
 	"failure":   tcell.ColorRed,
 	"cancelled": tcell.ColorOrangeRed,
 	"timed_out": tcell.ColorRed,
+	// Scale set job results use their own vocabulary.
+	"succeeded": tcell.ColorGreen,
+	"failed":    tcell.ColorRed,
+	"canceled":  tcell.ColorOrangeRed,
+	"abandoned": tcell.ColorOrangeRed,
 }
 
 func poolToMetrics(p params.Pool) metrics.MetricsPool {

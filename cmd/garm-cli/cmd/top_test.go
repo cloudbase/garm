@@ -72,7 +72,7 @@ func TestReconcilePrunesAndUpserts(t *testing.T) {
 	state.applyChange(instanceEvent(t, dbCommon.CreateOperation, params.Instance{ID: "stale", Name: "ghost"}))
 
 	state.beginSeed()
-	state.reconcile([]params.Instance{{ID: "fresh", Name: "runner"}}, []params.Job{{ID: 1}})
+	state.reconcile([]params.Instance{{ID: "fresh", Name: "runner"}}, []params.Job{{ID: 1}}, []params.ScaleSetJob{{ID: 1}})
 
 	data := state.copyData()
 	require.Len(t, data.instances, 1)
@@ -94,7 +94,7 @@ func TestReconcileEventsWinDuringSeed(t *testing.T) {
 	state.reconcile([]params.Instance{
 		{ID: "i1", Name: "stale-name"},
 		{ID: "i2", Name: "deleted-meanwhile"},
-	}, nil)
+	}, nil, nil)
 
 	data := state.copyData()
 	require.Len(t, data.instances, 1)
@@ -433,4 +433,49 @@ func TestClicksOutsideDataRowsKeepSelection(t *testing.T) {
 	row, _ = table.GetSelection()
 	require.Equal(t, 1, row, "clicking a data row selects it")
 	require.Equal(t, "instance:i2", ui.selKeys[panelInstances])
+}
+
+func scaleSetJobEvent(t *testing.T, op dbCommon.OperationType, job params.ScaleSetJob) changePayload {
+	t.Helper()
+	payload, err := json.Marshal(job)
+	require.NoError(t, err)
+	return changePayload{EntityType: dbCommon.ScaleSetJobEntityType, Operation: op, Payload: payload}
+}
+
+func TestApplyChangeScaleSetJobs(t *testing.T) {
+	state := newTopState()
+
+	state.applyChange(scaleSetJobEvent(t, dbCommon.CreateOperation, params.ScaleSetJob{ID: 3, Name: "build"}))
+	state.applyChange(scaleSetJobEvent(t, dbCommon.UpdateOperation, params.ScaleSetJob{ID: 3, Name: "build", Status: "in_progress"}))
+
+	data := state.copyData()
+	require.Len(t, data.scaleSetJobs, 1)
+	require.Equal(t, "in_progress", data.scaleSetJobs[0].Status)
+
+	state.applyChange(scaleSetJobEvent(t, dbCommon.DeleteOperation, params.ScaleSetJob{ID: 3}))
+	data = state.copyData()
+	require.Empty(t, data.scaleSetJobs)
+}
+
+func TestReconcileScaleSetJobs(t *testing.T) {
+	state := newTopState()
+	state.applyChange(scaleSetJobEvent(t, dbCommon.CreateOperation, params.ScaleSetJob{ID: 1, Name: "stale"}))
+
+	state.beginSeed()
+	// An event during the seed wins over the seed response.
+	state.applyChange(scaleSetJobEvent(t, dbCommon.UpdateOperation, params.ScaleSetJob{ID: 2, Name: "from-event"}))
+	state.reconcile(nil, nil, []params.ScaleSetJob{
+		{ID: 2, Name: "stale-name"},
+		{ID: 3, Name: "fresh"},
+	})
+
+	data := state.copyData()
+	require.Len(t, data.scaleSetJobs, 2)
+	names := map[uint]string{}
+	for _, j := range data.scaleSetJobs {
+		names[j.ID] = j.Name
+	}
+	require.Equal(t, "from-event", names[2], "events during a seed are fresher than the seed")
+	require.Equal(t, "fresh", names[3])
+	require.NotContains(t, names, uint(1), "entries absent from the seed are pruned")
 }
