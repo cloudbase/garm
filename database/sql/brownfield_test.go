@@ -166,6 +166,9 @@ func migrationIDs(t *testing.T, conn *gorm.DB, table string) []string {
 
 func hasColumn(t *testing.T, conn *gorm.DB, table, column string) bool {
 	t.Helper()
+	if conn.Name() != "sqlite" {
+		return conn.Migrator().HasColumn(table, column)
+	}
 	var count int64
 	require.NoError(t, conn.Raw("SELECT count(*) FROM pragma_table_info(?) WHERE name = ?", table, column).Scan(&count).Error)
 	return count == 1
@@ -190,8 +193,16 @@ var (
 	fixtureConstraintRe = regexp.MustCompile("CONSTRAINT `(fk_[a-z0-9_]+)`")
 )
 
+// removedByMigrations lists schema items from the v0.2.1 fixture that a
+// later migration removes on purpose. 0010 moved scale set jobs to their
+// own table and dropped the old column and its index.
+var removedByMigrations = map[string]bool{
+	"scaleset_job_id_idx": true,
+}
+
 // requireFixtureSchemaPreserved asserts that every index and foreign key
-// constraint present in the v0.2.1 fixture still exists after the upgrade.
+// constraint present in the v0.2.1 fixture still exists after the upgrade,
+// unless a migration removed it on purpose.
 func requireFixtureSchemaPreserved(t *testing.T, conn *gorm.DB, fixturePath string) {
 	t.Helper()
 	contents, err := os.ReadFile(fixturePath)
@@ -202,6 +213,9 @@ func requireFixtureSchemaPreserved(t *testing.T, conn *gorm.DB, fixturePath stri
 	joined := strings.Join(allDDL, "\n")
 
 	for _, m := range fixtureIndexRe.FindAllStringSubmatch(string(contents), -1) {
+		if removedByMigrations[m[1]] {
+			continue
+		}
 		var count int64
 		require.NoError(t, conn.Raw("SELECT count(*) FROM sqlite_master WHERE type='index' AND name = ?", m[1]).Scan(&count).Error)
 		require.EqualValues(t, 1, count, "index %s from the v0.2.1 schema is gone after upgrade", m[1])
@@ -241,6 +255,7 @@ func TestBrownfieldMigration(t *testing.T) {
 	require.Contains(t, ids, "0001_baseline")
 	require.Contains(t, ids, "0006_proxies")
 	require.Contains(t, ids, "0008_constraint_parity")
+	require.Contains(t, ids, "0010_scaleset_jobs")
 	require.NotContains(t, ids, "SCHEMA_INIT")
 
 	objectIDs := migrationIDs(t, db.objectsConn, "file_object_migrations")
@@ -257,6 +272,8 @@ func TestBrownfieldMigration(t *testing.T) {
 	require.True(t, db.conn.Migrator().HasTable("forge_instances"))
 	require.True(t, hasColumn(t, db.conn, "scale_sets", "proxy_id"))
 	require.True(t, hasColumn(t, db.conn, "github_credentials", "reserve_usage_enabled"))
+	require.True(t, db.conn.Migrator().HasTable("scale_set_jobs"))
+	require.False(t, hasColumn(t, db.conn, "workflow_jobs", "scale_set_job_id"))
 	require.True(t, hasColumn(t, db.objectsConn, "file_blobs", "lo_oid"))
 
 	// Seeded rows survived.
@@ -276,7 +293,8 @@ func TestBrownfieldMigration(t *testing.T) {
 		"instances":               4,
 		"addresses":               1,
 		"instance_status_updates": 1,
-		"workflow_jobs":           2,
+		"workflow_jobs":           1,
+		"scale_set_jobs":          1,
 		"controller_infos":        1,
 	} {
 		require.EqualValues(t, expected, countRows(t, db.conn, table), "row count mismatch in %s", table)
@@ -328,7 +346,20 @@ func TestBrownfieldMigration(t *testing.T) {
 
 	jobs, err := store.ListAllJobs(adminCtx)
 	require.NoError(t, err)
-	require.Len(t, jobs, 2)
+	require.Len(t, jobs, 1)
+	require.EqualValues(t, 201, jobs[0].WorkflowJobID)
+
+	// The scale set job moved to its own table with the runner name
+	// resolved from the instance it referenced.
+	scaleSetJobs, err := store.ListAllScaleSetJobs(adminCtx)
+	require.NoError(t, err)
+	require.Len(t, scaleSetJobs, 1)
+	require.Equal(t, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", scaleSetJobs[0].ScaleSetJobID)
+	require.Equal(t, "scaleset job", scaleSetJobs[0].Name)
+	require.Equal(t, string(params.JobStatusInProgress), scaleSetJobs[0].Status)
+	require.EqualValues(t, 100, scaleSetJobs[0].WorkflowRunID)
+	require.Equal(t, "garm-scaleset-runner", scaleSetJobs[0].RunnerName)
+	require.Zero(t, scaleSetJobs[0].ScaleSetID, "moved records have no owner attribution")
 
 	controllerInfo, err := store.ControllerInfo()
 	require.NoError(t, err)
@@ -448,6 +479,49 @@ func TestTagNameLengthOnPostgres(t *testing.T) {
 	require.EqualValues(t, 1, countRows(t, db.conn, "tags"))
 }
 
+// TestScaleSetJobsMoveOnPostgres exercises 0010 on a PostgreSQL database
+// that still records scale set jobs in workflow_jobs.
+func TestScaleSetJobsMoveOnPostgres(t *testing.T) {
+	if os.Getenv("GARM_TEST_POSTGRES_DSN") == "" {
+		t.Skip("GARM_TEST_POSTGRES_DSN not set")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	watcher.InitWatcher(ctx)
+	defer watcher.CloseWatcher()
+
+	sqlDB, cfg := garmTesting.OpenTestPostgresDB(t)
+	store, err := newSQLStoreFromSQLDB(ctx, sqlDB, cfg)
+	require.NoError(t, err)
+	db := store.(*sqlDatabase)
+	t.Cleanup(func() { db.sqlDB.Close() })
+
+	// Reconstruct a database from before the split.
+	require.NoError(t, db.conn.Exec("DROP TABLE scale_set_jobs").Error)
+	require.NoError(t, db.conn.Exec("ALTER TABLE workflow_jobs ADD COLUMN scale_set_job_id text").Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO workflow_jobs (id, workflow_job_id, scale_set_job_id, run_id, action, conclusion, status, name, repository_name, repository_owner, created_at, updated_at) VALUES (1, 0, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 100, 'push', '', 'in_progress', 'scaleset job', 'garm-testing', 'gsamfira', now(), now())").Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO workflow_jobs (id, workflow_job_id, scale_set_job_id, run_id, action, conclusion, status, name, repository_name, repository_owner, created_at, updated_at) VALUES (2, 201, '', 101, 'queued', '', 'queued', 'pool job', 'garm-testing', 'gsamfira', now(), now())").Error)
+	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0010_scaleset_jobs'").Error)
+
+	require.NoError(t, db.migrateDB())
+
+	require.Contains(t, migrationIDs(t, db.conn, "migrations"), "0010_scaleset_jobs")
+	require.True(t, db.conn.Migrator().HasTable("scale_set_jobs"))
+	require.False(t, hasColumn(t, db.conn, "workflow_jobs", "scale_set_job_id"))
+	require.EqualValues(t, 1, countRows(t, db.conn, "workflow_jobs"))
+	require.EqualValues(t, 1, countRows(t, db.conn, "scale_set_jobs"))
+
+	adminCtx := garmTesting.ImpersonateAdminContext(ctx, store, t)
+	moved, err := store.ListAllScaleSetJobs(adminCtx)
+	require.NoError(t, err)
+	require.Len(t, moved, 1)
+	require.Equal(t, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", moved[0].ScaleSetJobID)
+	require.Equal(t, string(params.JobStatusInProgress), moved[0].Status)
+	require.EqualValues(t, 100, moved[0].WorkflowRunID)
+}
+
 // TestFreshDatabaseUsesInitSchema ensures new installs keep taking the
 // single-step InitSchema path.
 func TestFreshDatabaseUsesInitSchema(t *testing.T) {
@@ -499,9 +573,44 @@ INSERT INTO file_object_migrations (id) VALUES ('0001_baseline');
 	ids := migrationIDs(t, db.conn, "migrations")
 	require.Contains(t, ids, "0002_lower_indexes")
 	require.Contains(t, ids, "0008_constraint_parity")
+	require.Contains(t, ids, "0010_scaleset_jobs")
 	require.NotContains(t, ids, "SCHEMA_INIT")
 
 	require.True(t, db.conn.Migrator().HasTable("forge_instances"))
 	require.EqualValues(t, 4, countRows(t, db.conn, "instances"))
 	requireNoFKViolations(t, db.conn)
+}
+
+// TestScaleSetJobsMoveRerunIsSafe reconstructs the window where 0010 copied
+// the rows into scale_set_jobs but crashed before deleting them from
+// workflow_jobs. Migrations run without a transaction, so a rerun must skip
+// the rows it already copied instead of tripping over the unique scale set
+// job ID.
+func TestScaleSetJobsMoveRerunIsSafe(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	watcher.InitWatcher(ctx)
+	defer watcher.CloseWatcher()
+
+	cfg := garmTesting.GetTestSqliteDBConfig(t)
+	store, err := NewSQLStore(ctx, cfg)
+	require.NoError(t, err)
+	db := store.(*sqlDatabase)
+
+	// In the crash window the old column still exists and the row sits in
+	// both tables. Quote the column name the way gorm does when it creates
+	// columns. The sqlite driver rebuilds tables by rewriting the stored
+	// DDL and only recognizes quoted column names when removing one.
+	require.NoError(t, db.conn.Exec("ALTER TABLE workflow_jobs ADD COLUMN `scale_set_job_id` text").Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO workflow_jobs (workflow_job_id, scale_set_job_id, run_id, action, conclusion, status, name, repository_name, repository_owner, created_at, updated_at) VALUES (0, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 100, 'push', '', 'in_progress', 'scaleset job', 'garm-testing', 'gsamfira', datetime('now'), datetime('now'))").Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO scale_set_jobs (scale_set_job_id, workflow_run_id, name, status, created_at, updated_at) VALUES ('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 100, 'scaleset job', 'in_progress', datetime('now'), datetime('now'))").Error)
+	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0010_scaleset_jobs'").Error)
+
+	require.NoError(t, db.migrateDB(), "0010 rerun must tolerate rows that were already copied")
+
+	require.False(t, hasColumn(t, db.conn, "workflow_jobs", "scale_set_job_id"))
+	require.EqualValues(t, 0, countRows(t, db.conn, "workflow_jobs"))
+	require.EqualValues(t, 1, countRows(t, db.conn, "scale_set_jobs"))
 }

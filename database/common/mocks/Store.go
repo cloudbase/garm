@@ -870,6 +870,63 @@ func (_c *Store_CreateOrUpdateJob_Call) RunAndReturn(run func(context.Context, p
 	return _c
 }
 
+// CreateOrUpdateScaleSetJob provides a mock function with given fields: ctx, job
+func (_m *Store) CreateOrUpdateScaleSetJob(ctx context.Context, job params.ScaleSetJob) (params.ScaleSetJob, error) {
+	ret := _m.Called(ctx, job)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateOrUpdateScaleSetJob")
+	}
+
+	var r0 params.ScaleSetJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.ScaleSetJob) (params.ScaleSetJob, error)); ok {
+		return rf(ctx, job)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.ScaleSetJob) params.ScaleSetJob); ok {
+		r0 = rf(ctx, job)
+	} else {
+		r0 = ret.Get(0).(params.ScaleSetJob)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.ScaleSetJob) error); ok {
+		r1 = rf(ctx, job)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_CreateOrUpdateScaleSetJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateOrUpdateScaleSetJob'
+type Store_CreateOrUpdateScaleSetJob_Call struct {
+	*mock.Call
+}
+
+// CreateOrUpdateScaleSetJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - job params.ScaleSetJob
+func (_e *Store_Expecter) CreateOrUpdateScaleSetJob(ctx interface{}, job interface{}) *Store_CreateOrUpdateScaleSetJob_Call {
+	return &Store_CreateOrUpdateScaleSetJob_Call{Call: _e.mock.On("CreateOrUpdateScaleSetJob", ctx, job)}
+}
+
+func (_c *Store_CreateOrUpdateScaleSetJob_Call) Run(run func(ctx context.Context, job params.ScaleSetJob)) *Store_CreateOrUpdateScaleSetJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(params.ScaleSetJob))
+	})
+	return _c
+}
+
+func (_c *Store_CreateOrUpdateScaleSetJob_Call) Return(_a0 params.ScaleSetJob, _a1 error) *Store_CreateOrUpdateScaleSetJob_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_CreateOrUpdateScaleSetJob_Call) RunAndReturn(run func(context.Context, params.ScaleSetJob) (params.ScaleSetJob, error)) *Store_CreateOrUpdateScaleSetJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateOrganization provides a mock function with given fields: ctx, name, credentials, webhookSecret, poolBalancerType, agentMode
 func (_m *Store) CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (params.Organization, error) {
 	ret := _m.Called(ctx, name, credentials, webhookSecret, poolBalancerType, agentMode)
@@ -1841,6 +1898,53 @@ func (_c *Store_DeleteJob_Call) Return(_a0 error) *Store_DeleteJob_Call {
 }
 
 func (_c *Store_DeleteJob_Call) RunAndReturn(run func(context.Context, int64) error) *Store_DeleteJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteOldScaleSetJobs provides a mock function with given fields: ctx, olderThan
+func (_m *Store) DeleteOldScaleSetJobs(ctx context.Context, olderThan time.Duration) error {
+	ret := _m.Called(ctx, olderThan)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteOldScaleSetJobs")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Duration) error); ok {
+		r0 = rf(ctx, olderThan)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_DeleteOldScaleSetJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteOldScaleSetJobs'
+type Store_DeleteOldScaleSetJobs_Call struct {
+	*mock.Call
+}
+
+// DeleteOldScaleSetJobs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - olderThan time.Duration
+func (_e *Store_Expecter) DeleteOldScaleSetJobs(ctx interface{}, olderThan interface{}) *Store_DeleteOldScaleSetJobs_Call {
+	return &Store_DeleteOldScaleSetJobs_Call{Call: _e.mock.On("DeleteOldScaleSetJobs", ctx, olderThan)}
+}
+
+func (_c *Store_DeleteOldScaleSetJobs_Call) Run(run func(ctx context.Context, olderThan time.Duration)) *Store_DeleteOldScaleSetJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Duration))
+	})
+	return _c
+}
+
+func (_c *Store_DeleteOldScaleSetJobs_Call) Return(_a0 error) *Store_DeleteOldScaleSetJobs_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_DeleteOldScaleSetJobs_Call) RunAndReturn(run func(context.Context, time.Duration) error) *Store_DeleteOldScaleSetJobs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4181,6 +4285,64 @@ func (_c *Store_ListAllPools_Call) RunAndReturn(run func(context.Context) ([]par
 	return _c
 }
 
+// ListAllScaleSetJobs provides a mock function with given fields: ctx
+func (_m *Store) ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAllScaleSetJobs")
+	}
+
+	var r0 []params.ScaleSetJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.ScaleSetJob, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []params.ScaleSetJob); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.ScaleSetJob)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_ListAllScaleSetJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllScaleSetJobs'
+type Store_ListAllScaleSetJobs_Call struct {
+	*mock.Call
+}
+
+// ListAllScaleSetJobs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Store_Expecter) ListAllScaleSetJobs(ctx interface{}) *Store_ListAllScaleSetJobs_Call {
+	return &Store_ListAllScaleSetJobs_Call{Call: _e.mock.On("ListAllScaleSetJobs", ctx)}
+}
+
+func (_c *Store_ListAllScaleSetJobs_Call) Run(run func(ctx context.Context)) *Store_ListAllScaleSetJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *Store_ListAllScaleSetJobs_Call) Return(_a0 []params.ScaleSetJob, _a1 error) *Store_ListAllScaleSetJobs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_ListAllScaleSetJobs_Call) RunAndReturn(run func(context.Context) ([]params.ScaleSetJob, error)) *Store_ListAllScaleSetJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAllScaleSets provides a mock function with given fields: ctx
 func (_m *Store) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error) {
 	ret := _m.Called(ctx)
@@ -5236,6 +5398,65 @@ func (_c *Store_ListScaleSetInstances_Call) Return(_a0 []params.Instance, _a1 er
 }
 
 func (_c *Store_ListScaleSetInstances_Call) RunAndReturn(run func(context.Context, uint, bool) ([]params.Instance, error)) *Store_ListScaleSetInstances_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListScaleSetJobs provides a mock function with given fields: ctx, scaleSetID
+func (_m *Store) ListScaleSetJobs(ctx context.Context, scaleSetID uint) ([]params.ScaleSetJob, error) {
+	ret := _m.Called(ctx, scaleSetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListScaleSetJobs")
+	}
+
+	var r0 []params.ScaleSetJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint) ([]params.ScaleSetJob, error)); ok {
+		return rf(ctx, scaleSetID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint) []params.ScaleSetJob); ok {
+		r0 = rf(ctx, scaleSetID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.ScaleSetJob)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint) error); ok {
+		r1 = rf(ctx, scaleSetID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_ListScaleSetJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListScaleSetJobs'
+type Store_ListScaleSetJobs_Call struct {
+	*mock.Call
+}
+
+// ListScaleSetJobs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - scaleSetID uint
+func (_e *Store_Expecter) ListScaleSetJobs(ctx interface{}, scaleSetID interface{}) *Store_ListScaleSetJobs_Call {
+	return &Store_ListScaleSetJobs_Call{Call: _e.mock.On("ListScaleSetJobs", ctx, scaleSetID)}
+}
+
+func (_c *Store_ListScaleSetJobs_Call) Run(run func(ctx context.Context, scaleSetID uint)) *Store_ListScaleSetJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint))
+	})
+	return _c
+}
+
+func (_c *Store_ListScaleSetJobs_Call) Return(_a0 []params.ScaleSetJob, _a1 error) *Store_ListScaleSetJobs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_ListScaleSetJobs_Call) RunAndReturn(run func(context.Context, uint) ([]params.ScaleSetJob, error)) *Store_ListScaleSetJobs_Call {
 	_c.Call.Return(run)
 	return _c
 }

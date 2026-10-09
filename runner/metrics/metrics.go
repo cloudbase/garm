@@ -113,5 +113,11 @@ func collectMetrics(ctx context.Context, r *runner.Runner, controllerInfo params
 		return err
 	}
 
+	slog.DebugContext(ctx, "collecting scale set jobs metrics")
+	err = CollectScaleSetJobMetric(ctx, r)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

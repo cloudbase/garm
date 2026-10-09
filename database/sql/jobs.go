@@ -44,7 +44,6 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 	jobParam := params.Job{
 		ID:              job.ID,
 		WorkflowJobID:   job.WorkflowJobID,
-		ScaleSetJobID:   job.ScaleSetJobID,
 		RunID:           job.RunID,
 		Action:          job.Action,
 		Status:          job.Status,
@@ -82,7 +81,6 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, conn *gorm.DB,
 	}
 
 	workflofJob := WorkflowJob{
-		ScaleSetJobID:   job.ScaleSetJobID,
 		WorkflowJobID:   job.WorkflowJobID,
 		RunID:           job.RunID,
 		Action:          job.Action,
@@ -301,13 +299,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
 
-		searchField := "workflow_job_id = ?"
-		var searchVal any = job.WorkflowJobID
-		if job.ScaleSetJobID != "" {
-			searchField = "scale_set_job_id = ?"
-			searchVal = job.ScaleSetJobID
-		}
-		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where(searchField, searchVal).First(&workflowJob)
+		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("workflow_job_id = ?", job.WorkflowJobID).First(&workflowJob)
 
 		if q.Error != nil {
 			if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -424,8 +416,7 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 	query := s.conn.
 		Model(&WorkflowJob{}).
 		Preload("Instance").
-		Where("status = ?", status).
-		Where("workflow_job_id > 0")
+		Where("status = ?", status)
 
 	switch entityType {
 	case params.ForgeEntityTypeOrganization:

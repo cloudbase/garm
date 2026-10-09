@@ -550,20 +550,29 @@ func (s ScaleSetJobMessage) MessageTypeToStatus() JobStatus {
 	}
 }
 
-func (s ScaleSetJobMessage) ToJob() Job {
-	return Job{
-		ScaleSetJobID:   s.JobID,
-		Action:          s.EventName,
-		RunID:           s.WorkflowRunID,
-		Status:          string(s.MessageTypeToStatus()),
-		Conclusion:      s.Result,
-		CompletedAt:     s.FinishTime,
-		StartedAt:       s.RunnerAssignTime,
-		Name:            s.JobDisplayName,
-		GithubRunnerID:  s.RunnerID,
-		RunnerName:      s.RunnerName,
-		RepositoryName:  s.RepositoryName,
-		RepositoryOwner: s.OwnerName,
-		Labels:          s.RequestLabels,
+// ToScaleSetJob converts the message to GARM's record of a scale set job.
+// The scale set ID and runner group are known by the worker that received
+// the message, not by the message itself.
+func (s ScaleSetJobMessage) ToScaleSetJob(scaleSetID uint, runnerGroup string) ScaleSetJob {
+	return ScaleSetJob{
+		ScaleSetJobID:      s.JobID,
+		ScaleSetID:         scaleSetID,
+		WorkflowRunID:      s.WorkflowRunID,
+		RunnerRequestID:    s.RunnerRequestID,
+		JobWorkflowRef:     s.JobWorkflowRef,
+		Name:               s.JobDisplayName,
+		Status:             string(s.MessageTypeToStatus()),
+		Result:             s.Result,
+		EventName:          s.EventName,
+		RequestLabels:      s.RequestLabels,
+		RepositoryName:     s.RepositoryName,
+		RepositoryOwner:    s.OwnerName,
+		RunnerGroupName:    runnerGroup,
+		RunnerID:           s.RunnerID,
+		RunnerName:         s.RunnerName,
+		QueueTime:          s.QueueTime,
+		ScaleSetAssignTime: s.ScaleSetAssignTime,
+		RunnerAssignTime:   s.RunnerAssignTime,
+		FinishTime:         s.FinishTime,
 	}
 }

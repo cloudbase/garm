@@ -2183,15 +2183,6 @@ func (r *basePoolManager) reconcileStaleJobs() error {
 // so those will trigger the creation of a runner. The jobs we don't know about will be dealt with by the idle runners.
 // Once jobs are consumed, you can set min-idle-runners to 0 again.
 func (r *basePoolManager) consumeQueuedJobs() error {
-	defer func() {
-		// Always try to clean inactionable jobs. Otherwise, if any condition
-		// makes this function exit, we never clean up jobs.
-		// Use a 5 minute grace period to account for out of order webhooks.
-		if err := r.store.DeleteInactionableJobs(r.ctx, 5*time.Minute); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				r.ctx, "failed to delete completed jobs")
-		}
-	}()
 	queued := r.getQueuedJobs()
 
 	poolsCache := poolsForTags{

@@ -63,37 +63,16 @@ func (w *Worker) SetLastMessageID(id int64) error {
 }
 
 func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
-	entity, err := w.scaleSet.GetEntity()
-	if err != nil {
-		return fmt.Errorf("getting entity: %w", err)
-	}
-	asUUID, err := entity.GetIDAsUUID()
-	if err != nil {
-		return fmt.Errorf("getting entity ID as UUID: %w", err)
-	}
+	jobParams := job.ToScaleSetJob(w.scaleSet.ID, w.scaleSet.GitHubRunnerGroup)
 
 	baseURL := strings.TrimRight(w.entity.Credentials.BaseURL, "/")
-	jobParams := job.ToJob()
-	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
-
-	switch entity.EntityType {
-	case params.ForgeEntityTypeEnterprise:
-		jobParams.EnterpriseID = &asUUID
-	case params.ForgeEntityTypeRepository:
-		jobParams.RepoID = &asUUID
-	case params.ForgeEntityTypeOrganization:
-		jobParams.OrgID = &asUUID
-	default:
-		return fmt.Errorf("unknown entity type: %s --> %s", entity.EntityType, entity)
-	}
-
 	if baseURL != "" {
-		jobParams.WorkflowRunURL = fmt.Sprintf("%s/%s/%s/actions/runs/%d", baseURL, jobParams.RepositoryOwner, jobParams.RepositoryName, jobParams.RunID)
+		jobParams.WorkflowRunURL = fmt.Sprintf("%s/%s/%s/actions/runs/%d", baseURL, jobParams.RepositoryOwner, jobParams.RepositoryName, jobParams.WorkflowRunID)
 	}
 
-	if _, jobErr := w.store.CreateOrUpdateJob(w.ctx, jobParams); jobErr != nil {
+	if _, jobErr := w.store.CreateOrUpdateScaleSetJob(w.ctx, jobParams); jobErr != nil {
 		slog.With(slog.Any("error", jobErr)).ErrorContext(
-			w.ctx, "failed to update job", "job_id", jobParams.ID)
+			w.ctx, "failed to update scale set job", "scaleset_job_id", jobParams.ScaleSetJobID)
 	}
 	return nil
 }

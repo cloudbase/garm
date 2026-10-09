@@ -1547,10 +1547,6 @@ definitions:
             runner_name:
                 type: string
                 x-go-name: RunnerName
-            scaleset_job_id:
-                description: ScaleSetJobID is the job ID when generated for a scale set.
-                type: string
-                x-go-name: ScaleSetJobID
             started_at:
                 format: date-time
                 type: string
@@ -2161,6 +2157,103 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    ScaleSetJob:
+        description: |-
+            ScaleSetJob is the informational record of a job GitHub routed to a
+            scale set. GitHub schedules these server side, so GARM never acts on
+            them. They exist so users can list the jobs a scale set handled and
+            see which runner serviced them.
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            event_name:
+                type: string
+                x-go-name: EventName
+            finish_time:
+                format: date-time
+                type: string
+                x-go-name: FinishTime
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            job_workflow_ref:
+                type: string
+                x-go-name: JobWorkflowRef
+            name:
+                type: string
+                x-go-name: Name
+            queue_time:
+                description: Timestamps reported by GitHub for the job's routing funnel.
+                format: date-time
+                type: string
+                x-go-name: QueueTime
+            repository_name:
+                type: string
+                x-go-name: RepositoryName
+            repository_owner:
+                type: string
+                x-go-name: RepositoryOwner
+            request_labels:
+                items:
+                    type: string
+                type: array
+                x-go-name: RequestLabels
+            result:
+                type: string
+                x-go-name: Result
+            runner_assign_time:
+                format: date-time
+                type: string
+                x-go-name: RunnerAssignTime
+            runner_group_name:
+                type: string
+                x-go-name: RunnerGroupName
+            runner_id:
+                format: int64
+                type: integer
+                x-go-name: RunnerID
+            runner_name:
+                type: string
+                x-go-name: RunnerName
+            runner_request_id:
+                format: int64
+                type: integer
+                x-go-name: RunnerRequestID
+            scaleset_assign_time:
+                format: date-time
+                type: string
+                x-go-name: ScaleSetAssignTime
+            scaleset_id:
+                description: |-
+                    ScaleSetID is GARM's ID of the scale set that handled the job. It
+                    is zero for records migrated from older GARM versions, which never
+                    recorded the owning scale set.
+                format: uint64
+                type: integer
+                x-go-name: ScaleSetID
+            scaleset_job_id:
+                description: ScaleSetJobID is the job ID assigned by the GitHub actions service.
+                type: string
+                x-go-name: ScaleSetJobID
+            status:
+                type: string
+                x-go-name: Status
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            workflow_run_id:
+                format: int64
+                type: integer
+                x-go-name: WorkflowRunID
+            workflow_run_url:
+                type: string
+                x-go-name: WorkflowRunURL
         type: object
         x-go-package: github.com/cloudbase/garm/params
     ScaleSetState:

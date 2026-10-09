@@ -35,6 +35,7 @@ const (
 	GiteaCredentialsEntityType  DatabaseEntityType = "gitea_credentials"  // #nosec G101
 	GithubEndpointEntityType    DatabaseEntityType = "github_endpoint"
 	ScaleSetEntityType          DatabaseEntityType = "scaleset"
+	ScaleSetJobEntityType       DatabaseEntityType = "scaleset_job"
 	TemplateEntityType          DatabaseEntityType = "template"
 	FileObjectEntityType        DatabaseEntityType = "file_object"
 	ForgeInstanceEntityType     DatabaseEntityType = "forge_instance"

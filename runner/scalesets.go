@@ -52,6 +52,30 @@ func (r *Runner) GetScaleSetByID(ctx context.Context, scaleSet uint) (params.Sca
 	return set, nil
 }
 
+func (r *Runner) ListScaleSetJobs(ctx context.Context, scaleSetID uint) ([]params.ScaleSetJob, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	jobs, err := r.store.ListScaleSetJobs(ctx, scaleSetID)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching scale set jobs: %w", err)
+	}
+	return jobs, nil
+}
+
+func (r *Runner) ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	jobs, err := r.store.ListAllScaleSetJobs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching scale set jobs: %w", err)
+	}
+	return jobs, nil
+}
+
 func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
