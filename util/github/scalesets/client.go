@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-github/v84/github"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	internalErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -158,8 +159,19 @@ func (s *ScaleSetClient) doWithClient(client *http.Client, req *http.Request) (*
 		return nil, runnerErrors.NewBadRequestError("bad request while calling %s: %q", req.URL.String(), string(body))
 	case 409:
 		return nil, runnerErrors.NewConflictError("conflict while calling %s: %q", req.URL.String(), string(body))
-	case 401, 403:
-		return nil, runnerErrors.ErrUnauthorized
+	case 401:
+		// The credentials were rejected outright. Keep the body: it is the only
+		// thing that says whether the token expired, was revoked, or was never
+		// valid for this resource.
+		return nil, runnerErrors.NewUnauthorizedError(
+			fmt.Sprintf("unauthorized while calling %s: %q", req.URL.String(), string(body)))
+	case 403:
+		// Not the same as 401. GitHub answers 403 for a secondary rate limit and
+		// for SSO enforcement as well as for a genuine permission problem, so
+		// collapsing it into ErrUnauthorized tells callers the credentials are
+		// dead when they are usually fine and the refusal is temporary.
+		return nil, internalErrors.NewForbiddenError(
+			"forbidden while calling %s: %q", req.URL.String(), string(body))
 	default:
 		return nil, fmt.Errorf("request to %s failed with status code %d: %q", req.URL.String(), resp.StatusCode, string(body))
 	}

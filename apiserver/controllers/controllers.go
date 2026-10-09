@@ -33,6 +33,7 @@ import (
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
+	internalErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
@@ -109,6 +110,12 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	case errors.Is(err, gErrors.ErrNotFound):
 		w.WriteHeader(http.StatusNotFound)
 		apiErr.Error = "Not Found"
+	// Checked before the unauthorized case below: a ForbiddenError reports as an
+	// UnauthorizedError too, so that callers asking only "was this refused?" keep
+	// working, and the broader case would otherwise swallow it.
+	case errors.Is(err, &internalErrors.ForbiddenError{}):
+		w.WriteHeader(http.StatusForbidden)
+		apiErr.Error = "Forbidden"
 	case errors.Is(err, gErrors.ErrUnauthorized):
 		w.WriteHeader(http.StatusUnauthorized)
 		apiErr.Error = "Not Authorized"

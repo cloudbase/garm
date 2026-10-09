@@ -102,3 +102,44 @@ func RunnerIsTerminal(s params.RunnerStatus) bool {
 		return false
 	}
 }
+
+// NewForbiddenError returns a ForbiddenError carrying the message the forge
+// replied with.
+func NewForbiddenError(msg string, a ...any) error {
+	return &ForbiddenError{
+		msg: fmt.Sprintf(msg, a...),
+	}
+}
+
+// ForbiddenError is returned when a forge answers a request with 403 rather
+// than 401. Both mean the request was refused, but only 401 implies the
+// credentials are wrong: GitHub also answers 403 for a secondary rate limit or
+// for SSO enforcement on an organization, neither of which says anything about
+// the credentials, and both of which clear on their own or with an operator
+// action that is not a credential rotation.
+//
+// It reports as a runnerErrors.UnauthorizedError so that callers which only
+// ask "was this refused?" keep working unchanged. Callers that need to act on
+// the difference — retrying a transient refusal instead of declaring the
+// credentials dead — can single it out with errors.Is(err, &ForbiddenError{}),
+// which must be checked before the broader unauthorized case.
+type ForbiddenError struct {
+	msg string
+}
+
+func (e *ForbiddenError) Error() string {
+	return e.msg
+}
+
+func (e *ForbiddenError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	switch target.(type) {
+	case *ForbiddenError, *runnerErrors.UnauthorizedError:
+		return true
+	default:
+		return false
+	}
+}
