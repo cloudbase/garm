@@ -122,3 +122,16 @@ func (r *Runner) ListAllJobs(ctx context.Context) ([]params.Job, error) {
 	}
 	return jobs, nil
 }
+
+// ListJobs lists webhook jobs, filtered and paginated.
+func (r *Runner) ListJobs(ctx context.Context, filter params.ListJobsFilter) (params.JobsPaginatedResponse, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.JobsPaginatedResponse{}, runnerErrors.ErrUnauthorized
+	}
+
+	jobs, err := r.store.ListJobs(ctx, filter)
+	if err != nil {
+		return params.JobsPaginatedResponse{}, fmt.Errorf("error fetching jobs: %w", err)
+	}
+	return jobs, nil
+}

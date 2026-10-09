@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewListScaleSetJobsParams creates a new ListScaleSetJobsParams object,
@@ -61,11 +62,45 @@ ListScaleSetJobsParams contains all the parameters to send to the API endpoint
 */
 type ListScaleSetJobsParams struct {
 
+	/* All.
+
+	   Also list completed jobs.
+	*/
+	All *bool
+
+	/* Page.
+
+	   The page at which to list.
+	*/
+	Page *int64
+
+	/* PageSize.
+
+	   Number of items per page.
+	*/
+	PageSize *int64
+
 	/* ScalesetID.
 
 	   ID of the scale set whose jobs to fetch.
 	*/
 	ScalesetID string
+
+	/* Since.
+
+	   Only list jobs recorded at or after this timestamp.
+
+	   Format: date-time
+	*/
+	Since *strfmt.DateTime
+
+	/* Until.
+
+	   Only list jobs recorded at or before this timestamp.
+
+	   Format: date-time
+	*/
+	Until *strfmt.DateTime
 
 	timeout    time.Duration
 	Context    context.Context
@@ -120,6 +155,39 @@ func (o *ListScaleSetJobsParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithAll adds the all to the list scale set jobs params
+func (o *ListScaleSetJobsParams) WithAll(all *bool) *ListScaleSetJobsParams {
+	o.SetAll(all)
+	return o
+}
+
+// SetAll adds the all to the list scale set jobs params
+func (o *ListScaleSetJobsParams) SetAll(all *bool) {
+	o.All = all
+}
+
+// WithPage adds the page to the list scale set jobs params
+func (o *ListScaleSetJobsParams) WithPage(page *int64) *ListScaleSetJobsParams {
+	o.SetPage(page)
+	return o
+}
+
+// SetPage adds the page to the list scale set jobs params
+func (o *ListScaleSetJobsParams) SetPage(page *int64) {
+	o.Page = page
+}
+
+// WithPageSize adds the pageSize to the list scale set jobs params
+func (o *ListScaleSetJobsParams) WithPageSize(pageSize *int64) *ListScaleSetJobsParams {
+	o.SetPageSize(pageSize)
+	return o
+}
+
+// SetPageSize adds the pageSize to the list scale set jobs params
+func (o *ListScaleSetJobsParams) SetPageSize(pageSize *int64) {
+	o.PageSize = pageSize
+}
+
 // WithScalesetID adds the scalesetID to the list scale set jobs params
 func (o *ListScaleSetJobsParams) WithScalesetID(scalesetID string) *ListScaleSetJobsParams {
 	o.SetScalesetID(scalesetID)
@@ -131,6 +199,28 @@ func (o *ListScaleSetJobsParams) SetScalesetID(scalesetID string) {
 	o.ScalesetID = scalesetID
 }
 
+// WithSince adds the since to the list scale set jobs params
+func (o *ListScaleSetJobsParams) WithSince(since *strfmt.DateTime) *ListScaleSetJobsParams {
+	o.SetSince(since)
+	return o
+}
+
+// SetSince adds the since to the list scale set jobs params
+func (o *ListScaleSetJobsParams) SetSince(since *strfmt.DateTime) {
+	o.Since = since
+}
+
+// WithUntil adds the until to the list scale set jobs params
+func (o *ListScaleSetJobsParams) WithUntil(until *strfmt.DateTime) *ListScaleSetJobsParams {
+	o.SetUntil(until)
+	return o
+}
+
+// SetUntil adds the until to the list scale set jobs params
+func (o *ListScaleSetJobsParams) SetUntil(until *strfmt.DateTime) {
+	o.Until = until
+}
+
 // WriteToRequest writes these params to a swagger request
 func (o *ListScaleSetJobsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
 
@@ -139,9 +229,94 @@ func (o *ListScaleSetJobsParams) WriteToRequest(r runtime.ClientRequest, reg str
 	}
 	var res []error
 
+	if o.All != nil {
+
+		// query param all
+		var qrAll bool
+
+		if o.All != nil {
+			qrAll = *o.All
+		}
+		qAll := swag.FormatBool(qrAll)
+		if qAll != "" {
+
+			if err := r.SetQueryParam("all", qAll); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.Page != nil {
+
+		// query param page
+		var qrPage int64
+
+		if o.Page != nil {
+			qrPage = *o.Page
+		}
+		qPage := swag.FormatInt64(qrPage)
+		if qPage != "" {
+
+			if err := r.SetQueryParam("page", qPage); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.PageSize != nil {
+
+		// query param pageSize
+		var qrPageSize int64
+
+		if o.PageSize != nil {
+			qrPageSize = *o.PageSize
+		}
+		qPageSize := swag.FormatInt64(qrPageSize)
+		if qPageSize != "" {
+
+			if err := r.SetQueryParam("pageSize", qPageSize); err != nil {
+				return err
+			}
+		}
+	}
+
 	// path param scalesetID
 	if err := r.SetPathParam("scalesetID", o.ScalesetID); err != nil {
 		return err
+	}
+
+	if o.Since != nil {
+
+		// query param since
+		var qrSince strfmt.DateTime
+
+		if o.Since != nil {
+			qrSince = *o.Since
+		}
+		qSince := qrSince.String()
+		if qSince != "" {
+
+			if err := r.SetQueryParam("since", qSince); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.Until != nil {
+
+		// query param until
+		var qrUntil strfmt.DateTime
+
+		if o.Until != nil {
+			qrUntil = *o.Until
+		}
+		qUntil := qrUntil.String()
+		if qUntil != "" {
+
+			if err := r.SetQueryParam("until", qUntil); err != nil {
+				return err
+			}
+		}
 	}
 
 	if len(res) > 0 {

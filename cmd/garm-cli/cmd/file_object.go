@@ -539,22 +539,18 @@ func formatFileObjsList(files params.FileObjectPaginatedResponse) {
 		printAsJSON(files)
 		return
 	}
+	if len(files.Results) == 0 {
+		fmt.Println("No file objects found.")
+		return
+	}
 	t := table.NewWriter()
 	// Define column count
 	numCols := 6
 	t.Style().Options.SeparateHeader = true
 	t.Style().Options.SeparateRows = true
 
-	// Page header - fill all columns with the same text
-	pageHeaderText := fmt.Sprintf("Page %d of %d", files.CurrentPage, files.Pages)
-	pageHeader := make(table.Row, numCols)
-	for i := range pageHeader {
-		pageHeader[i] = pageHeaderText
-	}
-	t.AppendHeader(pageHeader, table.RowConfig{
-		AutoMerge:      true,
-		AutoMergeAlign: text.AlignCenter,
-	})
+	pageHeader, pageHeaderCfg := paginatedListHeader(numCols, files.TotalCount, files.Pages, files.CurrentPage)
+	t.AppendHeader(pageHeader, pageHeaderCfg)
 	// Column headers
 	header := table.Row{"ID", "Name", "Size", "Tags", "Created", "Updated"}
 	t.AppendHeader(header)

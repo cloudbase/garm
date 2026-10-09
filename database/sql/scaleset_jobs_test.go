@@ -179,3 +179,53 @@ func (s *ScaleSetJobsTestSuite) TestPruneOldJobs() {
 func TestScaleSetJobsTestSuite(t *testing.T) {
 	suite.Run(t, new(ScaleSetJobsTestSuite))
 }
+
+func (s *ScaleSetJobsTestSuite) TestListScaleSetJobsPaginated() {
+	// One completed and one queued job on the suite's scale set.
+	completed := s.message(params.MessageTypeJobCompleted)
+	_, err := s.Store.CreateOrUpdateScaleSetJob(s.adminCtx, completed.ToScaleSetJob(s.scaleSet.ID, ""))
+	s.Require().NoError(err)
+	queued := s.message(params.MessageTypeJobAssigned)
+	queued.JobID = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+	_, err = s.Store.CreateOrUpdateScaleSetJob(s.adminCtx, queued.ToScaleSetJob(s.scaleSet.ID, ""))
+	s.Require().NoError(err)
+
+	// A queued job on a second scale set.
+	otherScaleSet, err := s.Store.CreateEntityScaleSet(s.adminCtx, s.repoEntity, params.CreateScaleSetParams{
+		Name:         "other-scaleset",
+		ProviderName: "test-provider",
+		MaxRunners:   10,
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+	})
+	s.Require().NoError(err)
+	otherJob := s.message(params.MessageTypeJobAssigned)
+	otherJob.JobID = "cccccccc-dddd-eeee-ffff-000000000000"
+	_, err = s.Store.CreateOrUpdateScaleSetJob(s.adminCtx, otherJob.ToScaleSetJob(otherScaleSet.ID, ""))
+	s.Require().NoError(err)
+
+	// The default listing leaves out completed jobs, across all scale sets.
+	resp, err := s.Store.ListScaleSetJobsPaginated(s.adminCtx, 0, params.ListJobsFilter{})
+	s.Require().NoError(err)
+	s.Require().EqualValues(2, resp.TotalCount)
+
+	// IncludeCompleted lists everything.
+	resp, err = s.Store.ListScaleSetJobsPaginated(s.adminCtx, 0, params.ListJobsFilter{IncludeCompleted: true})
+	s.Require().NoError(err)
+	s.Require().EqualValues(3, resp.TotalCount)
+
+	// A scale set ID narrows the listing to that scale set.
+	resp, err = s.Store.ListScaleSetJobsPaginated(s.adminCtx, otherScaleSet.ID, params.ListJobsFilter{IncludeCompleted: true})
+	s.Require().NoError(err)
+	s.Require().EqualValues(1, resp.TotalCount)
+	s.Require().Equal(otherScaleSet.ID, resp.Results[0].ScaleSetID)
+
+	// Pagination bookkeeping.
+	resp, err = s.Store.ListScaleSetJobsPaginated(s.adminCtx, 0, params.ListJobsFilter{IncludeCompleted: true, PageSize: 2})
+	s.Require().NoError(err)
+	s.Require().Len(resp.Results, 2)
+	s.Require().EqualValues(2, resp.Pages)
+	s.Require().NotNil(resp.NextPage)
+}

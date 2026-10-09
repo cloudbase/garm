@@ -2383,6 +2383,200 @@ export interface Job {
 /**
  * 
  * @export
+ * @interface JobsPaginatedResponse
+ */
+export interface JobsPaginatedResponse {
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponse
+     */
+    'current_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponse
+     */
+    'next_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponse
+     */
+    'pages'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponse
+     */
+    'previous_page'?: number;
+    /**
+     * 
+     * @type {Array<JobsPaginatedResponseResultsInner>}
+     * @memberof JobsPaginatedResponse
+     */
+    'results'?: Array<JobsPaginatedResponseResultsInner>;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponse
+     */
+    'total_count'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface JobsPaginatedResponseResultsInner
+ */
+export interface JobsPaginatedResponseResultsInner {
+    /**
+     * Action is the specific activity that triggered the event.
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'action'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'completed_at'?: string;
+    /**
+     * Conclusion is the outcome of the job. Possible values: \"success\", \"failure\", \"neutral\", \"cancelled\", \"skipped\", \"timed_out\", \"action_required\"
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'conclusion'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'enterprise_id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'forge_instance_id'?: string;
+    /**
+     * ID is the ID of the job.
+     * @type {number}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'labels'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'locked_by'?: string;
+    /**
+     * Name is the name if the job that was triggered.
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'org_id'?: string;
+    /**
+     * The entity that received the hook.  Webhooks may be configured on the repo, the org and/or the enterprise. If we only configure a repo to use garm, we\'ll only ever receive a webhook from the repo. But if we configure the parent org of the repo and the parent enterprise of the org to use garm, a webhook will be sent for each entity type, in response to one workflow event. Thus, we will get 3 webhooks with the same run_id and job id. Record all involved entities in the same job if we have them configured in garm.
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'repo_id'?: string;
+    /**
+     * repository in which the job was triggered.
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'repository_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'repository_owner'?: string;
+    /**
+     * RunID is the ID of the workflow run. A run may have multiple jobs.
+     * @type {number}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'run_id'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'runner_group_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'runner_group_name'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'runner_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'runner_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'started_at'?: string;
+    /**
+     * Status is the phase of the lifecycle that the job is currently in. \"queued\", \"in_progress\" and \"completed\".
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'status'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'updated_at'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'workflow_job_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'workflow_run_url'?: string;
+}
+/**
+ * 
+ * @export
  * @interface MetadataServiceAccessDetails
  */
 export interface MetadataServiceAccessDetails {
@@ -3387,6 +3581,194 @@ export interface ScaleSetJob {
      * 
      * @type {string}
      * @memberof ScaleSetJob
+     */
+    'workflow_run_url'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ScaleSetJobsPaginatedResponse
+ */
+export interface ScaleSetJobsPaginatedResponse {
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponse
+     */
+    'current_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponse
+     */
+    'next_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponse
+     */
+    'pages'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponse
+     */
+    'previous_page'?: number;
+    /**
+     * 
+     * @type {Array<ScaleSetJobsPaginatedResponseResultsInner>}
+     * @memberof ScaleSetJobsPaginatedResponse
+     */
+    'results'?: Array<ScaleSetJobsPaginatedResponseResultsInner>;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponse
+     */
+    'total_count'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface ScaleSetJobsPaginatedResponseResultsInner
+ */
+export interface ScaleSetJobsPaginatedResponseResultsInner {
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'event_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'finish_time'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'job_workflow_ref'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'name'?: string;
+    /**
+     * Timestamps reported by GitHub for the job\'s routing funnel.
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'queue_time'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'repository_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'repository_owner'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'request_labels'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'result'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'runner_assign_time'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'runner_group_name'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'runner_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'runner_name'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'runner_request_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'scaleset_assign_time'?: string;
+    /**
+     * ScaleSetID is GARM\'s ID of the scale set that handled the job. It is zero for records migrated from older GARM versions, which never recorded the owning scale set.
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'scaleset_id'?: number;
+    /**
+     * ScaleSetJobID is the job ID assigned by the GitHub actions service.
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'scaleset_job_id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'status'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'updated_at'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
+     */
+    'workflow_run_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJobsPaginatedResponseResultsInner
      */
     'workflow_run_url'?: string;
 }
@@ -9559,11 +9941,16 @@ export const JobsApiAxiosParamCreator = function (configuration?: Configuration)
     return {
         /**
          * 
-         * @summary List all jobs.
+         * @summary List jobs. Only queued and in progress jobs are listed unless all is set.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listJobs: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listJobs: async (page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/jobs`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -9578,6 +9965,30 @@ export const JobsApiAxiosParamCreator = function (configuration?: Configuration)
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            if (all !== undefined) {
+                localVarQueryParameter['all'] = all;
+            }
+
+            if (since !== undefined) {
+                localVarQueryParameter['since'] = (since as any instanceof Date) ?
+                    (since as any).toISOString() :
+                    since;
+            }
+
+            if (until !== undefined) {
+                localVarQueryParameter['until'] = (until as any instanceof Date) ?
+                    (until as any).toISOString() :
+                    until;
+            }
 
 
     
@@ -9602,12 +10013,17 @@ export const JobsApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
-         * @summary List all jobs.
+         * @summary List jobs. Only queued and in progress jobs are listed unless all is set.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listJobs(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Job>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listJobs(options);
+        async listJobs(page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<JobsPaginatedResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listJobs(page, pageSize, all, since, until, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['JobsApi.listJobs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -9624,12 +10040,17 @@ export const JobsApiFactory = function (configuration?: Configuration, basePath?
     return {
         /**
          * 
-         * @summary List all jobs.
+         * @summary List jobs. Only queued and in progress jobs are listed unless all is set.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listJobs(options?: RawAxiosRequestConfig): AxiosPromise<Array<Job>> {
-            return localVarFp.listJobs(options).then((request) => request(axios, basePath));
+        listJobs(page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig): AxiosPromise<JobsPaginatedResponse> {
+            return localVarFp.listJobs(page, pageSize, all, since, until, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -9643,13 +10064,18 @@ export const JobsApiFactory = function (configuration?: Configuration, basePath?
 export class JobsApi extends BaseAPI {
     /**
      * 
-     * @summary List all jobs.
+     * @summary List jobs. Only queued and in progress jobs are listed unless all is set.
+     * @param {number} [page] The page at which to list.
+     * @param {number} [pageSize] Number of items per page.
+     * @param {boolean} [all] Also list completed jobs.
+     * @param {string} [since] Only list jobs recorded at or after this timestamp.
+     * @param {string} [until] Only list jobs recorded at or before this timestamp.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof JobsApi
      */
-    public listJobs(options?: RawAxiosRequestConfig) {
-        return JobsApiFp(this.configuration).listJobs(options).then((request) => request(this.axios, this.basePath));
+    public listJobs(page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig) {
+        return JobsApiFp(this.configuration).listJobs(page, pageSize, all, since, until, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -15419,12 +15845,16 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
-         * 
-         * @summary List jobs handled by all scale sets.
+         * List jobs handled by all scale sets. Only queued and in progress jobs are listed unless all is set.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listAllScaleSetJobs: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listAllScaleSetJobs: async (page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/scalesets/jobs`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -15439,6 +15869,30 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            if (all !== undefined) {
+                localVarQueryParameter['all'] = all;
+            }
+
+            if (since !== undefined) {
+                localVarQueryParameter['since'] = (since as any instanceof Date) ?
+                    (since as any).toISOString() :
+                    since;
+            }
+
+            if (until !== undefined) {
+                localVarQueryParameter['until'] = (until as any instanceof Date) ?
+                    (until as any).toISOString() :
+                    until;
+            }
 
 
     
@@ -15563,13 +16017,17 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
-         * 
-         * @summary List jobs handled by one scale set.
+         * List jobs handled by one scale set. Only queued and in progress jobs are listed unless all is set.
          * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listScaleSetJobs: async (scalesetID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listScaleSetJobs: async (scalesetID: string, page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'scalesetID' is not null or undefined
             assertParamExists('listScaleSetJobs', 'scalesetID', scalesetID)
             const localVarPath = `/scalesets/{scalesetID}/jobs`
@@ -15587,6 +16045,30 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            if (all !== undefined) {
+                localVarQueryParameter['all'] = all;
+            }
+
+            if (since !== undefined) {
+                localVarQueryParameter['since'] = (since as any instanceof Date) ?
+                    (since as any).toISOString() :
+                    since;
+            }
+
+            if (until !== undefined) {
+                localVarQueryParameter['until'] = (until as any instanceof Date) ?
+                    (until as any).toISOString() :
+                    until;
+            }
 
 
     
@@ -15754,13 +16236,17 @@ export const ScalesetsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
-         * @summary List jobs handled by all scale sets.
+         * List jobs handled by all scale sets. Only queued and in progress jobs are listed unless all is set.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listAllScaleSetJobs(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ScaleSetJob>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listAllScaleSetJobs(options);
+        async listAllScaleSetJobs(page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ScaleSetJobsPaginatedResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listAllScaleSetJobs(page, pageSize, all, since, until, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ScalesetsApi.listAllScaleSetJobs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -15805,14 +16291,18 @@ export const ScalesetsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
-         * @summary List jobs handled by one scale set.
+         * List jobs handled by one scale set. Only queued and in progress jobs are listed unless all is set.
          * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listScaleSetJobs(scalesetID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ScaleSetJob>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listScaleSetJobs(scalesetID, options);
+        async listScaleSetJobs(scalesetID: string, page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ScaleSetJobsPaginatedResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listScaleSetJobs(scalesetID, page, pageSize, all, since, until, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ScalesetsApi.listScaleSetJobs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -15907,13 +16397,17 @@ export const ScalesetsApiFactory = function (configuration?: Configuration, base
             return localVarFp.getScaleSet(scalesetID, options).then((request) => request(axios, basePath));
         },
         /**
-         * 
-         * @summary List jobs handled by all scale sets.
+         * List jobs handled by all scale sets. Only queued and in progress jobs are listed unless all is set.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listAllScaleSetJobs(options?: RawAxiosRequestConfig): AxiosPromise<Array<ScaleSetJob>> {
-            return localVarFp.listAllScaleSetJobs(options).then((request) => request(axios, basePath));
+        listAllScaleSetJobs(page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig): AxiosPromise<ScaleSetJobsPaginatedResponse> {
+            return localVarFp.listAllScaleSetJobs(page, pageSize, all, since, until, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -15946,14 +16440,18 @@ export const ScalesetsApiFactory = function (configuration?: Configuration, base
             return localVarFp.listRepoScaleSets(repoID, options).then((request) => request(axios, basePath));
         },
         /**
-         * 
-         * @summary List jobs handled by one scale set.
+         * List jobs handled by one scale set. Only queued and in progress jobs are listed unless all is set.
          * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [all] Also list completed jobs.
+         * @param {string} [since] Only list jobs recorded at or after this timestamp.
+         * @param {string} [until] Only list jobs recorded at or before this timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listScaleSetJobs(scalesetID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ScaleSetJob>> {
-            return localVarFp.listScaleSetJobs(scalesetID, options).then((request) => request(axios, basePath));
+        listScaleSetJobs(scalesetID: string, page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig): AxiosPromise<ScaleSetJobsPaginatedResponse> {
+            return localVarFp.listScaleSetJobs(scalesetID, page, pageSize, all, since, until, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -16049,14 +16547,18 @@ export class ScalesetsApi extends BaseAPI {
     }
 
     /**
-     * 
-     * @summary List jobs handled by all scale sets.
+     * List jobs handled by all scale sets. Only queued and in progress jobs are listed unless all is set.
+     * @param {number} [page] The page at which to list.
+     * @param {number} [pageSize] Number of items per page.
+     * @param {boolean} [all] Also list completed jobs.
+     * @param {string} [since] Only list jobs recorded at or after this timestamp.
+     * @param {string} [until] Only list jobs recorded at or before this timestamp.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ScalesetsApi
      */
-    public listAllScaleSetJobs(options?: RawAxiosRequestConfig) {
-        return ScalesetsApiFp(this.configuration).listAllScaleSetJobs(options).then((request) => request(this.axios, this.basePath));
+    public listAllScaleSetJobs(page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig) {
+        return ScalesetsApiFp(this.configuration).listAllScaleSetJobs(page, pageSize, all, since, until, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -16096,15 +16598,19 @@ export class ScalesetsApi extends BaseAPI {
     }
 
     /**
-     * 
-     * @summary List jobs handled by one scale set.
+     * List jobs handled by one scale set. Only queued and in progress jobs are listed unless all is set.
      * @param {string} scalesetID ID of the scale set whose jobs to fetch.
+     * @param {number} [page] The page at which to list.
+     * @param {number} [pageSize] Number of items per page.
+     * @param {boolean} [all] Also list completed jobs.
+     * @param {string} [since] Only list jobs recorded at or after this timestamp.
+     * @param {string} [until] Only list jobs recorded at or before this timestamp.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ScalesetsApi
      */
-    public listScaleSetJobs(scalesetID: string, options?: RawAxiosRequestConfig) {
-        return ScalesetsApiFp(this.configuration).listScaleSetJobs(scalesetID, options).then((request) => request(this.axios, this.basePath));
+    public listScaleSetJobs(scalesetID: string, page?: number, pageSize?: number, all?: boolean, since?: string, until?: string, options?: RawAxiosRequestConfig) {
+        return ScalesetsApiFp(this.configuration).listScaleSetJobs(scalesetID, page, pageSize, all, since, until, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

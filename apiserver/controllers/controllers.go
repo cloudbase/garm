@@ -23,7 +23,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -481,16 +483,90 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// parseListJobsFilter builds a job listing filter from the request's query
+// parameters. Invalid timestamps are rejected, the rest fall back to the
+// listing defaults.
+func parseListJobsFilter(r *http.Request) (runnerParams.ListJobsFilter, error) {
+	var filter runnerParams.ListJobsFilter
+	query := r.URL.Query()
+
+	if pageArg := query.Get("page"); pageArg != "" {
+		if page, err := strconv.ParseUint(pageArg, 10, 64); err == nil {
+			filter.Page = page
+		}
+	}
+	if pageSizeArg := query.Get("pageSize"); pageSizeArg != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeArg, 10, 64); err == nil {
+			filter.PageSize = pageSize
+		}
+	}
+	if allArg := query.Get("all"); allArg != "" {
+		if all, err := strconv.ParseBool(allArg); err == nil {
+			filter.IncludeCompleted = all
+		}
+	}
+	if sinceArg := query.Get("since"); sinceArg != "" {
+		since, err := time.Parse(time.RFC3339, sinceArg)
+		if err != nil {
+			return filter, gErrors.NewBadRequestError("invalid since timestamp: %s", sinceArg)
+		}
+		filter.Since = since
+	}
+	if untilArg := query.Get("until"); untilArg != "" {
+		until, err := time.Parse(time.RFC3339, untilArg)
+		if err != nil {
+			return filter, gErrors.NewBadRequestError("invalid until timestamp: %s", untilArg)
+		}
+		filter.Until = until
+	}
+	return filter, nil
+}
+
 // swagger:route GET /jobs jobs ListJobs
 //
-// List all jobs.
+// List jobs. Only queued and in progress jobs are listed unless all is set.
+//
+//	Parameters:
+//	  + name: page
+//	    description: The page at which to list.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: pageSize
+//	    description: Number of items per page.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: all
+//	    description: Also list completed jobs.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//	  + name: since
+//	    description: Only list jobs recorded at or after this timestamp.
+//	    type: string
+//	    format: date-time
+//	    in: query
+//	    required: false
+//	  + name: until
+//	    description: Only list jobs recorded at or before this timestamp.
+//	    type: string
+//	    format: date-time
+//	    in: query
+//	    required: false
 //
 //	Responses:
-//	  200: Jobs
+//	  200: JobsPaginatedResponse
 //	  400: APIErrorResponse
 func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	jobs, err := a.r.ListAllJobs(ctx)
+	filter, err := parseListJobsFilter(r)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	jobs, err := a.r.ListJobs(ctx, filter)
 	if err != nil {
 		handleError(ctx, w, err)
 		return

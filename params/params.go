@@ -1593,6 +1593,26 @@ type Jobs []Job
 // used by swagger client generated code
 type ScaleSetJobs []ScaleSetJob
 
+// swagger:model JobsPaginatedResponse
+type JobsPaginatedResponse = PaginatedResponse[Job]
+
+// swagger:model ScaleSetJobsPaginatedResponse
+type ScaleSetJobsPaginatedResponse = PaginatedResponse[ScaleSetJob]
+
+// ListJobsFilter narrows down and paginates job listings. The zero value
+// lists the first page of jobs that are not yet completed.
+type ListJobsFilter struct {
+	Page     uint64
+	PageSize uint64
+	// IncludeCompleted also lists jobs that already finished. Without it
+	// only queued and in progress jobs are returned.
+	IncludeCompleted bool
+	// Since and Until bound the listing to jobs recorded inside the given
+	// window. A zero value leaves that end of the window open.
+	Since time.Time
+	Until time.Time
+}
+
 // swagger:model InstallWebhookParams
 type InstallWebhookParams struct {
 	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type,omitempty"`

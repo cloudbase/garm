@@ -212,15 +212,51 @@ func (a *APIController) UpdateScaleSetByIDHandler(w http.ResponseWriter, r *http
 
 // swagger:route GET /scalesets/jobs scalesets ListAllScaleSetJobs
 //
-// List jobs handled by all scale sets.
+// List jobs handled by all scale sets. Only queued and in progress jobs are
+// listed unless all is set.
+//
+//	Parameters:
+//	  + name: page
+//	    description: The page at which to list.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: pageSize
+//	    description: Number of items per page.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: all
+//	    description: Also list completed jobs.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//	  + name: since
+//	    description: Only list jobs recorded at or after this timestamp.
+//	    type: string
+//	    format: date-time
+//	    in: query
+//	    required: false
+//	  + name: until
+//	    description: Only list jobs recorded at or before this timestamp.
+//	    type: string
+//	    format: date-time
+//	    in: query
+//	    required: false
 //
 //	Responses:
-//	  200: ScaleSetJobs
+//	  200: ScaleSetJobsPaginatedResponse
 //	  default: APIErrorResponse
 func (a *APIController) ListAllScaleSetJobsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	jobs, err := a.r.ListAllScaleSetJobs(ctx)
+	filter, err := parseListJobsFilter(r)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	jobs, err := a.r.ListScaleSetJobs(ctx, 0, filter)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale set jobs")
 		handleError(ctx, w, err)
@@ -235,7 +271,8 @@ func (a *APIController) ListAllScaleSetJobsHandler(w http.ResponseWriter, r *htt
 
 // swagger:route GET /scalesets/{scalesetID}/jobs scalesets ListScaleSetJobs
 //
-// List jobs handled by one scale set.
+// List jobs handled by one scale set. Only queued and in progress jobs are
+// listed unless all is set.
 //
 //	Parameters:
 //	  + name: scalesetID
@@ -243,9 +280,36 @@ func (a *APIController) ListAllScaleSetJobsHandler(w http.ResponseWriter, r *htt
 //	    type: string
 //	    in: path
 //	    required: true
+//	  + name: page
+//	    description: The page at which to list.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: pageSize
+//	    description: Number of items per page.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: all
+//	    description: Also list completed jobs.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//	  + name: since
+//	    description: Only list jobs recorded at or after this timestamp.
+//	    type: string
+//	    format: date-time
+//	    in: query
+//	    required: false
+//	  + name: until
+//	    description: Only list jobs recorded at or before this timestamp.
+//	    type: string
+//	    format: date-time
+//	    in: query
+//	    required: false
 //
 //	Responses:
-//	  200: ScaleSetJobs
+//	  200: ScaleSetJobsPaginatedResponse
 //	  default: APIErrorResponse
 func (a *APIController) ListScaleSetJobsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -269,7 +333,13 @@ func (a *APIController) ListScaleSetJobsHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	jobs, err := a.r.ListScaleSetJobs(ctx, uint(id))
+	filter, err := parseListJobsFilter(r)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	jobs, err := a.r.ListScaleSetJobs(ctx, uint(id), filter)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale set jobs")
 		handleError(ctx, w, err)

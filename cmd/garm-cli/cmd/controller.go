@@ -717,6 +717,10 @@ func formatGARMToolsList(files params.GARMAgentToolsPaginatedResponse, upstream 
 		printAsJSON(files)
 		return
 	}
+	if len(files.Results) == 0 {
+		fmt.Println("No tools found.")
+		return
+	}
 	t := table.NewWriter()
 	t.Style().Options.SeparateHeader = true
 	t.Style().Options.SeparateRows = true
@@ -731,16 +735,8 @@ func formatGARMToolsList(files params.GARMAgentToolsPaginatedResponse, upstream 
 		header = table.Row{"ID", "Name", "Size", "Version", "OS Type", "OS Architecture", "Created", "Updated"}
 	}
 
-	// Page header - fill all columns with the same text
-	pageHeaderText := fmt.Sprintf("Page %d of %d", files.CurrentPage, files.Pages)
-	pageHeader := make(table.Row, numCols)
-	for i := range pageHeader {
-		pageHeader[i] = pageHeaderText
-	}
-	t.AppendHeader(pageHeader, table.RowConfig{
-		AutoMerge:      true,
-		AutoMergeAlign: text.AlignCenter,
-	})
+	pageHeader, pageHeaderCfg := paginatedListHeader(numCols, files.TotalCount, files.Pages, files.CurrentPage)
+	t.AppendHeader(pageHeader, pageHeaderCfg)
 	t.AppendHeader(header)
 
 	if upstream {

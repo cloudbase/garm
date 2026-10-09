@@ -344,12 +344,27 @@ func seedTop(state *topState) error {
 		state.abortSeed()
 		return fmt.Errorf("failed to list instances: %w", err)
 	}
-	jobsResp, err := apiCli.Jobs.ListJobs(apiClientJobs.NewListJobsParams(), authToken)
-	if err != nil {
-		state.abortSeed()
-		return fmt.Errorf("failed to list jobs: %w", err)
+	// The TUI tracks active jobs, which is what the listing returns by
+	// default. Walk the pages so a busy deployment seeds completely.
+	listJobsReq := apiClientJobs.NewListJobsParams()
+	pageSize := int64(200)
+	listJobsReq.PageSize = &pageSize
+	var jobs []params.Job
+	page := int64(1)
+	for {
+		listJobsReq.Page = &page
+		jobsResp, err := apiCli.Jobs.ListJobs(listJobsReq, authToken)
+		if err != nil {
+			state.abortSeed()
+			return fmt.Errorf("failed to list jobs: %w", err)
+		}
+		jobs = append(jobs, jobsResp.Payload.Results...)
+		if jobsResp.Payload.NextPage == nil {
+			break
+		}
+		page++
 	}
-	state.reconcile(instResp.Payload, jobsResp.Payload)
+	state.reconcile(instResp.Payload, jobs)
 
 	// Controller info is nice-to-have header decoration; it also arrives
 	// via controller events, so a failure here is not fatal.

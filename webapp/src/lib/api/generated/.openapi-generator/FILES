@@ -56,6 +56,8 @@ docs/InstancesApi.md
 docs/JWTResponse.md
 docs/Job.md
 docs/JobsApi.md
+docs/JobsPaginatedResponse.md
+docs/JobsPaginatedResponseResultsInner.md
 docs/LoginApi.md
 docs/MetadataServiceAccessDetails.md
 docs/MetricsTokenApi.md
@@ -78,6 +80,8 @@ docs/RunnerApplicationDownload.md
 docs/RunnerPrefix.md
 docs/ScaleSet.md
 docs/ScaleSetJob.md
+docs/ScaleSetJobsPaginatedResponse.md
+docs/ScaleSetJobsPaginatedResponseResultsInner.md
 docs/ScalesetsApi.md
 docs/StatusMessage.md
 docs/Tag.md

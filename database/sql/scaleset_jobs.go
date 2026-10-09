@@ -220,6 +220,55 @@ func (s *sqlDatabase) ListAllScaleSetJobs(_ context.Context) ([]params.ScaleSetJ
 	return ret, nil
 }
 
+// ListScaleSetJobsPaginated filters and paginates the scale set job ledger,
+// newest first. A zero scaleSetID lists jobs across all scale sets.
+func (s *sqlDatabase) ListScaleSetJobsPaginated(_ context.Context, scaleSetID uint, filter params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error) {
+	baseQuery := func() *gorm.DB {
+		q := s.conn.Model(&ScaleSetJob{})
+		if scaleSetID != 0 {
+			q = q.Where("scale_set_fk_id = ?", scaleSetID)
+		}
+		return applyListJobsFilter(q, filter)
+	}
+
+	var total int64
+	if err := baseQuery().Count(&total).Error; err != nil {
+		return params.ScaleSetJobsPaginatedResponse{}, fmt.Errorf("counting scale set jobs: %w", err)
+	}
+
+	info, err := paginationInfo(total, filter.Page, filter.PageSize)
+	if err != nil {
+		return params.ScaleSetJobsPaginatedResponse{}, err
+	}
+
+	var jobs []ScaleSetJob
+	q := baseQuery().
+		Limit(info.limit).
+		Offset(info.offset).
+		Order("id DESC")
+	if err := q.Find(&jobs).Error; err != nil {
+		return params.ScaleSetJobsPaginatedResponse{}, fmt.Errorf("listing scale set jobs: %w", err)
+	}
+
+	results := make([]params.ScaleSetJob, len(jobs))
+	for i, job := range jobs {
+		asParams, err := sqlScaleSetJobToParams(job)
+		if err != nil {
+			return params.ScaleSetJobsPaginatedResponse{}, fmt.Errorf("converting scale set job: %w", err)
+		}
+		results[i] = asParams
+	}
+
+	return params.ScaleSetJobsPaginatedResponse{
+		TotalCount:   uint64(total),
+		Pages:        info.pages,
+		CurrentPage:  info.page,
+		NextPage:     info.next,
+		PreviousPage: info.prev,
+		Results:      results,
+	}, nil
+}
+
 // DeleteOldScaleSetJobs prunes job records that saw no update for the given
 // duration, regardless of status. The records are informational and the
 // scale set listener refreshes any job that is still live, so a record this
