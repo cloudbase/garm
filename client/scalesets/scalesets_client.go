@@ -146,7 +146,9 @@ func (a *Client) GetScaleSet(params *GetScaleSetParams, authInfo runtime.ClientA
 }
 
 /*
-ListAllScaleSetJobs lists jobs handled by all scale sets
+	ListAllScaleSetJobs List jobs handled by all scale sets. Only queued and in progress jobs are
+
+listed unless all is set.
 */
 func (a *Client) ListAllScaleSetJobs(params *ListAllScaleSetJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListAllScaleSetJobsOK, error) {
 	// NOTE: parameters are not validated before sending
@@ -189,7 +191,9 @@ func (a *Client) ListAllScaleSetJobs(params *ListAllScaleSetJobsParams, authInfo
 }
 
 /*
-ListScaleSetJobs lists jobs handled by one scale set
+	ListScaleSetJobs List jobs handled by one scale set. Only queued and in progress jobs are
+
+listed unless all is set.
 */
 func (a *Client) ListScaleSetJobs(params *ListScaleSetJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScaleSetJobsOK, error) {
 	// NOTE: parameters are not validated before sending

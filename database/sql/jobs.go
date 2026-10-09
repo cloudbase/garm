@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -469,6 +470,106 @@ func (s *sqlDatabase) ListAllJobs(_ context.Context) ([]params.Job, error) {
 		ret[idx] = jobParam
 	}
 	return ret, nil
+}
+
+// pageInfo carries the bookkeeping for one page of a paginated listing.
+type pageInfo struct {
+	page, pages uint64
+	limit       int
+	offset      int
+	next, prev  *uint64
+}
+
+// paginationInfo applies the listing defaults and computes the page
+// bookkeeping for a paginated response.
+func paginationInfo(total int64, page, pageSize uint64) (pageInfo, error) {
+	if page == 0 {
+		page = 1
+	}
+	if pageSize == 0 || pageSize > math.MaxInt {
+		pageSize = 25
+	}
+
+	var pages uint64
+	if total > 0 {
+		pages = (uint64(total) + pageSize - 1) / pageSize
+	}
+
+	offset := (page - 1) * pageSize
+	if offset > math.MaxInt {
+		return pageInfo{}, fmt.Errorf("offset exceeds max int size: %d", offset)
+	}
+
+	info := pageInfo{
+		page:   page,
+		pages:  pages,
+		limit:  int(pageSize),
+		offset: int(offset),
+	}
+	if page < pages {
+		next := page + 1
+		info.next = &next
+	}
+	if page > 1 {
+		prev := page - 1
+		info.prev = &prev
+	}
+	return info, nil
+}
+
+// applyListJobsFilter narrows a job listing query. Both the webhook job and
+// the scale set job tables share the column names the filter touches.
+func applyListJobsFilter(q *gorm.DB, filter params.ListJobsFilter) *gorm.DB {
+	if !filter.IncludeCompleted {
+		q = q.Where("status != ?", params.JobStatusCompleted)
+	}
+	if !filter.Since.IsZero() {
+		q = q.Where("created_at >= ?", filter.Since)
+	}
+	if !filter.Until.IsZero() {
+		q = q.Where("created_at <= ?", filter.Until)
+	}
+	return q
+}
+
+// ListJobs lists webhook jobs, filtered and paginated, newest first.
+func (s *sqlDatabase) ListJobs(_ context.Context, filter params.ListJobsFilter) (params.JobsPaginatedResponse, error) {
+	var total int64
+	if err := applyListJobsFilter(s.conn.Model(&WorkflowJob{}), filter).Count(&total).Error; err != nil {
+		return params.JobsPaginatedResponse{}, fmt.Errorf("counting jobs: %w", err)
+	}
+
+	info, err := paginationInfo(total, filter.Page, filter.PageSize)
+	if err != nil {
+		return params.JobsPaginatedResponse{}, err
+	}
+
+	var jobs []WorkflowJob
+	q := applyListJobsFilter(s.conn.Model(&WorkflowJob{}).Preload("Instance"), filter).
+		Limit(info.limit).
+		Offset(info.offset).
+		Order("id DESC")
+	if err := q.Find(&jobs).Error; err != nil {
+		return params.JobsPaginatedResponse{}, fmt.Errorf("listing jobs: %w", err)
+	}
+
+	results := make([]params.Job, len(jobs))
+	for i, job := range jobs {
+		asParams, err := sqlWorkflowJobToParamsJob(job)
+		if err != nil {
+			return params.JobsPaginatedResponse{}, fmt.Errorf("converting job: %w", err)
+		}
+		results[i] = asParams
+	}
+
+	return params.JobsPaginatedResponse{
+		TotalCount:   uint64(total),
+		Pages:        info.pages,
+		CurrentPage:  info.page,
+		NextPage:     info.next,
+		PreviousPage: info.prev,
+		Results:      results,
+	}, nil
 }
 
 // GetJobByID gets a job by id.

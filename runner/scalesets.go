@@ -52,18 +52,8 @@ func (r *Runner) GetScaleSetByID(ctx context.Context, scaleSet uint) (params.Sca
 	return set, nil
 }
 
-func (r *Runner) ListScaleSetJobs(ctx context.Context, scaleSetID uint) ([]params.ScaleSetJob, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
-	jobs, err := r.store.ListScaleSetJobs(ctx, scaleSetID)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching scale set jobs: %w", err)
-	}
-	return jobs, nil
-}
-
+// ListAllScaleSetJobs lists the whole scale set job ledger. Used by the
+// metrics collector, the API serves the filtered and paginated variant.
 func (r *Runner) ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
@@ -72,6 +62,20 @@ func (r *Runner) ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob,
 	jobs, err := r.store.ListAllScaleSetJobs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching scale set jobs: %w", err)
+	}
+	return jobs, nil
+}
+
+// ListScaleSetJobs lists the jobs handled by scale sets, filtered and
+// paginated. A zero scaleSetID lists jobs across all scale sets.
+func (r *Runner) ListScaleSetJobs(ctx context.Context, scaleSetID uint, filter params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.ScaleSetJobsPaginatedResponse{}, runnerErrors.ErrUnauthorized
+	}
+
+	jobs, err := r.store.ListScaleSetJobsPaginated(ctx, scaleSetID, filter)
+	if err != nil {
+		return params.ScaleSetJobsPaginatedResponse{}, fmt.Errorf("error fetching scale set jobs: %w", err)
 	}
 	return jobs, nil
 }

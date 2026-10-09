@@ -62,7 +62,7 @@ type ClientService interface {
 }
 
 /*
-ListJobs lists all jobs
+ListJobs lists jobs only queued and in progress jobs are listed unless all is set
 */
 func (a *Client) ListJobs(params *ListJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListJobsOK, error) {
 	// NOTE: parameters are not validated before sending

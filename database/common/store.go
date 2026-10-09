@@ -130,6 +130,7 @@ type JobsStore interface {
 	ListEntityJobsByStatus(ctx context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error)
 	ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error)
 	ListAllJobs(ctx context.Context) ([]params.Job, error)
+	ListJobs(ctx context.Context, filter params.ListJobsFilter) (params.JobsPaginatedResponse, error)
 
 	GetJobByID(ctx context.Context, jobID int64) (params.Job, error)
 	DeleteJob(ctx context.Context, jobID int64) error
@@ -147,6 +148,9 @@ type ScaleSetJobsStore interface {
 	CreateOrUpdateScaleSetJob(ctx context.Context, job params.ScaleSetJob) (params.ScaleSetJob, error)
 	ListScaleSetJobs(ctx context.Context, scaleSetID uint) ([]params.ScaleSetJob, error)
 	ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob, error)
+	// ListScaleSetJobsPaginated filters and paginates the scale set job
+	// ledger. A zero scaleSetID lists jobs across all scale sets.
+	ListScaleSetJobsPaginated(ctx context.Context, scaleSetID uint, filter params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error)
 	DeleteOldScaleSetJobs(ctx context.Context, olderThan time.Duration) error
 }
 

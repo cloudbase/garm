@@ -51,10 +51,10 @@ func NewListJobsOK() *ListJobsOK {
 /*
 ListJobsOK describes a response with status code 200, with default header values.
 
-Jobs
+JobsPaginatedResponse
 */
 type ListJobsOK struct {
-	Payload garm_params.Jobs
+	Payload garm_params.JobsPaginatedResponse
 }
 
 // IsSuccess returns true when this list jobs o k response has a 2xx status code
@@ -97,7 +97,7 @@ func (o *ListJobsOK) String() string {
 	return fmt.Sprintf("[GET /jobs][%d] listJobsOK %s", 200, payload)
 }
 
-func (o *ListJobsOK) GetPayload() garm_params.Jobs {
+func (o *ListJobsOK) GetPayload() garm_params.JobsPaginatedResponse {
 	return o.Payload
 }
 

@@ -155,6 +155,20 @@ definitions:
             alias: garm_params
     items:
         $ref: '#/definitions/ScaleSetJob'
+  JobsPaginatedResponse:
+    type: object
+    x-go-type:
+        type: JobsPaginatedResponse
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  ScaleSetJobsPaginatedResponse:
+    type: object
+    x-go-type:
+        type: ScaleSetJobsPaginatedResponse
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   ScaleSetJob:
     type: object
     x-go-type:

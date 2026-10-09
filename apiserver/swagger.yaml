@@ -275,6 +275,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Jobs
+    JobsPaginatedResponse:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: JobsPaginatedResponse
     NewUserParams:
         type: object
         x-go-type:
@@ -399,6 +406,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: ScaleSetJobs
+    ScaleSetJobsPaginatedResponse:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ScaleSetJobsPaginatedResponse
     ScaleSets:
         items:
             $ref: '#/definitions/ScaleSet'
@@ -1760,16 +1774,39 @@ paths:
     /jobs:
         get:
             operationId: ListJobs
+            parameters:
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+                - description: Also list completed jobs.
+                  in: query
+                  name: all
+                  type: boolean
+                - description: Only list jobs recorded at or after this timestamp.
+                  format: date-time
+                  in: query
+                  name: since
+                  type: string
+                - description: Only list jobs recorded at or before this timestamp.
+                  format: date-time
+                  in: query
+                  name: until
+                  type: string
             responses:
                 "200":
-                    description: Jobs
+                    description: JobsPaginatedResponse
                     schema:
-                        $ref: '#/definitions/Jobs'
+                        $ref: '#/definitions/JobsPaginatedResponse'
                 "400":
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: List all jobs.
+            summary: List jobs. Only queued and in progress jobs are listed unless all is set.
             tags:
                 - jobs
     /metrics-token:
@@ -3000,6 +3037,9 @@ paths:
                 - instances
     /scalesets/{scalesetID}/jobs:
         get:
+            description: |-
+                List jobs handled by one scale set. Only queued and in progress jobs are
+                listed unless all is set.
             operationId: ListScaleSetJobs
             parameters:
                 - description: ID of the scale set whose jobs to fetch.
@@ -3007,31 +3047,77 @@ paths:
                   name: scalesetID
                   required: true
                   type: string
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+                - description: Also list completed jobs.
+                  in: query
+                  name: all
+                  type: boolean
+                - description: Only list jobs recorded at or after this timestamp.
+                  format: date-time
+                  in: query
+                  name: since
+                  type: string
+                - description: Only list jobs recorded at or before this timestamp.
+                  format: date-time
+                  in: query
+                  name: until
+                  type: string
             responses:
                 "200":
-                    description: ScaleSetJobs
+                    description: ScaleSetJobsPaginatedResponse
                     schema:
-                        $ref: '#/definitions/ScaleSetJobs'
+                        $ref: '#/definitions/ScaleSetJobsPaginatedResponse'
                 default:
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: List jobs handled by one scale set.
             tags:
                 - scalesets
     /scalesets/jobs:
         get:
+            description: |-
+                List jobs handled by all scale sets. Only queued and in progress jobs are
+                listed unless all is set.
             operationId: ListAllScaleSetJobs
+            parameters:
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+                - description: Also list completed jobs.
+                  in: query
+                  name: all
+                  type: boolean
+                - description: Only list jobs recorded at or after this timestamp.
+                  format: date-time
+                  in: query
+                  name: since
+                  type: string
+                - description: Only list jobs recorded at or before this timestamp.
+                  format: date-time
+                  in: query
+                  name: until
+                  type: string
             responses:
                 "200":
-                    description: ScaleSetJobs
+                    description: ScaleSetJobsPaginatedResponse
                     schema:
-                        $ref: '#/definitions/ScaleSetJobs'
+                        $ref: '#/definitions/ScaleSetJobsPaginatedResponse'
                 default:
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: List jobs handled by all scale sets.
             tags:
                 - scalesets
     /templates:

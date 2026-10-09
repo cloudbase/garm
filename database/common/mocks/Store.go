@@ -5047,6 +5047,63 @@ func (_c *Store_ListGithubEndpoints_Call) RunAndReturn(run func(context.Context)
 	return _c
 }
 
+// ListJobs provides a mock function with given fields: ctx, filter
+func (_m *Store) ListJobs(ctx context.Context, filter params.ListJobsFilter) (params.JobsPaginatedResponse, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListJobs")
+	}
+
+	var r0 params.JobsPaginatedResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.ListJobsFilter) (params.JobsPaginatedResponse, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.ListJobsFilter) params.JobsPaginatedResponse); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		r0 = ret.Get(0).(params.JobsPaginatedResponse)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.ListJobsFilter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_ListJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListJobs'
+type Store_ListJobs_Call struct {
+	*mock.Call
+}
+
+// ListJobs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter params.ListJobsFilter
+func (_e *Store_Expecter) ListJobs(ctx interface{}, filter interface{}) *Store_ListJobs_Call {
+	return &Store_ListJobs_Call{Call: _e.mock.On("ListJobs", ctx, filter)}
+}
+
+func (_c *Store_ListJobs_Call) Run(run func(ctx context.Context, filter params.ListJobsFilter)) *Store_ListJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(params.ListJobsFilter))
+	})
+	return _c
+}
+
+func (_c *Store_ListJobs_Call) Return(_a0 params.JobsPaginatedResponse, _a1 error) *Store_ListJobs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_ListJobs_Call) RunAndReturn(run func(context.Context, params.ListJobsFilter) (params.JobsPaginatedResponse, error)) *Store_ListJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListJobsByStatus provides a mock function with given fields: ctx, status
 func (_m *Store) ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error) {
 	ret := _m.Called(ctx, status)
@@ -5457,6 +5514,64 @@ func (_c *Store_ListScaleSetJobs_Call) Return(_a0 []params.ScaleSetJob, _a1 erro
 }
 
 func (_c *Store_ListScaleSetJobs_Call) RunAndReturn(run func(context.Context, uint) ([]params.ScaleSetJob, error)) *Store_ListScaleSetJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListScaleSetJobsPaginated provides a mock function with given fields: ctx, scaleSetID, filter
+func (_m *Store) ListScaleSetJobsPaginated(ctx context.Context, scaleSetID uint, filter params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error) {
+	ret := _m.Called(ctx, scaleSetID, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListScaleSetJobsPaginated")
+	}
+
+	var r0 params.ScaleSetJobsPaginatedResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error)); ok {
+		return rf(ctx, scaleSetID, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.ListJobsFilter) params.ScaleSetJobsPaginatedResponse); ok {
+		r0 = rf(ctx, scaleSetID, filter)
+	} else {
+		r0 = ret.Get(0).(params.ScaleSetJobsPaginatedResponse)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint, params.ListJobsFilter) error); ok {
+		r1 = rf(ctx, scaleSetID, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_ListScaleSetJobsPaginated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListScaleSetJobsPaginated'
+type Store_ListScaleSetJobsPaginated_Call struct {
+	*mock.Call
+}
+
+// ListScaleSetJobsPaginated is a helper method to define mock.On call
+//   - ctx context.Context
+//   - scaleSetID uint
+//   - filter params.ListJobsFilter
+func (_e *Store_Expecter) ListScaleSetJobsPaginated(ctx interface{}, scaleSetID interface{}, filter interface{}) *Store_ListScaleSetJobsPaginated_Call {
+	return &Store_ListScaleSetJobsPaginated_Call{Call: _e.mock.On("ListScaleSetJobsPaginated", ctx, scaleSetID, filter)}
+}
+
+func (_c *Store_ListScaleSetJobsPaginated_Call) Run(run func(ctx context.Context, scaleSetID uint, filter params.ListJobsFilter)) *Store_ListScaleSetJobsPaginated_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint), args[2].(params.ListJobsFilter))
+	})
+	return _c
+}
+
+func (_c *Store_ListScaleSetJobsPaginated_Call) Return(_a0 params.ScaleSetJobsPaginatedResponse, _a1 error) *Store_ListScaleSetJobsPaginated_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_ListScaleSetJobsPaginated_Call) RunAndReturn(run func(context.Context, uint, params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error)) *Store_ListScaleSetJobsPaginated_Call {
 	_c.Call.Return(run)
 	return _c
 }

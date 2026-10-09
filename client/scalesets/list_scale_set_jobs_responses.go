@@ -52,10 +52,10 @@ func NewListScaleSetJobsOK() *ListScaleSetJobsOK {
 /*
 ListScaleSetJobsOK describes a response with status code 200, with default header values.
 
-ScaleSetJobs
+ScaleSetJobsPaginatedResponse
 */
 type ListScaleSetJobsOK struct {
-	Payload garm_params.ScaleSetJobs
+	Payload garm_params.ScaleSetJobsPaginatedResponse
 }
 
 // IsSuccess returns true when this list scale set jobs o k response has a 2xx status code
@@ -98,7 +98,7 @@ func (o *ListScaleSetJobsOK) String() string {
 	return fmt.Sprintf("[GET /scalesets/{scalesetID}/jobs][%d] listScaleSetJobsOK %s", 200, payload)
 }
 
-func (o *ListScaleSetJobsOK) GetPayload() garm_params.ScaleSetJobs {
+func (o *ListScaleSetJobsOK) GetPayload() garm_params.ScaleSetJobsPaginatedResponse {
 	return o.Payload
 }
 

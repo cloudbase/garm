@@ -16,6 +16,7 @@ package sql
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -238,4 +239,75 @@ func (s *JobsTestSuite) TestDeleteInactionableJobs_WithDuration() {
 	err = db.conn.Where("workflow_job_id = ?", 30001).First(&remaining).Error
 	s.Require().NoError(err)
 	s.Require().Equal("recent-completed", remaining.Name)
+}
+
+func (s *JobsTestSuite) TestListJobsFilterAndPagination() {
+	db := s.Store.(*sqlDatabase)
+
+	// Five jobs, two of them completed, recorded one hour apart.
+	for i := int64(1); i <= 5; i++ {
+		status := params.JobStatusQueued
+		if i >= 4 {
+			status = params.JobStatusCompleted
+		}
+		_, err := s.Store.CreateOrUpdateJob(s.adminCtx, params.Job{
+			WorkflowJobID:   100 + i,
+			RunID:           1000,
+			Status:          string(status),
+			Name:            fmt.Sprintf("job-%d", i),
+			RepositoryName:  "test-repo",
+			RepositoryOwner: "test-owner",
+		})
+		s.Require().NoError(err)
+		createdAt := time.Now().UTC().Add(-time.Duration(6-i) * time.Hour)
+		s.Require().NoError(db.conn.Exec(
+			"UPDATE workflow_jobs SET created_at = ? WHERE workflow_job_id = ?", createdAt, 100+i).Error)
+	}
+
+	// The default listing leaves out completed jobs.
+	resp, err := s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{})
+	s.Require().NoError(err)
+	s.Require().EqualValues(3, resp.TotalCount)
+	s.Require().Len(resp.Results, 3)
+
+	// IncludeCompleted lists everything, newest first.
+	resp, err = s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{IncludeCompleted: true})
+	s.Require().NoError(err)
+	s.Require().EqualValues(5, resp.TotalCount)
+	s.Require().EqualValues(105, resp.Results[0].WorkflowJobID)
+
+	// Pagination bookkeeping.
+	resp, err = s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{IncludeCompleted: true, PageSize: 2})
+	s.Require().NoError(err)
+	s.Require().Len(resp.Results, 2)
+	s.Require().EqualValues(3, resp.Pages)
+	s.Require().EqualValues(1, resp.CurrentPage)
+	s.Require().Nil(resp.PreviousPage)
+	s.Require().NotNil(resp.NextPage)
+	s.Require().EqualValues(2, *resp.NextPage)
+
+	resp, err = s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{IncludeCompleted: true, PageSize: 2, Page: 3})
+	s.Require().NoError(err)
+	s.Require().Len(resp.Results, 1)
+	s.Require().Nil(resp.NextPage)
+	s.Require().NotNil(resp.PreviousPage)
+
+	// Time window filtering. Jobs sit at T-5h through T-1h.
+	since := time.Now().UTC().Add(-3*time.Hour - 30*time.Minute)
+	resp, err = s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{IncludeCompleted: true, Since: since})
+	s.Require().NoError(err)
+	s.Require().EqualValues(3, resp.TotalCount)
+
+	until := time.Now().UTC().Add(-3*time.Hour - 30*time.Minute)
+	resp, err = s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{IncludeCompleted: true, Until: until})
+	s.Require().NoError(err)
+	s.Require().EqualValues(2, resp.TotalCount)
+
+	resp, err = s.Store.ListJobs(s.adminCtx, params.ListJobsFilter{
+		IncludeCompleted: true,
+		Since:            time.Now().UTC().Add(-4*time.Hour - 30*time.Minute),
+		Until:            time.Now().UTC().Add(-2*time.Hour - 30*time.Minute),
+	})
+	s.Require().NoError(err)
+	s.Require().EqualValues(2, resp.TotalCount)
 }
