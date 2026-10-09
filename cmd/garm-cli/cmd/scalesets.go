@@ -461,6 +461,65 @@ var scalesetRunnerCmd = &cobra.Command{
 	Run:          nil,
 }
 
+var scalesetJobsCmd = &cobra.Command{
+	Use:          "job",
+	Short:        "Information about scale set jobs",
+	Long:         `Query information about jobs handled by scale sets.`,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var scalesetJobsListCmd = &cobra.Command{
+	Use:          "list [scaleset-id]",
+	Aliases:      []string{"ls"},
+	Short:        "List scale set jobs",
+	Long:         `List jobs handled by scale sets. Pass a scale set ID to only list the jobs of that scale set.`,
+	Args:         cobra.MaximumNArgs(1),
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		var jobs params.ScaleSetJobs
+		if len(args) == 1 {
+			listReq := apiClientScaleSets.NewListScaleSetJobsParams()
+			listReq.ScalesetID = args[0]
+			response, err := apiCli.Scalesets.ListScaleSetJobs(listReq, authToken)
+			if err != nil {
+				return err
+			}
+			jobs = response.Payload
+		} else {
+			listReq := apiClientScaleSets.NewListAllScaleSetJobsParams()
+			response, err := apiCli.Scalesets.ListAllScaleSetJobs(listReq, authToken)
+			if err != nil {
+				return err
+			}
+			jobs = response.Payload
+		}
+		formatScaleSetJobs(jobs)
+		return nil
+	},
+}
+
+func formatScaleSetJobs(jobs params.ScaleSetJobs) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(jobs)
+		return
+	}
+	t := table.NewWriter()
+	header := table.Row{"ID", "Scale Set ID", "Name", "Status", "Result", "Runner Name", "Repository", "Workflow run URL"}
+	t.AppendHeader(header)
+
+	for _, job := range jobs {
+		repo := fmt.Sprintf("%s/%s", job.RepositoryOwner, job.RepositoryName)
+		t.AppendRow(table.Row{job.ID, job.ScaleSetID, job.Name, job.Status, job.Result, job.RunnerName, repo, job.WorkflowRunURL})
+		t.AppendSeparator()
+	}
+	fmt.Println(t.Render())
+}
+
 var scalesetRunnerListCmd = &cobra.Command{
 	Use:          "list <scaleset-id>",
 	Aliases:      []string{"ls"},
@@ -610,6 +669,10 @@ func init() {
 		scalesetRunnerRotateCmd,
 	)
 
+	scalesetJobsCmd.AddCommand(
+		scalesetJobsListCmd,
+	)
+
 	scalesetCmd.AddCommand(
 		scalesetListCmd,
 		scaleSetShowCmd,
@@ -617,6 +680,7 @@ func init() {
 		scaleSetUpdateCmd,
 		scaleSetAddCmd,
 		scalesetRunnerCmd,
+		scalesetJobsCmd,
 	)
 
 	rootCmd.AddCommand(scalesetCmd)

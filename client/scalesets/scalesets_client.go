@@ -58,6 +58,10 @@ type ClientService interface {
 
 	GetScaleSet(params *GetScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetScaleSetOK, error)
 
+	ListAllScaleSetJobs(params *ListAllScaleSetJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListAllScaleSetJobsOK, error)
+
+	ListScaleSetJobs(params *ListScaleSetJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScaleSetJobsOK, error)
+
 	ListScalesets(params *ListScalesetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScalesetsOK, error)
 
 	UpdateScaleSet(params *UpdateScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateScaleSetOK, error)
@@ -137,6 +141,92 @@ func (a *Client) GetScaleSet(params *GetScaleSetParams, authInfo runtime.ClientA
 	//
 	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetScaleSetDefault)
+
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListAllScaleSetJobs lists jobs handled by all scale sets
+*/
+func (a *Client) ListAllScaleSetJobs(params *ListAllScaleSetJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListAllScaleSetJobsOK, error) {
+	// NOTE: parameters are not validated before sending
+	if params == nil {
+		params = NewListAllScaleSetJobsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListAllScaleSetJobs",
+		Method:             "GET",
+		PathPattern:        "/scalesets/jobs",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListAllScaleSetJobsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+
+	// only one success response has to be checked
+	success, ok := result.(*ListAllScaleSetJobsOK)
+	if ok {
+		return success, nil
+	}
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
+	unexpectedSuccess := result.(*ListAllScaleSetJobsDefault)
+
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListScaleSetJobs lists jobs handled by one scale set
+*/
+func (a *Client) ListScaleSetJobs(params *ListScaleSetJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScaleSetJobsOK, error) {
+	// NOTE: parameters are not validated before sending
+	if params == nil {
+		params = NewListScaleSetJobsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListScaleSetJobs",
+		Method:             "GET",
+		PathPattern:        "/scalesets/{scalesetID}/jobs",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListScaleSetJobsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+
+	// only one success response has to be checked
+	success, ok := result.(*ListScaleSetJobsOK)
+	if ok {
+		return success, nil
+	}
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
+	unexpectedSuccess := result.(*ListScaleSetJobsDefault)
 
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }

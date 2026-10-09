@@ -209,3 +209,75 @@ func (a *APIController) UpdateScaleSetByIDHandler(w http.ResponseWriter, r *http
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
+
+// swagger:route GET /scalesets/jobs scalesets ListAllScaleSetJobs
+//
+// List jobs handled by all scale sets.
+//
+//	Responses:
+//	  200: ScaleSetJobs
+//	  default: APIErrorResponse
+func (a *APIController) ListAllScaleSetJobsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	jobs, err := a.r.ListAllScaleSetJobs(ctx)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale set jobs")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(jobs); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /scalesets/{scalesetID}/jobs scalesets ListScaleSetJobs
+//
+// List jobs handled by one scale set.
+//
+//	Parameters:
+//	  + name: scalesetID
+//	    description: ID of the scale set whose jobs to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSetJobs
+//	  default: APIErrorResponse
+func (a *APIController) ListScaleSetJobsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	scaleSetID, ok := vars["scalesetID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No scale set ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+	id, err := strconv.ParseUint(scaleSetID, 10, 32)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to parse id")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	jobs, err := a.r.ListScaleSetJobs(ctx, uint(id))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale set jobs")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(jobs); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}

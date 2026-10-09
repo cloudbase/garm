@@ -1589,6 +1589,10 @@ func (j Job) BelongsTo(entity ForgeEntity) bool {
 // used by swagger client generated code
 type Jobs []Job
 
+// swagger:model ScaleSetJobs
+// used by swagger client generated code
+type ScaleSetJobs []ScaleSetJob
+
 // swagger:model InstallWebhookParams
 type InstallWebhookParams struct {
 	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type,omitempty"`
