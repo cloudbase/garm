@@ -28,7 +28,8 @@ func (f Filter) Validate() error {
 		common.ForgeInstanceEntityType,
 		common.PoolEntityType, common.UserEntityType, common.InstanceEntityType,
 		common.JobEntityType, common.ControllerEntityType, common.GithubCredentialsEntityType,
-		common.GiteaCredentialsEntityType, common.ScaleSetEntityType, common.GithubEndpointEntityType,
+		common.GiteaCredentialsEntityType, common.ScaleSetEntityType, common.ScaleSetJobEntityType,
+		common.GithubEndpointEntityType,
 		common.TemplateEntityType, common.FileObjectEntityType, common.ProxyEntityType:
 	default:
 		return common.ErrInvalidEntityType

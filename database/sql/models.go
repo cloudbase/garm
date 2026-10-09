@@ -249,6 +249,48 @@ type ScaleSet struct {
 
 	Tags      []*Tag     `gorm:"many2many:scaleset_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Instances []Instance `gorm:"foreignKey:ScaleSetFkID"`
+	// Jobs is the informational ledger of jobs GitHub routed to this
+	// scale set. It is removed together with the scale set.
+	Jobs []ScaleSetJob `gorm:"foreignKey:ScaleSetFkID;constraint:OnDelete:CASCADE"`
+}
+
+// ScaleSetJob records a job GitHub routed to a scale set, as seen on the
+// scale set's message queue. GitHub schedules these jobs server side.
+// GARM records them so users can list them and see which runner serviced
+// them. Nothing in GARM acts on these records.
+type ScaleSetJob struct {
+	ID        uint `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	// ScaleSetJobID is the job ID assigned by the GitHub actions service.
+	ScaleSetJobID string `gorm:"uniqueIndex"`
+
+	// ScaleSetFkID is NULL only for records migrated from workflow_jobs,
+	// which never recorded the owning scale set.
+	ScaleSetFkID *uint    `gorm:"index"`
+	ScaleSet     ScaleSet `gorm:"foreignKey:ScaleSetFkID"`
+
+	WorkflowRunID   int64 `gorm:"index"`
+	RunnerRequestID int64
+	JobWorkflowRef  string
+	Name            string
+	Status          string `gorm:"index"`
+	Result          string
+	EventName       string
+	RequestLabels   datatypes.JSON
+	RepositoryName  string
+	RepositoryOwner string
+	RunnerGroupName string
+	RunnerID        int64
+	RunnerName      string
+	WorkflowRunURL  string
+
+	// Timestamps reported by GitHub for the job's routing funnel.
+	QueueTime          time.Time
+	ScaleSetAssignTime time.Time
+	RunnerAssignTime   time.Time
+	FinishTime         time.Time
 }
 
 type RepositoryEvent struct {
@@ -471,8 +513,6 @@ type WorkflowJob struct {
 
 	// WorkflowJobID is the ID of the workflow job.
 	WorkflowJobID int64 `gorm:"index:workflow_job_id_idx"`
-	// ScaleSetJobID is the job ID for a scaleset job.
-	ScaleSetJobID string `gorm:"index:scaleset_job_id_idx"`
 
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64

@@ -439,7 +439,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(garm_job_status{status=\"queued\"}) or vector(0)",
+          "expr": "(count(garm_job_status{status=\"queued\"}) or vector(0)) + (count(garm_job_scaleset_status{status=\"queued\"}) or vector(0))",
           "legendFormat": "",
           "refId": "A"
         }

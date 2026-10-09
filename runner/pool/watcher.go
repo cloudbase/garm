@@ -203,7 +203,7 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 			return
 		}
 		if !job.BelongsTo(r.entity) {
-			slog.InfoContext(r.ctx, "job does not belong to entity", "worklof_job_id", job.WorkflowJobID, "scaleset_job_id", job.ScaleSetJobID, "job_id", job.ID)
+			slog.InfoContext(r.ctx, "job does not belong to entity", "worklof_job_id", job.WorkflowJobID, "job_id", job.ID)
 			return
 		}
 		slog.DebugContext(r.ctx, "recording job", "job_id", job.ID, "job_status", job.Status)

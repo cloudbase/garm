@@ -1472,8 +1472,6 @@ type Job struct {
 	ID int64 `json:"id,omitempty"`
 
 	WorkflowJobID int64 `json:"workflow_job_id,omitempty"`
-	// ScaleSetJobID is the job ID when generated for a scale set.
-	ScaleSetJobID string `json:"scaleset_job_id,omitempty"`
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64 `json:"run_id,omitempty"`
 	// Action is the specific activity that triggered the event.
@@ -1518,6 +1516,46 @@ type Job struct {
 	ForgeInstanceID *uuid.UUID `json:"forge_instance_id,omitempty"`
 
 	LockedBy uuid.UUID `json:"locked_by,omitempty"`
+
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+// ScaleSetJob is the informational record of a job GitHub routed to a
+// scale set. GitHub schedules these server side, so GARM never acts on
+// them. They exist so users can list the jobs a scale set handled and
+// see which runner serviced them.
+// swagger:model ScaleSetJob
+type ScaleSetJob struct {
+	ID uint `json:"id,omitempty"`
+
+	// ScaleSetJobID is the job ID assigned by the GitHub actions service.
+	ScaleSetJobID string `json:"scaleset_job_id,omitempty"`
+	// ScaleSetID is GARM's ID of the scale set that handled the job. It
+	// is zero for records migrated from older GARM versions, which never
+	// recorded the owning scale set.
+	ScaleSetID uint `json:"scaleset_id,omitempty"`
+
+	WorkflowRunID   int64    `json:"workflow_run_id,omitempty"`
+	RunnerRequestID int64    `json:"runner_request_id,omitempty"`
+	JobWorkflowRef  string   `json:"job_workflow_ref,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Status          string   `json:"status,omitempty"`
+	Result          string   `json:"result,omitempty"`
+	EventName       string   `json:"event_name,omitempty"`
+	RequestLabels   []string `json:"request_labels,omitempty"`
+	RepositoryName  string   `json:"repository_name,omitempty"`
+	RepositoryOwner string   `json:"repository_owner,omitempty"`
+	RunnerGroupName string   `json:"runner_group_name,omitempty"`
+	RunnerID        int64    `json:"runner_id,omitempty"`
+	RunnerName      string   `json:"runner_name,omitempty"`
+	WorkflowRunURL  string   `json:"workflow_run_url,omitempty"`
+
+	// Timestamps reported by GitHub for the job's routing funnel.
+	QueueTime          time.Time `json:"queue_time,omitempty"`
+	ScaleSetAssignTime time.Time `json:"scaleset_assign_time,omitempty"`
+	RunnerAssignTime   time.Time `json:"runner_assign_time,omitempty"`
+	FinishTime         time.Time `json:"finish_time,omitempty"`
 
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`

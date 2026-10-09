@@ -2350,12 +2350,6 @@ export interface Job {
      */
     'runner_name'?: string;
     /**
-     * ScaleSetJobID is the job ID when generated for a scale set.
-     * @type {string}
-     * @memberof Job
-     */
-    'scaleset_job_id'?: string;
-    /**
      * 
      * @type {string}
      * @memberof Job
@@ -3250,6 +3244,151 @@ export interface ScaleSet {
      * @memberof ScaleSet
      */
     'updated_at'?: string;
+}
+/**
+ * ScaleSetJob is the informational record of a job GitHub routed to a scale set. GitHub schedules these server side, so GARM never acts on them. They exist so users can list the jobs a scale set handled and see which runner serviced them.
+ * @export
+ * @interface ScaleSetJob
+ */
+export interface ScaleSetJob {
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'event_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'finish_time'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJob
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'job_workflow_ref'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'name'?: string;
+    /**
+     * Timestamps reported by GitHub for the job\'s routing funnel.
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'queue_time'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'repository_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'repository_owner'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ScaleSetJob
+     */
+    'request_labels'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'result'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'runner_assign_time'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'runner_group_name'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJob
+     */
+    'runner_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'runner_name'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJob
+     */
+    'runner_request_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'scaleset_assign_time'?: string;
+    /**
+     * ScaleSetID is GARM\'s ID of the scale set that handled the job. It is zero for records migrated from older GARM versions, which never recorded the owning scale set.
+     * @type {number}
+     * @memberof ScaleSetJob
+     */
+    'scaleset_id'?: number;
+    /**
+     * ScaleSetJobID is the job ID assigned by the GitHub actions service.
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'scaleset_job_id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'status'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'updated_at'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ScaleSetJob
+     */
+    'workflow_run_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSetJob
+     */
+    'workflow_run_url'?: string;
 }
 /**
  * 

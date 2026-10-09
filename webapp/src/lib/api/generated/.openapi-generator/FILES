@@ -77,6 +77,7 @@ docs/RestoreTemplateRequest.md
 docs/RunnerApplicationDownload.md
 docs/RunnerPrefix.md
 docs/ScaleSet.md
+docs/ScaleSetJob.md
 docs/ScalesetsApi.md
 docs/StatusMessage.md
 docs/Tag.md

@@ -273,7 +273,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(garm_job_status{status=\"queued\", owner=~\"$owner\"}) or vector(0)",
+          "expr": "(count(garm_job_status{status=\"queued\", owner=~\"$owner\"}) or vector(0)) + (count(garm_job_scaleset_status{status=\"queued\", owner=~\"$owner\"}) or vector(0))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -333,7 +333,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(garm_job_status{status=\"in_progress\", owner=~\"$owner\"}) or vector(0)",
+          "expr": "(count(garm_job_status{status=\"in_progress\", owner=~\"$owner\"}) or vector(0)) + (count(garm_job_scaleset_status{status=\"in_progress\", owner=~\"$owner\"}) or vector(0))",
           "legendFormat": "",
           "refId": "A"
         }

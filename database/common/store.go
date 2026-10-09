@@ -140,6 +140,16 @@ type JobsStore interface {
 	DeleteInactionableJobs(ctx context.Context, olderThan time.Duration) error
 }
 
+// ScaleSetJobsStore manages the informational ledger of jobs GitHub routed
+// to scale sets. GARM records these as it sees them on each scale set's
+// message queue. Nothing acts on them.
+type ScaleSetJobsStore interface {
+	CreateOrUpdateScaleSetJob(ctx context.Context, job params.ScaleSetJob) (params.ScaleSetJob, error)
+	ListScaleSetJobs(ctx context.Context, scaleSetID uint) ([]params.ScaleSetJob, error)
+	ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob, error)
+	DeleteOldScaleSetJobs(ctx context.Context, olderThan time.Duration) error
+}
+
 type EntityPoolStore interface {
 	CreateEntityPool(ctx context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (params.Pool, error)
 	GetEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error)
@@ -230,6 +240,7 @@ type Store interface {
 	UserStore
 	InstanceStore
 	JobsStore
+	ScaleSetJobsStore
 	GithubEndpointStore
 	GithubCredentialsStore
 	ControllerStore

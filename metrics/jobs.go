@@ -26,12 +26,33 @@ var JobStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 }, []string{
 	"job_id",
 	"workflow_job_id",
-	"scaleset_job_id",
 	"workflow_run_id",
 	"name",
 	"status",
 	"conclusion",
 	"runner_name",
+	"owner",
+	"repository",
+	"requested_labels",
+})
+
+// ScaleSetJobStatus tracks the jobs GitHub routed to scale sets. The
+// scaleset_id label is GARM's own ID for the scale set, the same one
+// garm_runner_status and garm_scaleset_info carry.
+var ScaleSetJobStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	Namespace: metricsNamespace,
+	Subsystem: metricsJobsSubsystem,
+	Name:      "scaleset_status",
+	Help:      "List of scale set jobs and their status",
+}, []string{
+	"scaleset_job_id",
+	"scaleset_id",
+	"workflow_run_id",
+	"name",
+	"status",
+	"result",
+	"runner_name",
+	"runner_group",
 	"owner",
 	"repository",
 	"requested_labels",
