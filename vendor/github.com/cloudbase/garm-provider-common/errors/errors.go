@@ -24,6 +24,9 @@ var (
 	// ErrUnauthorized is returned when a user does not have
 	// authorization to perform a request
 	ErrUnauthorized = NewUnauthorizedError("Unauthorized")
+	// ErrForbidden is returned when a user does not have
+	// permission to perform a request
+	ErrForbidden = NewForbiddenError("Forbidden")
 	// ErrNotFound is returned if an object is not found in
 	// the database.
 	ErrNotFound = NewNotFoundError("not found")
@@ -94,10 +97,10 @@ func (p *MissingSecretError) Is(target error) bool {
 }
 
 // NewUnauthorizedError returns a new UnauthorizedError
-func NewUnauthorizedError(msg string) error {
+func NewUnauthorizedError(msg string, a ...any) error {
 	return &UnauthorizedError{
 		baseError{
-			msg: msg,
+			msg: fmt.Sprintf(msg, a...),
 		},
 	}
 }
@@ -113,6 +116,29 @@ func (p *UnauthorizedError) Is(target error) bool {
 	}
 
 	_, ok := target.(*UnauthorizedError)
+	return ok
+}
+
+// NewForbiddenError returns a new ForbiddenError
+func NewForbiddenError(msg string, a ...any) error {
+	return &ForbiddenError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// ForbiddenError is returned when a request is not allowed
+type ForbiddenError struct {
+	baseError
+}
+
+func (p *ForbiddenError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*ForbiddenError)
 	return ok
 }
 
@@ -140,10 +166,10 @@ func (p *NotFoundError) Is(target error) bool {
 }
 
 // NewDuplicateUserError returns a new DuplicateUserError
-func NewDuplicateUserError(msg string) error {
+func NewDuplicateUserError(msg string, a ...any) error {
 	return &DuplicateUserError{
 		baseError{
-			msg: msg,
+			msg: fmt.Sprintf(msg, a...),
 		},
 	}
 }

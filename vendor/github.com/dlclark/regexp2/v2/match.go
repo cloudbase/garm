@@ -118,6 +118,9 @@ func newStringMatchTextAt(input string, r []rune, runeOffset, byteOffset int) *m
 		hasStringInput: true,
 		runeOffset:     runeOffset,
 		byteOffset:     byteOffset,
+		// Every decoded rune consumes at least one byte, even invalid UTF-8.
+		// Equal lengths therefore mean byte and rune offsets are identical.
+		byteOffsetsReady: len(input)-byteOffset == len(r),
 	}
 }
 
@@ -141,36 +144,25 @@ func (t *matchText) byteRange(runeIndex, runeLength int) (int, int) {
 
 func (t *matchText) buildByteOffsets() []int {
 	if t.hasStringInput {
-		return stringByteOffsets(t.input[t.byteOffset:])
+		return stringByteOffsets(t.input[t.byteOffset:], len(t.runes))
 	}
 	return runeByteOffsets(t.runes)
 }
 
-func stringByteOffsets(s string) []int {
-	var byteOffsets []int
-	runeIndex := 0
-	for strIdx, ch := range s {
-		if byteOffsets != nil {
-			byteOffsets[runeIndex] = strIdx
-		}
-		runeLen := utf8.RuneLen(ch)
-		if ch == utf8.RuneError {
-			_, runeLen = utf8.DecodeRuneInString(s[strIdx:])
-		}
-		if byteOffsets == nil && (strIdx != runeIndex || runeLen != 1) {
-			byteOffsets = make([]int, len(s)+1)
-			for i := 0; i < runeIndex; i++ {
-				byteOffsets[i] = i
-			}
-			byteOffsets[runeIndex] = strIdx
-		}
-		runeIndex++
+func stringByteOffsets(s string, runeCount int) []int {
+	if len(s) == runeCount {
+		return nil
 	}
-	if byteOffsets != nil {
-		byteOffsets[runeIndex] = len(s)
-		return byteOffsets[:runeIndex+1]
+	// Decoding already established the rune count. A range walk gives the
+	// original byte positions, including one-byte invalid UTF-8 sequences.
+	offsets := make([]int, runeCount+1)
+	i := 0
+	for byteIndex := range s {
+		offsets[i] = byteIndex
+		i++
 	}
-	return nil
+	offsets[runeCount] = len(s)
+	return offsets
 }
 
 func runeByteOffsets(runes []rune) []int {
@@ -370,7 +362,20 @@ func (m *Match) GroupCount() int {
 }
 
 // GroupByName returns a group based on the name of the group, or nil if the group name does not exist
+// For duplicate ECMAScript names, it selects the participating group, or the
+// first declaration if none participated.
 func (m *Match) GroupByName(name string) *Group {
+	// Participating selection follows ECMAScript 2025 §22.2.7.2 RegExpBuiltinExec,
+	// step 34.5;
+	// https://tc39.es/ecma262/2025/multipage/text-processing.html#sec-regexpbuiltinexec
+	if slots := m.regex.duplicateCapnames[name]; len(slots) > 0 {
+		for _, slot := range slots {
+			if m.isMatched(slot) {
+				return m.groupByIndex(slot)
+			}
+		}
+		return m.groupByIndex(slots[0])
+	}
 	num := m.regex.GroupNumberFromName(name)
 	if num < 0 {
 		return nil
@@ -382,10 +387,16 @@ func (m *Match) GroupByName(name string) *Group {
 func (m *Match) GroupByNumber(num int) *Group {
 	// check our sparse map
 	if m.sparseCaps != nil {
-		if newNum, ok := m.sparseCaps[num]; ok {
-			num = newNum
+		newNum, ok := m.sparseCaps[num]
+		if !ok {
+			return nil
 		}
+		num = newNum
 	}
+	return m.groupByIndex(num)
+}
+
+func (m *Match) groupByIndex(num int) *Group {
 	if num >= len(m.matchcount) || num < 0 {
 		return nil
 	}
