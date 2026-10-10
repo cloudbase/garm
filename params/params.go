@@ -1348,14 +1348,38 @@ func (g ForgeCredentials) CriticalRateLimitReached() (bool, time.Time) {
 	return g.rateLimitReached(0)
 }
 
-func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
-	var roots *x509.CertPool
-	if g.CABundle != nil {
-		roots = x509.NewCertPool()
-		ok := roots.AppendCertsFromPEM(g.CABundle)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse CA cert")
-		}
+// CACertPool returns the cert pool defined by the credentials CA bundle. A
+// nil pool means no bundle is set and the system trust store applies.
+func (g ForgeCredentials) CACertPool() (*x509.CertPool, error) {
+	if g.CABundle == nil {
+		return nil, nil
+	}
+	roots := x509.NewCertPool()
+	if ok := roots.AppendCertsFromPEM(g.CABundle); !ok {
+		return nil, fmt.Errorf("failed to parse CA cert")
+	}
+	return roots, nil
+}
+
+// GetBaseTransport returns the HTTP transport for talking to the forge
+// these credentials belong to. It trusts the credentials CA bundle and
+// runs HTTP/2 health checks. Requests multiplex over a small number of
+// HTTP/2 connections. When one dies silently (no FIN or RST reaches us),
+// requests on it hang until the kernel gives up retransmitting, which
+// takes around 15 minutes. The health checks send a PING frame on any
+// connection that received no frames for SendPingTimeout and close the
+// connection when the answer does not arrive within PingTimeout, failing
+// in-flight requests fast. A healthy peer answers PINGs even while it
+// holds a long poll open, so idle but live connections are unaffected.
+//
+// The transport carries no authentication. Callers that set their own
+// Authorization headers (like the scale set client) must use this and not
+// the client returned by GetHTTPClient, whose auth wrapper overwrites the
+// Authorization header on every request.
+func (g ForgeCredentials) GetBaseTransport() (*http.Transport, error) {
+	roots, err := g.CACertPool()
+	if err != nil {
+		return nil, fmt.Errorf("getting CA cert pool: %w", err)
 	}
 
 	dialer := &net.Dialer{
@@ -1363,17 +1387,28 @@ func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, erro
 		KeepAlive: 30 * time.Second,
 	}
 
-	httpTransport := &http.Transport{
+	return &http.Transport{
 		Proxy:       http.ProxyFromEnvironment,
 		DialContext: dialer.DialContext,
 		TLSClientConfig: &tls.Config{
 			RootCAs:    roots,
 			MinVersion: tls.VersionTLS12,
 		},
-		ForceAttemptHTTP2:     true,
+		ForceAttemptHTTP2: true,
+		HTTP2: &http.HTTP2Config{
+			SendPingTimeout: 30 * time.Second,
+			PingTimeout:     15 * time.Second,
+		},
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
+	}, nil
+}
+
+func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
+	httpTransport, err := g.GetBaseTransport()
+	if err != nil {
+		return nil, fmt.Errorf("getting base transport: %w", err)
 	}
 
 	var tc *http.Client
