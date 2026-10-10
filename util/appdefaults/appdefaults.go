@@ -25,6 +25,13 @@ const (
 	// of time and no new updates have been made to it's state, it will be removed.
 	DefaultRunnerBootstrapTimeout = 20
 
+	// DefaultRunnerOfflineTimeout is the amount of time a scale set runner may
+	// remain in the running/offline state before it is recycled. Runners end up
+	// in this state when the github agent dies or fails to (re)connect to the
+	// actions service (e.g. during a github outage). Recycling them frees up
+	// capacity so fresh runners can pick up jobs.
+	DefaultRunnerOfflineTimeout = 10 * time.Minute
+
 	// DefaultGithubURL is the default URL where Github or Github Enterprise can be accessed.
 	DefaultGithubURL = "https://github.com"
 
