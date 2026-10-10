@@ -109,6 +109,44 @@ func (r *basePoolManager) getQueuedJobs() []params.Job {
 	return ret
 }
 
+// runnerGroupsMatch compares runner group names as GitHub resolves them.
+// An empty name means the default group.
+func runnerGroupsMatch(a, b string) bool {
+	if a == "" {
+		a = "Default"
+	}
+	if b == "" {
+		b = "Default"
+	}
+	return strings.EqualFold(a, b)
+}
+
+// poolShadowedByScaleSet returns true when an enabled scale set of the
+// entity sits in the same runner group as the pool and satisfies the
+// job's labels. Any job this pool could be targeted by is then also
+// routed to that scale set, and a scale set is guaranteed to service
+// the jobs GitHub assigns to it. A runner created by the pool would
+// only duplicate the one the scale set brings up.
+//
+// This only sees the manager's own entity. A scale set defined on the
+// parent org or enterprise can still overlap with this entity's pools,
+// the same way pools of different entities already overlap. Those races
+// stay resolved by scale down, as described on consumeQueuedJobs.
+func (r *basePoolManager) poolShadowedByScaleSet(pool params.Pool, labels []string) bool {
+	for _, scaleSet := range cache.GetEntityScaleSets(r.entity.ID) {
+		if !scaleSet.Enabled {
+			continue
+		}
+		if !runnerGroupsMatch(pool.GitHubRunnerGroup, scaleSet.GitHubRunnerGroup) {
+			continue
+		}
+		if scaleSet.HasRequiredLabels(labels) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *basePoolManager) waitForToolsOrCancel() (hasTools, stopped bool) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()

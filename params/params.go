@@ -782,6 +782,26 @@ func (p ScaleSet) GitHubLabels() []Label {
 	return labels
 }
 
+// HasRequiredLabels returns true when every label in set is satisfied by
+// the labels the scale set registers with GitHub, the name plus tags. A
+// job requesting such a label set will be routed to the scale set.
+func (p ScaleSet) HasRequiredLabels(set []string) bool {
+	if len(set) == 0 {
+		return false
+	}
+	asMap := map[string]struct{}{strings.ToLower(p.Name): {}}
+	for _, t := range p.Tags {
+		asMap[strings.ToLower(t.Name)] = struct{}{}
+	}
+
+	for _, l := range set {
+		if _, ok := asMap[strings.ToLower(l)]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (p ScaleSet) BelongsTo(entity ForgeEntity) bool {
 	switch p.ScaleSetType() {
 	case ForgeEntityTypeRepository:

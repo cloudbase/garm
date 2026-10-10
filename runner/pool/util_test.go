@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -238,5 +239,55 @@ func TestPoolsForTagsBalancerTypePack(t *testing.T) {
 	}
 	if poolCache.next != 0 {
 		t.Fatalf("expected 0, got %d", poolCache.next)
+	}
+}
+
+func TestPoolShadowedByScaleSet(t *testing.T) {
+	entity := params.ForgeEntity{
+		ID:         "pool-shadow-test",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Owner:      "test",
+		Name:       "test",
+	}
+	cache.SetEntity(entity)
+	cache.SetEntityScaleSet(entity.ID, params.ScaleSet{
+		ID:                7,
+		OrgID:             entity.ID,
+		Name:              "ubuntu-noble",
+		GitHubRunnerGroup: "Default",
+		Enabled:           true,
+	})
+	cache.SetEntityScaleSet(entity.ID, params.ScaleSet{
+		ID:                8,
+		OrgID:             entity.ID,
+		Name:              "ubuntu-jammy",
+		GitHubRunnerGroup: "internal",
+	})
+
+	r := &basePoolManager{entity: entity}
+
+	cases := []struct {
+		name   string
+		pool   params.Pool
+		labels []string
+		want   bool
+	}{
+		// An empty pool runner group means the default group, where the
+		// enabled scale set satisfies the labels.
+		{"same group and labels", params.Pool{GitHubRunnerGroup: ""}, []string{"Ubuntu-Noble"}, true},
+		{"explicit default group", params.Pool{GitHubRunnerGroup: "default"}, []string{"ubuntu-noble"}, true},
+		// The pool's group has no scale set with these labels.
+		{"different group", params.Pool{GitHubRunnerGroup: "internal"}, []string{"ubuntu-noble"}, false},
+		// The scale set in the pool's group is disabled.
+		{"disabled scale set", params.Pool{GitHubRunnerGroup: "internal"}, []string{"ubuntu-jammy"}, false},
+		{"labels not satisfied", params.Pool{GitHubRunnerGroup: ""}, []string{"self-hosted"}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := r.poolShadowedByScaleSet(tc.pool, tc.labels); got != tc.want {
+				t.Errorf("poolShadowedByScaleSet(%v, %v) = %v, want %v", tc.pool.GitHubRunnerGroup, tc.labels, got, tc.want)
+			}
+		})
 	}
 }

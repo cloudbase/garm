@@ -2256,7 +2256,20 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 					r.ctx, "error finding pools matching labels")
 				continue
 			}
-			poolRR = poolsCache.Add(job.Labels, potentialPools)
+			// A pool shadowed by a scale set must not act on the job. The
+			// scale set is guaranteed to service it.
+			pools := make([]params.Pool, 0, len(potentialPools))
+			for _, pool := range potentialPools {
+				if r.poolShadowedByScaleSet(pool, job.Labels) {
+					slog.DebugContext(
+						r.ctx, "pool is shadowed by a scale set for these labels, skipping",
+						"pool_id", pool.ID,
+						"requested_labels", strings.Join(job.Labels, ","))
+					continue
+				}
+				pools = append(pools, pool)
+			}
+			poolRR = poolsCache.Add(job.Labels, pools)
 		}
 
 		if poolRR.Len() == 0 {
