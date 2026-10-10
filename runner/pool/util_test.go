@@ -15,8 +15,10 @@
 package pool
 
 import (
+	"context"
 	"sync"
 	"testing"
+	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/cache"
@@ -289,5 +291,32 @@ func TestPoolShadowedByScaleSet(t *testing.T) {
 				t.Errorf("poolShadowedByScaleSet(%v, %v) = %v, want %v", tc.pool.GitHubRunnerGroup, tc.labels, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestLoopRunsOnWake(t *testing.T) {
+	ran := make(chan struct{}, 1)
+	wake := make(chan struct{}, 1)
+	r := &basePoolManager{
+		ctx:              context.Background(),
+		quit:             make(chan struct{}),
+		wg:               &sync.WaitGroup{},
+		managerIsRunning: true,
+	}
+	defer close(r.quit)
+
+	go r.startLoopForFunction(func() error {
+		select {
+		case ran <- struct{}{}:
+		default:
+		}
+		return nil
+	}, time.Hour, "wake-test", false, tierInternal, wake)
+
+	wakeLoop(wake)
+	select {
+	case <-ran:
+	case <-time.After(5 * time.Second):
+		t.Fatal("loop did not run on wake")
 	}
 }

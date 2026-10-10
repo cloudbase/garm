@@ -1206,7 +1206,8 @@ type ControllerInfo struct {
 	// GARM will ignore the job until the job's age is greater than this value. When using
 	// the min_idle_runners feature of a pool, this gives enough time for potential idle
 	// runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding
-	// the need to potentially scale down runners later.
+	// the need to potentially scale down runners later. When set to 0, pool managers also
+	// react to queued webhooks immediately instead of on their next poll.
 	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff,omitempty"`
 	// Version is the version of the GARM controller.
 	Version string `json:"version,omitempty"`

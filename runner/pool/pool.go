@@ -132,6 +132,8 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		jobTombstones:  make(map[int64]time.Time),
 		checkedJobs:    make(map[int64]time.Time),
 		clientUpdateCh: make(chan struct{}, 1),
+		consumeJobsCh:  make(chan struct{}, 1),
+		addPendingCh:   make(chan struct{}, 1),
 		wg:             wg,
 		backoff:        backoff,
 		consumer:       consumer,
@@ -164,6 +166,11 @@ type basePoolManager struct {
 	// after a credentials change. Capacity 1; the rebuild reads the newest
 	// entity state when it runs, so triggers coalesce.
 	clientUpdateCh chan struct{}
+
+	// consumeJobsCh and addPendingCh wake their loops ahead of the next
+	// tick. Capacity 1; wakeups coalesce.
+	consumeJobsCh chan struct{}
+	addPendingCh  chan struct{}
 
 	managerIsRunning   bool
 	managerErrorReason string
@@ -509,7 +516,12 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 	switch job.Action {
 	case "queued":
-		// Queued jobs are just recorded; they'll be picked up by consumeQueuedJobs()
+		// Queued jobs are recorded and consumed by consumeQueuedJobs() on
+		// its next tick. With no job age backoff there is nothing to wait
+		// for, so wake the consumer now.
+		if r.controllerInfo.JobBackoff() == 0 {
+			wakeLoop(r.consumeJobsCh)
+		}
 	case "in_progress":
 		triggeredBy, inProgressErr := r.handleInProgressJob(ctx, jobParams)
 		actionErr = inProgressErr
@@ -577,7 +589,15 @@ func (r *basePoolManager) rateLimitReached(tier rateLimitTier) (bool, time.Time)
 	}
 }
 
-func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string, alwaysRun bool, tier rateLimitTier) {
+// wakeLoop pokes a loop wake channel without blocking. Wakeups coalesce.
+func wakeLoop(ch chan struct{}) {
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
+}
+
+func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string, alwaysRun bool, tier rateLimitTier, wake <-chan struct{}) {
 	slog.InfoContext(
 		r.ctx, "starting loop for entity",
 		"loop_name", name)
@@ -602,35 +622,38 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 		case true:
 			select {
 			case <-ticker.C:
-				if limited, resetAt := r.rateLimitReached(tier); limited {
-					if !rateLimited {
-						slog.InfoContext(
-							r.ctx, "rate limit reached; pausing loop until the quota resets",
-							"loop_name", name, "reset_at", resetAt)
-						rateLimited = true
-					}
-					continue
-				}
-				if rateLimited {
-					slog.InfoContext(
-						r.ctx, "rate limit lifted; resuming loop",
-						"loop_name", name)
-					rateLimited = false
-				}
-				if err := f(); err != nil {
-					slog.With(slog.Any("error", err)).ErrorContext(
-						r.ctx, "error in loop",
-						"loop_name", name)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.SetPoolRunningState(false, err.Error())
-					}
-				}
+			case <-wake:
+				// a nil wake channel blocks forever, so loops without one
+				// only run on the ticker.
 			case <-r.ctx.Done():
 				// daemon is shutting down.
 				return
 			case <-r.quit:
 				// this worker was stopped.
 				return
+			}
+			if limited, resetAt := r.rateLimitReached(tier); limited {
+				if !rateLimited {
+					slog.InfoContext(
+						r.ctx, "rate limit reached; pausing loop until the quota resets",
+						"loop_name", name, "reset_at", resetAt)
+					rateLimited = true
+				}
+				continue
+			}
+			if rateLimited {
+				slog.InfoContext(
+					r.ctx, "rate limit lifted; resuming loop",
+					"loop_name", name)
+				rateLimited = false
+			}
+			if err := f(); err != nil {
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "error in loop",
+					"loop_name", name)
+				if errors.Is(err, runnerErrors.ErrUnauthorized) {
+					r.SetPoolRunningState(false, err.Error())
+				}
 			}
 		default:
 			select {
@@ -2003,21 +2026,21 @@ func (r *basePoolManager) Start() error {
 		case <-initializeEntity:
 		}
 		defer close(initializeEntity)
-		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false, tierNormal)
-		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false, tierNormal)
+		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false, tierNormal, nil)
+		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false, tierNormal, nil)
 		// always run the delete pending instances routine. This way we can still remove existing runners, even if the pool is not running.
-		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", true, tierCritical)
-		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false, tierNormal)
-		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false, tierNormal)
-		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false, tierNormal)
+		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", true, tierCritical, nil)
+		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false, tierNormal, r.addPendingCh)
+		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false, tierNormal, nil)
+		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false, tierNormal, nil)
 		// updateTools reads the tools cache; it makes no forge API calls and is
 		// also the path that re-enables the manager after an unauthorized error.
-		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true, tierInternal)
-		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false, tierNormal)
-		go r.startLoopForFunction(r.reconcileStaleJobs, common.PoolStaleJobReconcileInterval, "stale_job_reconciler", false, tierNormal)
+		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true, tierInternal, nil)
+		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false, tierNormal, r.consumeJobsCh)
+		go r.startLoopForFunction(r.reconcileStaleJobs, common.PoolStaleJobReconcileInterval, "stale_job_reconciler", false, tierNormal, nil)
 		// Reaping only touches an in-memory map, so let it run even when the
 		// manager is paused. Otherwise tombstones pile up for the whole pause.
-		go r.startLoopForFunction(r.reapJobTombstones, common.PoolJobTombstoneReapInterval, "job_tombstone_reaper", true, tierInternal)
+		go r.startLoopForFunction(r.reapJobTombstones, common.PoolJobTombstoneReapInterval, "job_tombstone_reaper", true, tierInternal, nil)
 	}()
 	return nil
 }
@@ -2204,6 +2227,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 	slog.DebugContext(
 		r.ctx, "found queued jobs",
 		"job_count", len(queued))
+	addedRunners := 0
 	for _, job := range queued {
 		if job.LockedBy != uuid.Nil && job.LockedBy.String() != r.ID() {
 			// Job was handled by us or another entity.
@@ -2317,6 +2341,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 				"pool_id", pool.ID,
 				"job_id", job.WorkflowJobID)
 			runnerCreated = true
+			addedRunners++
 			break
 		}
 
@@ -2331,6 +2356,11 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 				return fmt.Errorf("error unlocking job: %w", err)
 			}
 		}
+	}
+	if addedRunners > 0 {
+		// The runners sit in the DB as pending_create. Wake the consolidate
+		// loop so the provider is called now instead of on its next tick.
+		wakeLoop(r.addPendingCh)
 	}
 	return nil
 }
