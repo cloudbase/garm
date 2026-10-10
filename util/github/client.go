@@ -350,6 +350,18 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) e
 	return nil
 }
 
+// runnersDisabledError converts a 404 from the runner registration
+// endpoints into a conflict. GitHub answers 404 on them until self hosted
+// runners are enabled on the entity, which would otherwise read as the
+// entity itself being gone.
+func (g *githubClient) runnersDisabledError(err error) error {
+	if !errors.Is(err, runnerErrors.ErrNotFound) {
+		return err
+	}
+	return runnerErrors.NewConflictError(
+		"runner registration returned 404 for %s. On GitHub this usually means self hosted runners are not enabled on the entity", g.entity.String())
+}
+
 func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error) {
 	var ret *github.RegistrationToken
 	var response *github.Response
@@ -377,7 +389,7 @@ func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*gith
 	if response != nil {
 		g.recordLimits(response.Rate)
 	}
-	err = parseError(response, err)
+	err = g.runnersDisabledError(parseError(response, err))
 	return ret, response, err
 }
 
@@ -507,7 +519,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 	}
 	if err != nil {
 		g.recordOpFailure("GetEntityJITConfig")
-		return nil, nil, fmt.Errorf("failed to get JIT config: %w", parseError(response, err))
+		return nil, nil, fmt.Errorf("failed to get JIT config: %w", g.runnersDisabledError(parseError(response, err)))
 	}
 
 	defer func(run *github.Runner) {

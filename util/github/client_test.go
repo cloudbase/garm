@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/params"
 )
 
 func ghResponse(status int) *github.Response {
@@ -71,4 +72,22 @@ func TestParseErrorMapsWrappedErrorResponse(t *testing.T) {
 	err := parseError(nil, apiErr)
 	require.ErrorIs(t, err, runnerErrors.ErrForbidden)
 	require.ErrorContains(t, err, "secondary rate limit")
+}
+
+func TestRunnersDisabledErrorConvertsNotFound(t *testing.T) {
+	g := &githubClient{entity: params.ForgeEntity{
+		EntityType: params.ForgeEntityTypeRepository,
+		Owner:      "test-org",
+		Name:       "test-repo",
+	}}
+
+	err := g.runnersDisabledError(runnerErrors.ErrNotFound)
+	require.ErrorIs(t, err, &runnerErrors.ConflictError{})
+	require.ErrorContains(t, err, "self hosted runners are not enabled")
+	require.ErrorContains(t, err, "test-org/test-repo")
+
+	// Anything else passes through untouched.
+	passthrough := errors.New("boom")
+	require.Equal(t, passthrough, g.runnersDisabledError(passthrough))
+	require.NoError(t, g.runnersDisabledError(nil))
 }
