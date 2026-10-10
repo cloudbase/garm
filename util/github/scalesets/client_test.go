@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common/mocks"
 )
@@ -90,4 +91,63 @@ func TestClientTrustsCredentialCA(t *testing.T) {
 	require.NoError(t, err)
 	_, err = noCACli.Do(req) //nolint:bodyclose // the request must fail before a body exists
 	require.ErrorContains(t, err, "certificate")
+}
+
+// doAgainstStatus dispatches one request through ScaleSetClient.Do against
+// a server that answers with the given status and body.
+func doAgainstStatus(t *testing.T, status int, body string) error {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, srv.URL, nil)
+	require.NoError(t, err)
+
+	cli := &ScaleSetClient{httpClient: srv.Client()}
+	resp, err := cli.Do(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	return err
+}
+
+func TestDoDistinguishesRefusals(t *testing.T) {
+	// Only a 401 means the credentials were rejected. 403 also covers
+	// secondary rate limits and SSO enforcement.
+	err := doAgainstStatus(t, http.StatusUnauthorized, "bad credentials")
+	require.ErrorIs(t, err, runnerErrors.ErrUnauthorized)
+	require.NotErrorIs(t, err, runnerErrors.ErrForbidden)
+	require.ErrorContains(t, err, "bad credentials")
+
+	err = doAgainstStatus(t, http.StatusForbidden, "secondary rate limit")
+	require.ErrorIs(t, err, runnerErrors.ErrForbidden)
+	require.NotErrorIs(t, err, runnerErrors.ErrUnauthorized)
+	require.ErrorContains(t, err, "secondary rate limit")
+}
+
+func TestDoMapsOtherStatuses(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		target error
+	}{
+		{name: "not found", status: http.StatusNotFound, target: runnerErrors.ErrNotFound},
+		{name: "bad request", status: http.StatusBadRequest, target: runnerErrors.ErrBadRequest},
+		{name: "conflict", status: http.StatusConflict, target: &runnerErrors.ConflictError{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := doAgainstStatus(t, tt.status, "detail")
+			require.ErrorIs(t, err, tt.target)
+			require.NotErrorIs(t, err, runnerErrors.ErrUnauthorized)
+			require.NotErrorIs(t, err, runnerErrors.ErrForbidden)
+		})
+	}
+
+	require.NoError(t, doAgainstStatus(t, http.StatusOK, "ok"))
 }

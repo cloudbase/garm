@@ -165,8 +165,12 @@ func (s *ScaleSetClient) doWithClient(client *http.Client, req *http.Request) (*
 		return nil, runnerErrors.NewBadRequestError("bad request while calling %s: %q", req.URL.String(), string(body))
 	case 409:
 		return nil, runnerErrors.NewConflictError("conflict while calling %s: %q", req.URL.String(), string(body))
-	case 401, 403:
-		return nil, runnerErrors.ErrUnauthorized
+	case 401:
+		return nil, runnerErrors.NewUnauthorizedError("unauthorized while calling %s: %q", req.URL.String(), string(body))
+	case 403:
+		// Also sent for secondary rate limits and SSO enforcement, so not
+		// the same as a 401. Callers must not treat this as dead credentials.
+		return nil, runnerErrors.NewForbiddenError("forbidden while calling %s: %q", req.URL.String(), string(body))
 	default:
 		return nil, fmt.Errorf("request to %s failed with status code %d: %q", req.URL.String(), resp.StatusCode, string(body))
 	}

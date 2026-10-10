@@ -280,6 +280,10 @@ func parseError(response *github.Response, err error) error {
 		return runnerErrors.ErrNotFound
 	case http.StatusUnauthorized:
 		return runnerErrors.ErrUnauthorized
+	case http.StatusForbidden:
+		// Also sent for secondary rate limits and missing permissions, so
+		// not the same as a 401. The original error carries the reason.
+		return runnerErrors.NewForbiddenError("forbidden: %v", err)
 	case http.StatusUnprocessableEntity:
 		return runnerErrors.ErrBadRequest
 	default:
@@ -294,6 +298,8 @@ func parseError(response *github.Response, err error) error {
 					return runnerErrors.ErrNotFound
 				case http.StatusUnauthorized:
 					return runnerErrors.ErrUnauthorized
+				case http.StatusForbidden:
+					return runnerErrors.NewForbiddenError("forbidden: %v", err)
 				case http.StatusUnprocessableEntity:
 					return runnerErrors.ErrBadRequest
 				default:

@@ -105,7 +105,7 @@ type Worker struct {
 
 	// authFailed marks that the forge rejected our credentials. While set,
 	// the listener is not restarted and scaling is paused, instead of
-	// hammering the forge with calls that cannot succeed. The latch clears
+	// hammering the forge with calls that cannot succeed. The flag clears
 	// when the entity worker installs a fresh client after a credentials
 	// update, and is retried periodically as a safety valve. This is kept
 	// separate from rate limiting: a quota reset must not resume a worker
@@ -256,9 +256,10 @@ func (w *Worker) Start() (err error) {
 					// before we create the actual instance that will use the credentials. We need
 					// to remove the runner from github if it exists.
 					if !errors.Is(err, runnerErrors.ErrNotFound) {
-						if errors.Is(err, runnerErrors.ErrUnauthorized) {
-							// we don't have access to remove the runner. This implies that our
-							// credentials may have expired or ar incorrect.
+						if errors.Is(err, runnerErrors.ErrUnauthorized) || errors.Is(err, runnerErrors.ErrForbidden) {
+							// A 401 means bad credentials, a 403 is usually a secondary
+							// rate limit. Neither says anything about the runner, so keep
+							// it and retry on a later pass.
 							//
 							// nolint:golangci-lint,godox
 							// TODO(gabriel-samfira): we need to set the scale set as inactive and stop the listener (if any).
@@ -905,18 +906,17 @@ func (w *Worker) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
 }
 
 // forgeAuthRetryInterval is how often we probe the forge again while the
-// auth failure latch is set, in case access was restored out of band (for
+// auth failure flag is set, in case access was restored out of band (for
 // example an app installation that was unsuspended, or a PAT authorized
 // for an org enforcing SAML SSO) without a credentials update in GARM.
 const forgeAuthRetryInterval = 5 * time.Minute
 
-// markAuthFailure latches the auth failure state after a forge call was
+// markAuthFailure sets the auth failure state after a forge call was
 // rejected as unauthorized. Callers must not hold w.mux.
 func (w *Worker) markAuthFailure() {
-	// The scale set API maps both 401 and 403 to ErrUnauthorized. A fully
-	// exhausted quota can also produce 403 responses; treat that as a rate
-	// limit condition, not an auth failure — the rate limit gate handles it
-	// and clears on its own when the quota resets.
+	// A 403 maps to ErrForbidden, so only a genuine 401 lands here. The
+	// rate limit check stays as a safety net. A refusal while the quota is
+	// exhausted says nothing about the credentials.
 	if limited, _ := cache.EntityRateLimitExhausted(w.entity.ID); limited {
 		slog.WarnContext(w.ctx, "forge call rejected while rate limit is exhausted; treating as rate limited")
 		return
@@ -948,7 +948,7 @@ func (w *Worker) clearAuthFailure() {
 }
 
 // forgeAuthBlockedLocked reports whether forge operations should stay paused
-// due to a previously latched auth failure. Callers must hold w.mux.
+// due to a previous auth failure. Callers must hold w.mux.
 func (w *Worker) forgeAuthBlockedLocked() bool {
 	if !w.authFailed {
 		return false
@@ -960,7 +960,7 @@ func (w *Worker) forgeAuthBlockedLocked() bool {
 		return false
 	}
 	// Safety valve: probe again periodically even without a credentials
-	// change. On failure the latch is simply re-armed with a fresh timestamp.
+	// change. On failure the flag is simply set again with a fresh timestamp.
 	if time.Since(w.authFailureAt) >= forgeAuthRetryInterval {
 		return false
 	}
@@ -1024,8 +1024,8 @@ Loop:
 		if err := w.listener.Start(); err != nil {
 			slog.ErrorContext(w.ctx, "error starting listener", "error", err, "consumer_id", w.consumerID)
 			if errors.Is(err, runnerErrors.ErrUnauthorized) {
-				// Latch the auth failure; sessionLoopMayRun() keeps us parked
-				// until credentials are updated or the retry interval elapses.
+				// sessionLoopMayRun() keeps us parked until credentials are
+				// updated or the retry interval elapses.
 				w.markAuthFailure()
 			}
 			if canceled := w.sleepWithCancel(2 * time.Second); canceled {

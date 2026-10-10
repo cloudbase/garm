@@ -116,6 +116,9 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 		apiErr.Error = "Not Authorized"
 		// Don't include details on 401 errors.
 		apiErr.Details = ""
+	case errors.Is(err, gErrors.ErrForbidden):
+		w.WriteHeader(http.StatusForbidden)
+		apiErr.Error = "Forbidden"
 	case errors.Is(err, gErrors.ErrBadRequest):
 		w.WriteHeader(http.StatusBadRequest)
 		apiErr.Error = "Bad Request"
