@@ -1,0 +1,66 @@
+# Prometheus recording rules that pre-aggregate GARM's snapshot gauges into
+# low-cardinality series. The raw gauges (garm_runner_status, garm_job_status,
+# garm_job_scaleset_status) carry per-instance / per-job identity labels and
+# churn series as runners cycle; on deployments with high runner turnover,
+# dashboards and alerts should query these recorded series instead.
+#
+# The source gauges are snapshots, reset and rebuilt every [metrics].period
+# (default 60s), so evaluating faster than that buys nothing. Job records
+# are pruned after 24 hours, so the job counts cover roughly the last day.
+groups:
+  - name: garm.recording
+    interval: 60s
+    rules:
+      # Fleet-wide runner counts by state and owning entity. The recorded
+      # series survive runner churn: label values are bounded by the number
+      # of entities and providers, not by runner identity.
+      - record: garm:runner:count
+        expr: count by (status, runner_status, pool_owner, pool_type, provider) (garm_runner_status)
+
+      # Per-pool runner counts. pool_id is only set on pool-owned runners.
+      - record: garm:pool_runner:count
+        expr: count by (pool_id, status, runner_status, provider) (garm_runner_status{pool_id!=""})
+
+      # Per-scale-set runner counts. scaleset_id is GARM's internal scale
+      # set ID, only set on scale-set-owned runners.
+      - record: garm:scaleset_runner:count
+        expr: count by (scaleset_id, status, runner_status, provider) (garm_runner_status{scaleset_id!=""})
+
+      # Same as above with the scale set name attached from
+      # garm_scaleset_info (whose "id" label is the same internal ID).
+      # Series without a matching info entry (e.g. during the first scrape
+      # after a restart) are dropped from this view; prefer the un-named
+      # variant for alerting.
+      - record: garm:scaleset_runner:count:named
+        expr: |
+          count by (scaleset_id, status, runner_status, provider) (garm_runner_status{scaleset_id!=""})
+            * on (scaleset_id) group_left (name)
+          label_replace(max by (id, name) (garm_scaleset_info), "scaleset_id", "$1", "id", "(.+)")
+
+      # Webhook job counts by state and repository. For organization or
+      # enterprise level rollups, aggregate further by owner. Jobs GitHub
+      # routed to scale sets live in garm_job_scaleset_status, not here.
+      - record: garm:job:count
+        expr: count by (status, owner, repository) (garm_job_status)
+
+      # Webhook job counts per pool. pool_id is stamped when one of the
+      # pool's runners picks up the job, so queued jobs are not attributed
+      # yet. {status="queued"} demand for pools lives in garm:job:count.
+      - record: garm:pool_job:count
+        expr: count by (pool_id, status, owner, repository) (garm_job_status{pool_id!=""})
+
+      # Scale set job counts per scale set. {status="queued"} is the queued
+      # demand and the signal to watch when deciding whether to raise
+      # max_runners. scaleset_id is GARM's own ID for the scale set, the
+      # same one garm_runner_status and garm_scaleset_info carry.
+      - record: garm:scaleset_job:count
+        expr: count by (scaleset_id, status, owner, repository) (garm_job_scaleset_status)
+
+      # Same demand, joined with the scale set name for dashboards. Series
+      # without a matching info entry are dropped from this view, so prefer
+      # the un-named variant for alerting.
+      - record: garm:scaleset_job:count:named
+        expr: |
+          count by (scaleset_id, status, owner, repository) (garm_job_scaleset_status)
+            * on (scaleset_id) group_left (name)
+          label_replace(max by (id, name) (garm_scaleset_info), "scaleset_id", "$1", "id", "(.+)")

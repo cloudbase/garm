@@ -46,3 +46,35 @@ the queue-time heatmap and listener freshness panels benefit from it.
 Starter Prometheus alert rules covering the failure modes these dashboards
 surface are in [`alerts/garm-alerts.yaml`](alerts/garm-alerts.yaml). Adjust
 the queue-time SLO threshold to your own target before deploying.
+
+## Recording rules
+
+The per-runner and per-job snapshot gauges (`garm_runner_status`,
+`garm_job_status`, `garm_job_scaleset_status`) carry instance identity in
+their labels, so series come and go as runners cycle. On deployments with
+high runner turnover, querying them directly from dashboards and alerts
+gets expensive.
+
+[`rules/garm-recording-rules.yaml`](rules/garm-recording-rules.yaml)
+pre-aggregates them into low-cardinality series whose label values are
+bounded by the number of entities, pools, scale sets and providers, not by
+runner or job identity:
+
+| Recorded series | What it counts |
+| ----------------- | ---------------- |
+| `garm:runner:count` | Runners by status, owning entity and provider |
+| `garm:pool_runner:count` | Runners per pool, by status |
+| `garm:scaleset_runner:count` | Runners per scale set, by status |
+| `garm:scaleset_runner:count:named` | Same, with the scale set name joined in |
+| `garm:job:count` | Webhook jobs by status, owner and repository |
+| `garm:pool_job:count` | Webhook jobs per pool, by status. The pool is known once one of its runners picks the job up |
+| `garm:scaleset_job:count` | Scale set jobs per scale set, by status. `status="queued"` is the queued demand to watch when sizing `max_runners` |
+| `garm:scaleset_job:count:named` | Same, with the scale set name joined in |
+
+Load them by adding the file to `rule_files` in your Prometheus
+configuration:
+
+```yaml
+rule_files:
+  - /etc/prometheus/rules/garm-recording-rules.yaml
+```
