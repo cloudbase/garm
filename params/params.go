@@ -1515,6 +1515,9 @@ type Job struct {
 	EnterpriseID    *uuid.UUID `json:"enterprise_id,omitempty"`
 	ForgeInstanceID *uuid.UUID `json:"forge_instance_id,omitempty"`
 
+	// PoolID is set when one of the pool's runners picks up the job.
+	PoolID *uuid.UUID `json:"pool_id,omitempty"`
+
 	LockedBy uuid.UUID `json:"locked_by,omitempty"`
 
 	CreatedAt time.Time `json:"created_at,omitempty"`

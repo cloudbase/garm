@@ -15,7 +15,6 @@
 package migrations
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -230,45 +229,10 @@ func init() {
 				return err
 			}
 
-			// SQLite cannot add a constraint in place; GORM rebuilds the
-			// table (create temp, copy, drop, rename). With foreign keys
-			// enforced, dropping a table that has child rows fails, so
-			// wrap the rebuilds in SQLite's documented ALTER procedure.
-			// Safe outside a transaction with the single pooled connection.
-			//
-			// The rebuild also drops the table's standalone indexes without
-			// recreating them, so capture their DDL first and restore any
-			// that went missing.
-			var indexes []struct {
-				Name string
-				SQL  string
-			}
-			err := tx.Raw(`SELECT name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL AND tbl_name IN ('forge_instance_events', 'forge_instances', 'pools', 'scale_sets', 'workflow_jobs')`).Scan(&indexes).Error
-			if err != nil {
-				return fmt.Errorf("capturing index definitions: %w", err)
-			}
-
-			if err := tx.Exec("PRAGMA foreign_keys = OFF").Error; err != nil {
-				return fmt.Errorf("disabling foreign keys: %w", err)
-			}
-			migrateErr := createConstraints()
-			if err := tx.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
-				return errors.Join(migrateErr, fmt.Errorf("re-enabling foreign keys: %w", err))
-			}
-			if migrateErr != nil {
-				return migrateErr
-			}
-
-			for _, index := range indexes {
-				var count int64
-				if err := tx.Raw("SELECT count(*) FROM sqlite_master WHERE type='index' AND name = ?", index.Name).Scan(&count).Error; err != nil {
-					return fmt.Errorf("checking index %s: %w", index.Name, err)
-				}
-				if count == 0 {
-					if err := tx.Exec(index.SQL).Error; err != nil {
-						return fmt.Errorf("restoring index %s: %w", index.Name, err)
-					}
-				}
+			// Adding the constraints rebuilds the affected tables on SQLite.
+			tables := []string{"forge_instance_events", "forge_instances", "pools", "scale_sets", "workflow_jobs"}
+			if err := sqliteTableRebuild(tx, tables, createConstraints); err != nil {
+				return err
 			}
 
 			// Anything still violating at this point has no automatic

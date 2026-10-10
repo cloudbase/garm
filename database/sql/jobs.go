@@ -61,6 +61,7 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 		OrgID:           job.OrgID,
 		EnterpriseID:    job.EnterpriseID,
 		ForgeInstanceID: job.ForgeInstanceID,
+		PoolID:          job.PoolID,
 		Labels:          labels,
 		CreatedAt:       job.CreatedAt,
 		UpdatedAt:       job.UpdatedAt,
@@ -99,6 +100,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, conn *gorm.DB,
 		OrgID:           job.OrgID,
 		EnterpriseID:    job.EnterpriseID,
 		ForgeInstanceID: job.ForgeInstanceID,
+		PoolID:          job.PoolID,
 		Labels:          asJSON,
 		LockedBy:        job.LockedBy,
 	}
@@ -352,6 +354,9 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			}
 			if job.ForgeInstanceID != nil {
 				workflowJob.ForgeInstanceID = job.ForgeInstanceID
+			}
+			if job.PoolID != nil {
+				workflowJob.PoolID = job.PoolID
 			}
 			if err := tx.Save(&workflowJob).Error; err != nil {
 				return fmt.Errorf("error saving job: %w", err)

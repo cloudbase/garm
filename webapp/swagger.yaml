@@ -1507,6 +1507,11 @@ definitions:
                 format: uuid
                 type: string
                 x-go-name: OrgID
+            pool_id:
+                description: PoolID is set when one of the pool's runners picks up the job.
+                format: uuid
+                type: string
+                x-go-name: PoolID
             repo_id:
                 description: |-
                     The entity that received the hook.
@@ -1645,6 +1650,11 @@ definitions:
                             format: uuid
                             type: string
                             x-go-name: OrgID
+                        pool_id:
+                            description: PoolID is set when one of the pool's runners picks up the job.
+                            format: uuid
+                            type: string
+                            x-go-name: PoolID
                         repo_id:
                             description: |-
                                 The entity that received the hook.

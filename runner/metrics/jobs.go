@@ -34,6 +34,10 @@ func CollectJobMetric(ctx context.Context, r *runner.Runner) error {
 	}
 
 	for _, job := range jobs {
+		poolID := ""
+		if job.PoolID != nil {
+			poolID = job.PoolID.String()
+		}
 		metrics.JobStatus.WithLabelValues(
 			fmt.Sprintf("%d", job.ID),            // label: job_id
 			fmt.Sprintf("%d", job.WorkflowJobID), // label: workflow_job_id
@@ -45,6 +49,7 @@ func CollectJobMetric(ctx context.Context, r *runner.Runner) error {
 			job.RepositoryOwner,                  // label: owner
 			job.RepositoryName,                   // label: repository
 			strings.Join(job.Labels, " "),        // label: requested_labels
+			poolID,                               // label: pool_id
 		).Set(1)
 	}
 	return nil

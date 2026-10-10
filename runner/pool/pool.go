@@ -466,8 +466,10 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		return fmt.Errorf("error converting job to params: %w", err)
 	}
 
-	// For in_progress/completed jobs, check if the runner belongs to a scale set.
-	// Scale set jobs are handled by the scale set listener, not by webhooks.
+	// For in_progress/completed jobs, look up the runner that services the
+	// job. A scale set runner means the job is handled by the scale set
+	// listener, not by webhooks. A pool runner attributes the job to its
+	// pool, which is the first moment we know which pool serviced it.
 	if job.Action == "in_progress" || job.Action == "completed" {
 		if jobParams.RunnerName != "" {
 			instance, err := r.store.GetInstance(ctx, jobParams.RunnerName)
@@ -483,6 +485,16 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 						"job_id", jobParams.WorkflowJobID)
 				}
 				return nil
+			}
+			if err == nil && instance.PoolID != "" {
+				poolID, parseErr := uuid.Parse(instance.PoolID)
+				if parseErr != nil {
+					slog.With(slog.Any("error", parseErr)).ErrorContext(
+						ctx, "failed to parse pool ID for instance",
+						"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
+				} else {
+					jobParams.PoolID = &poolID
+				}
 			}
 		}
 	}

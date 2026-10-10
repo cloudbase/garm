@@ -15,7 +15,6 @@
 package migrations
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -142,44 +141,13 @@ func init() {
 				return nil
 			}
 
-			// SQLite cannot drop a column in place, so GORM rebuilds the
-			// table. With foreign keys enforced, dropping a table that has
-			// child rows fails, so wrap the rebuild in SQLite's documented
-			// ALTER procedure. The rebuild also drops the table's standalone
-			// indexes without recreating them, so capture their DDL first
-			// and restore any that went missing. See 0008 for details.
-			var indexes []struct {
-				Name string
-				SQL  string
-			}
-			err := tx.Raw(`SELECT name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL AND tbl_name = 'workflow_jobs'`).Scan(&indexes).Error
-			if err != nil {
-				return fmt.Errorf("capturing index definitions: %w", err)
-			}
-
-			if err := tx.Exec("PRAGMA foreign_keys = OFF").Error; err != nil {
-				return fmt.Errorf("disabling foreign keys: %w", err)
-			}
-			migrateErr := tx.Migrator().DropColumn(&workflowJob0010{}, "scale_set_job_id")
-			if err := tx.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
-				return errors.Join(migrateErr, fmt.Errorf("re-enabling foreign keys: %w", err))
-			}
-			if migrateErr != nil {
-				return fmt.Errorf("dropping scale_set_job_id: %w", migrateErr)
-			}
-
-			for _, index := range indexes {
-				var count int64
-				if err := tx.Raw("SELECT count(*) FROM sqlite_master WHERE type='index' AND name = ?", index.Name).Scan(&count).Error; err != nil {
-					return fmt.Errorf("checking index %s: %w", index.Name, err)
+			// Dropping the column rebuilds the table on SQLite.
+			return sqliteTableRebuild(tx, []string{"workflow_jobs"}, func() error {
+				if err := tx.Migrator().DropColumn(&workflowJob0010{}, "scale_set_job_id"); err != nil {
+					return fmt.Errorf("dropping scale_set_job_id: %w", err)
 				}
-				if count == 0 {
-					if err := tx.Exec(index.SQL).Error; err != nil {
-						return fmt.Errorf("restoring index %s: %w", index.Name, err)
-					}
-				}
-			}
-			return nil
+				return nil
+			})
 		},
 	})
 }

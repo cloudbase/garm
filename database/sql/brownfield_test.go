@@ -256,6 +256,7 @@ func TestBrownfieldMigration(t *testing.T) {
 	require.Contains(t, ids, "0006_proxies")
 	require.Contains(t, ids, "0008_constraint_parity")
 	require.Contains(t, ids, "0010_scaleset_jobs")
+	require.Contains(t, ids, "0011_job_pool_attribution")
 	require.NotContains(t, ids, "SCHEMA_INIT")
 
 	objectIDs := migrationIDs(t, db.objectsConn, "file_object_migrations")
@@ -274,6 +275,7 @@ func TestBrownfieldMigration(t *testing.T) {
 	require.True(t, hasColumn(t, db.conn, "github_credentials", "reserve_usage_enabled"))
 	require.True(t, db.conn.Migrator().HasTable("scale_set_jobs"))
 	require.False(t, hasColumn(t, db.conn, "workflow_jobs", "scale_set_job_id"))
+	require.True(t, hasColumn(t, db.conn, "workflow_jobs", "pool_id"))
 	require.True(t, hasColumn(t, db.objectsConn, "file_blobs", "lo_oid"))
 
 	// Seeded rows survived.

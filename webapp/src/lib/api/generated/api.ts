@@ -2302,6 +2302,12 @@ export interface Job {
      */
     'org_id'?: string;
     /**
+     * PoolID is set when one of the pool\'s runners picks up the job.
+     * @type {string}
+     * @memberof Job
+     */
+    'pool_id'?: string;
+    /**
      * The entity that received the hook.  Webhooks may be configured on the repo, the org and/or the enterprise. If we only configure a repo to use garm, we\'ll only ever receive a webhook from the repo. But if we configure the parent org of the repo and the parent enterprise of the org to use garm, a webhook will be sent for each entity type, in response to one workflow event. Thus, we will get 3 webhooks with the same run_id and job id. Record all involved entities in the same job if we have them configured in garm.
      * @type {string}
      * @memberof Job
@@ -2495,6 +2501,12 @@ export interface JobsPaginatedResponseResultsInner {
      * @memberof JobsPaginatedResponseResultsInner
      */
     'org_id'?: string;
+    /**
+     * PoolID is set when one of the pool\'s runners picks up the job.
+     * @type {string}
+     * @memberof JobsPaginatedResponseResultsInner
+     */
+    'pool_id'?: string;
     /**
      * The entity that received the hook.  Webhooks may be configured on the repo, the org and/or the enterprise. If we only configure a repo to use garm, we\'ll only ever receive a webhook from the repo. But if we configure the parent org of the repo and the parent enterprise of the org to use garm, a webhook will be sent for each entity type, in response to one workflow event. Thus, we will get 3 webhooks with the same run_id and job id. Record all involved entities in the same job if we have them configured in garm.
      * @type {string}

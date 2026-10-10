@@ -34,6 +34,7 @@ var JobStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	"owner",
 	"repository",
 	"requested_labels",
+	"pool_id",
 })
 
 // ScaleSetJobStatus tracks the jobs GitHub routed to scale sets. The

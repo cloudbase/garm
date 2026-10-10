@@ -183,8 +183,9 @@ type Pool struct {
 	ProxyID *uint `gorm:"index"`
 	Proxy   Proxy `gorm:"foreignKey:ProxyID"`
 
-	Instances []Instance `gorm:"foreignKey:PoolID"`
-	Priority  uint       `gorm:"index:idx_pool_priority"`
+	Instances []Instance    `gorm:"foreignKey:PoolID"`
+	Jobs      []WorkflowJob `gorm:"foreignKey:PoolID;constraint:OnDelete:SET NULL"`
+	Priority  uint          `gorm:"index:idx_pool_priority"`
 }
 
 // ScaleSet represents a github scale set. Scale sets are almost identical to pools with
@@ -566,6 +567,11 @@ type WorkflowJob struct {
 
 	ForgeInstanceID *uuid.UUID    `gorm:"index"`
 	ForgeInstance   ForgeInstance `gorm:"foreignKey:ForgeInstanceID"`
+
+	// PoolID is set when one of the pool's runners picks up the job.
+	// Pools cannot know in advance which queued job a runner will service.
+	PoolID *uuid.UUID `gorm:"index"`
+	Pool   Pool       `gorm:"foreignKey:PoolID"`
 
 	LockedBy uuid.UUID
 
