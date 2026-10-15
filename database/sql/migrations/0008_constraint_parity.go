@@ -116,6 +116,31 @@ type fkViolation struct {
 	Fkid   int64  `gorm:"column:fkid"`
 }
 
+// convertForgeInstanceIDsToUUID gives the forge_instance_id columns the uuid
+// type that fresh PostgreSQL databases have. The 0003 stubs declare them
+// without the relation that the models in models.go derive the type from,
+// so databases migrated through 0003 have text columns. Those can be
+// neither compared with nor constrained to forge_instances.id.
+func convertForgeInstanceIDsToUUID(tx *gorm.DB) error {
+	for _, table := range []string{"forge_instance_events", "pools", "workflow_jobs"} {
+		var dataType string
+		err := tx.Raw(
+			"SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = 'forge_instance_id'",
+			table).Scan(&dataType).Error
+		if err != nil {
+			return fmt.Errorf("inspecting %s.forge_instance_id: %w", table, err)
+		}
+		if dataType != "text" {
+			continue
+		}
+		if err := tx.Exec(fmt.Sprintf("ALTER TABLE %q ALTER COLUMN forge_instance_id TYPE uuid USING forge_instance_id::uuid", table)).Error; err != nil {
+			return fmt.Errorf("converting %s.forge_instance_id to uuid: %w", table, err)
+		}
+		slog.Info("converted column to uuid during migration", "table", table, "column", "forge_instance_id")
+	}
+	return nil
+}
+
 // resolveSQLiteOrphans applies each foreign key's own delete semantics to
 // rows that violate it. Old GARM versions ran with foreign key enforcement
 // disabled in places, so long lived databases can hold orphaned rows (for
@@ -163,6 +188,12 @@ func init() {
 	Register(&gormigrate.Migration{
 		ID: "0008_constraint_parity",
 		Migrate: func(tx *gorm.DB) error {
+			if tx.Name() == "postgres" {
+				if err := convertForgeInstanceIDsToUUID(tx); err != nil {
+					return err
+				}
+			}
+
 			// Rows violating the constraints about to be added would fail
 			// the ADD CONSTRAINT on PostgreSQL and the integrity check on
 			// SQLite. Resolve them the way the constraints would have.

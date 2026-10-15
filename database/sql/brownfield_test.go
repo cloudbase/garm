@@ -391,6 +391,8 @@ var parityConstraints = map[string]string{
 	"fk_forge_instances_jobs":              "workflow_jobs",
 }
 
+var forgeInstanceIDTables = []string{"forge_instance_events", "pools", "workflow_jobs"}
+
 func requireConstraintCountPG(t *testing.T, conn *gorm.DB, constraint string, expected int64) {
 	t.Helper()
 	var count int64
@@ -407,7 +409,8 @@ func requireConstraintCountPG(t *testing.T, conn *gorm.DB, constraint string, ex
 // the constraints via ALTER TABLE. Databases born later have everything
 // already: for them 0008 must be a clean no-op. Constraints are dropped
 // manually to reconstruct the first cohort, since 0008 introduces no model
-// changes of its own.
+// changes of its own. The first cohort also went through the 0003 stubs,
+// which created the forge_instance_id columns as text instead of uuid.
 func TestConstraintParityOnPostgres(t *testing.T) {
 	if os.Getenv("GARM_TEST_POSTGRES_DSN") == "" {
 		t.Skip("GARM_TEST_POSTGRES_DSN not set")
@@ -428,8 +431,11 @@ func TestConstraintParityOnPostgres(t *testing.T) {
 	for constraint, table := range parityConstraints {
 		require.NoError(t, db.conn.Exec("ALTER TABLE "+table+" DROP CONSTRAINT "+constraint).Error)
 	}
+	for _, table := range forgeInstanceIDTables {
+		require.NoError(t, db.conn.Exec("ALTER TABLE "+table+" ALTER COLUMN forge_instance_id TYPE text").Error)
+	}
 	require.NoError(t, db.conn.Exec(
-		"INSERT INTO pools (id, created_at, updated_at, provider_name, runner_prefix, max_runners, min_idle_runners, runner_bootstrap_timeout, image, flavor, os_type, os_arch, enabled, generation, priority, proxy_id) VALUES ('99999999-9999-9999-9999-999999999999', now(), now(), 'test-provider', 'garm', 4, 0, 20, 'ubuntu:24.04', 'default', 'linux', 'amd64', true, 1, 0, 12345)").Error)
+		"INSERT INTO pools (id, created_at, updated_at, provider_name, runner_prefix, max_runners, min_idle_runners, runner_bootstrap_timeout, image, flavor, os_type, os_arch, enabled, generation, priority, proxy_id, forge_instance_id) VALUES ('99999999-9999-9999-9999-999999999999', now(), now(), 'test-provider', 'garm', 4, 0, 20, 'ubuntu:24.04', 'default', 'linux', 'amd64', true, 1, 0, 12345, '88888888-8888-8888-8888-888888888888')").Error)
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0008_constraint_parity'").Error)
 
 	require.NoError(t, db.migrateDB(), "0008 failed on a PostgreSQL database missing the constraints")
@@ -438,9 +444,19 @@ func TestConstraintParityOnPostgres(t *testing.T) {
 	for constraint := range parityConstraints {
 		requireConstraintCountPG(t, db.conn, constraint, 1)
 	}
+	for _, table := range forgeInstanceIDTables {
+		var dataType string
+		require.NoError(t, db.conn.Raw(
+			"SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = 'forge_instance_id'",
+			table).Scan(&dataType).Error)
+		require.Equal(t, "uuid", dataType, "%s.forge_instance_id type mismatch", table)
+	}
 	var orphanedProxyRefs int64
 	require.NoError(t, db.conn.Raw("SELECT count(*) FROM pools WHERE proxy_id IS NOT NULL").Scan(&orphanedProxyRefs).Error)
 	require.Zero(t, orphanedProxyRefs, "orphaned proxy reference should have been cleaned up")
+	var orphanedForgeInstanceRefs int64
+	require.NoError(t, db.conn.Raw("SELECT count(*) FROM pools WHERE forge_instance_id IS NOT NULL").Scan(&orphanedForgeInstanceRefs).Error)
+	require.Zero(t, orphanedForgeInstanceRefs, "orphaned forge instance reference should have been cleaned up")
 
 	// Phase 2: a database that already has everything; 0008 must no-op.
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0008_constraint_parity'").Error)
