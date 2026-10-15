@@ -124,6 +124,12 @@ func init() {
 				return fmt.Errorf("creating scale_set_jobs: %w", err)
 			}
 
+			// Migrations run without a transaction, so a rerun may find the
+			// column already gone. There is nothing left to move then.
+			if !tx.Migrator().HasColumn(&workflowJob0010{}, "scale_set_job_id") {
+				return nil
+			}
+
 			if err := moveScaleSetJobs(tx); err != nil {
 				return err
 			}

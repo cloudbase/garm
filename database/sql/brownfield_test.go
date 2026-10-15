@@ -616,3 +616,112 @@ func TestScaleSetJobsMoveRerunIsSafe(t *testing.T) {
 	require.EqualValues(t, 0, countRows(t, db.conn, "workflow_jobs"))
 	require.EqualValues(t, 1, countRows(t, db.conn, "scale_set_jobs"))
 }
+
+func columnTypePG(t *testing.T, conn *gorm.DB, table, column string) string {
+	t.Helper()
+	var dataType string
+	require.NoError(t, conn.Raw(
+		"SELECT data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
+		table, column).Scan(&dataType).Error)
+	return dataType
+}
+
+// TestForgeInstanceColumnTypesOnPostgres reconstructs the PostgreSQL
+// databases that ran 0003 as a real migration. The stub declared its columns
+// without a type, so they were created as text, and 0008 cannot compare a
+// text column to the uuid and varchar(64) keys it references.
+func TestForgeInstanceColumnTypesOnPostgres(t *testing.T) {
+	if os.Getenv("GARM_TEST_POSTGRES_DSN") == "" {
+		t.Skip("GARM_TEST_POSTGRES_DSN not set")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	watcher.InitWatcher(ctx)
+	defer watcher.CloseWatcher()
+
+	sqlDB, cfg := garmTesting.OpenTestPostgresDB(t)
+	store, err := newSQLStoreFromSQLDB(ctx, sqlDB, cfg)
+	require.NoError(t, err)
+	db := store.(*sqlDatabase)
+	t.Cleanup(func() { db.sqlDB.Close() })
+
+	// Turn the columns back into text. The constraints that reference them
+	// go first, they are what 0008 adds back.
+	forgeInstanceConstraints := map[string]string{
+		"fk_forge_instances_events":   "forge_instance_events",
+		"fk_forge_instances_pools":    "pools",
+		"fk_forge_instances_jobs":     "workflow_jobs",
+		"fk_forge_instances_endpoint": "forge_instances",
+	}
+	for constraint, table := range forgeInstanceConstraints {
+		require.NoError(t, db.conn.Exec("ALTER TABLE "+table+" DROP CONSTRAINT "+constraint).Error)
+	}
+	textColumns := map[string]string{
+		"forge_instance_events": "forge_instance_id",
+		"pools":                 "forge_instance_id",
+		"workflow_jobs":         "forge_instance_id",
+		"forge_instances":       "endpoint_name",
+	}
+	for table, column := range textColumns {
+		require.NoError(t, db.conn.Exec(
+			"ALTER TABLE "+table+" ALTER COLUMN "+column+" TYPE text USING "+column+"::text").Error)
+		require.Equal(t, "text", columnTypePG(t, db.conn, table, column))
+	}
+
+	// A live reference that must survive the conversion, plus an orphan in
+	// each table that 0008 resolves once the types line up.
+	forgeInstanceID := "11111111-1111-1111-1111-111111111111"
+	orphanID := "22222222-2222-2222-2222-222222222222"
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO forge_instances (id, created_at, updated_at, endpoint_name) VALUES (?, now(), now(), 'github.com')", forgeInstanceID).Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO pools (id, created_at, updated_at, provider_name, runner_prefix, max_runners, min_idle_runners, runner_bootstrap_timeout, image, flavor, os_type, os_arch, enabled, generation, priority, forge_instance_id) VALUES (gen_random_uuid(), now(), now(), 'test-provider', 'garm', 4, 0, 20, 'ubuntu:24.04', 'default', 'linux', 'amd64', true, 1, 0, ?)",
+		forgeInstanceID).Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO forge_instance_events (created_at, updated_at, event_type, event_level, message, forge_instance_id) VALUES (now(), now(), 'status', 'info', 'orphan', ?)", orphanID).Error)
+	require.NoError(t, db.conn.Exec(
+		"INSERT INTO workflow_jobs (workflow_job_id, run_id, action, conclusion, status, name, repository_name, repository_owner, created_at, updated_at, forge_instance_id) VALUES (1, 100, 'queued', '', 'queued', 'job', 'test-repo', 'test-org', now(), now(), ?)",
+		orphanID).Error)
+
+	// 0008 fails on its first statement, which is recorded nowhere, and
+	// gormigrate stops at the first error. An affected database therefore
+	// has nothing from 0008 onwards.
+	blocked := []string{
+		"0007a_forge_instance_column_types",
+		"0008_constraint_parity",
+		"0009_tag_name_length",
+		"0010_scaleset_jobs",
+		"0011_job_pool_attribution",
+	}
+	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id IN ?", blocked).Error)
+
+	require.NoError(t, db.migrateDB(), "migrating a database with text forge instance columns failed")
+
+	ids := migrationIDs(t, db.conn, "migrations")
+	for _, id := range blocked {
+		require.Contains(t, ids, id, "%s did not run after the repair", id)
+	}
+
+	require.Equal(t, "character varying", columnTypePG(t, db.conn, "forge_instances", "endpoint_name"))
+	for table := range textColumns {
+		if table == "forge_instances" {
+			continue
+		}
+		require.Equal(t, "uuid", columnTypePG(t, db.conn, table, "forge_instance_id"), "%s was not converted", table)
+	}
+	for constraint := range forgeInstanceConstraints {
+		requireConstraintCountPG(t, db.conn, constraint, 1)
+	}
+
+	// The live references survived, both orphans were resolved.
+	var poolRefs int64
+	require.NoError(t, db.conn.Raw("SELECT count(*) FROM pools WHERE forge_instance_id = ?::uuid", forgeInstanceID).Scan(&poolRefs).Error)
+	require.EqualValues(t, 1, poolRefs, "the live forge instance reference was lost")
+	var endpointRefs int64
+	require.NoError(t, db.conn.Raw("SELECT count(*) FROM forge_instances WHERE endpoint_name = 'github.com'").Scan(&endpointRefs).Error)
+	require.EqualValues(t, 1, endpointRefs, "the live endpoint reference was lost")
+	require.EqualValues(t, 0, countRows(t, db.conn, "forge_instance_events"))
+	var jobRefs int64
+	require.NoError(t, db.conn.Raw("SELECT count(*) FROM workflow_jobs WHERE forge_instance_id IS NULL").Scan(&jobRefs).Error)
+	require.EqualValues(t, 1, jobRefs, "the orphaned job reference was not cleared")
+}

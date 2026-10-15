@@ -34,7 +34,7 @@ type forgeInstance0003 struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
 	GiteaCredentialsID *uint   `gorm:"index"`
-	EndpointName       *string `gorm:"uniqueIndex:idx_forgeinstance_endpoint_nocase,expression:LOWER(endpoint_name)"`
+	EndpointName       *string `gorm:"type:varchar(64);uniqueIndex:idx_forgeinstance_endpoint_nocase,expression:LOWER(endpoint_name)"`
 
 	PoolManagerRunning       bool
 	PoolManagerFailureReason string
@@ -53,22 +53,26 @@ type forgeInstanceEvent0003 struct {
 	EventLevel params.EventLevel
 	Message    string `gorm:"type:text"`
 
-	ForgeInstanceID uuid.UUID `gorm:"index:idx_forgeinstance_event"`
+	ForgeInstanceID uuid.UUID `gorm:"type:uuid;index:idx_forgeinstance_event"`
 }
 
 func (forgeInstanceEvent0003) TableName() string { return "forge_instance_events" }
 
 // pool0003 and workflowJob0003 are minimal stubs that only declare the new
 // column. AutoMigrate will add the column without touching existing ones.
+// The real models derive the column type from the primary key they
+// reference. These have no relation to derive from, so spell it out or
+// PostgreSQL gets a text column that cannot reference a uuid. Databases
+// that already ran this migration are repaired by 0007a.
 
 type pool0003 struct {
-	ForgeInstanceID *uuid.UUID `gorm:"index"`
+	ForgeInstanceID *uuid.UUID `gorm:"type:uuid;index"`
 }
 
 func (pool0003) TableName() string { return "pools" }
 
 type workflowJob0003 struct {
-	ForgeInstanceID *uuid.UUID `gorm:"index"`
+	ForgeInstanceID *uuid.UUID `gorm:"type:uuid;index"`
 }
 
 func (workflowJob0003) TableName() string { return "workflow_jobs" }
