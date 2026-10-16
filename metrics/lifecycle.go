@@ -28,6 +28,7 @@ const (
 	OutcomeOrphaned         = "orphaned"
 	OutcomeManualDelete     = "manual_delete"
 	OutcomeStartupRecovery  = "startup_recovery"
+	OutcomeOfflineTimeout   = "offline_timeout"
 )
 
 var (
