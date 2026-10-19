@@ -400,41 +400,16 @@ func seedTop(state *topState) error {
 	}
 	// The TUI tracks active jobs, which is what the listings return by
 	// default. Walk the pages so a busy deployment seeds completely.
-	listJobsReq := apiClientJobs.NewListJobsParams()
-	pageSize := int64(200)
-	listJobsReq.PageSize = &pageSize
-	var jobs []params.Job
-	page := int64(1)
-	for {
-		listJobsReq.Page = &page
-		jobsResp, err := apiCli.Jobs.ListJobs(listJobsReq, authToken)
-		if err != nil {
-			state.abortSeed()
-			return fmt.Errorf("failed to list jobs: %w", err)
-		}
-		jobs = append(jobs, jobsResp.Payload.Results...)
-		if jobsResp.Payload.NextPage == nil {
-			break
-		}
-		page++
+	jobs, err := fetchAllJobs(apiClientJobs.NewListJobsParams())
+	if err != nil {
+		state.abortSeed()
+		return fmt.Errorf("failed to list jobs: %w", err)
 	}
 
-	listScaleSetJobsReq := apiClientScaleSets.NewListAllScaleSetJobsParams()
-	listScaleSetJobsReq.PageSize = &pageSize
-	var scaleSetJobs []params.ScaleSetJob
-	page = 1
-	for {
-		listScaleSetJobsReq.Page = &page
-		scaleSetJobsResp, err := apiCli.Scalesets.ListAllScaleSetJobs(listScaleSetJobsReq, authToken)
-		if err != nil {
-			state.abortSeed()
-			return fmt.Errorf("failed to list scale set jobs: %w", err)
-		}
-		scaleSetJobs = append(scaleSetJobs, scaleSetJobsResp.Payload.Results...)
-		if scaleSetJobsResp.Payload.NextPage == nil {
-			break
-		}
-		page++
+	scaleSetJobs, err := fetchAllScaleSetJobs(apiClientScaleSets.NewListAllScaleSetJobsParams())
+	if err != nil {
+		state.abortSeed()
+		return fmt.Errorf("failed to list scale set jobs: %w", err)
 	}
 	state.reconcile(instResp.Payload, jobs, scaleSetJobs)
 
