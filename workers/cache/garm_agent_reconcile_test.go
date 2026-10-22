@@ -67,7 +67,7 @@ func newTestStore(t *testing.T) dbCommon.Store {
 	if err != nil {
 		t.Fatalf("failed to create db connection: %v", err)
 	}
-	if _, err := db.InitController(); err != nil {
+	if _, err := db.InitController(context.Background()); err != nil {
 		t.Fatalf("failed to init controller: %v", err)
 	}
 	return db
@@ -124,7 +124,7 @@ func marshalIndex(t *testing.T, index garmUtil.AgentReleaseIndex) []byte {
 
 func storedIndex(t *testing.T, store dbCommon.Store) (garmUtil.AgentReleaseIndex, bool) {
 	t.Helper()
-	info, err := store.ControllerInfo()
+	info, err := store.ControllerInfo(context.Background())
 	if err != nil {
 		t.Fatalf("failed to get controller info: %v", err)
 	}

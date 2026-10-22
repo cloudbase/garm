@@ -32,7 +32,7 @@ import (
 
 func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error) {
 	var templates []Template
-	q := s.conn.Model(&Template{}).Omit("data").Preload("User")
+	q := s.conn.WithContext(ctx).Model(&Template{}).Omit("data").Preload("User")
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
@@ -70,6 +70,7 @@ func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OS
 }
 
 func (s *sqlDatabase) getTemplate(ctx context.Context, tx *gorm.DB, id uint, preload ...string) (Template, error) {
+	tx = tx.WithContext(ctx)
 	var template Template
 	q := tx.Model(&Template{}).Where("id = ?", id)
 
@@ -116,7 +117,7 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 		return params.Template{}, fmt.Errorf("failed to get template: %w", err)
 	}
 	var templates []Template
-	q := s.conn.Model(&Template{}).
+	q := s.conn.WithContext(ctx).Model(&Template{}).
 		Where("name = ?", name).
 		Where("user_id = ? or user_id IS NULL", userID).
 		Preload("ScaleSets").
@@ -178,7 +179,7 @@ func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTem
 		ForgeType:   param.ForgeType,
 	}
 
-	if err := s.conn.Create(&tpl).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Create(&tpl).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return params.Template{}, runnerErrors.NewConflictError("a template name already exists with the specified name")
 		}
@@ -196,7 +197,7 @@ func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.
 		}
 	}()
 	var tpl Template
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		tpl, err = s.getTemplate(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), id)
 		if err != nil {
 			return fmt.Errorf("failed to get template: %w", err)
@@ -252,7 +253,7 @@ func (s *sqlDatabase) DeleteTemplate(ctx context.Context, id uint) (err error) {
 			s.sendNotify(common.TemplateEntityType, common.DeleteOperation, template)
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		tpl, err := s.getTemplate(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), id, "Pools", "ScaleSets")
 		if err != nil {
 			return fmt.Errorf("failed to get template: %w", err)

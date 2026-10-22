@@ -32,6 +32,12 @@ import (
 
 const retryLoopInterval = 5 * time.Second
 
+// storeLoadTimeout bounds the worker's bulk loads from the store. These run
+// with p.mux held, so a query that never returns stalls event handling for
+// every scale set, not just the instance it belongs to. It is more generous
+// than the per instance dbCallTimeout because these scan every row.
+const storeLoadTimeout = 2 * time.Minute
+
 type runnerEntry struct {
 	instance params.Instance
 	manager  *instanceManager
@@ -109,7 +115,10 @@ type Provider struct {
 }
 
 func (p *Provider) loadAllScaleSets() error {
-	scaleSets, err := p.store.ListAllScaleSets(p.ctx)
+	ctx, cancel := context.WithTimeout(p.ctx, storeLoadTimeout)
+	defer cancel()
+
+	scaleSets, err := p.store.ListAllScaleSets(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching scale sets: %w", err)
 	}
@@ -124,7 +133,10 @@ func (p *Provider) loadAllScaleSets() error {
 // care about runners created by scale sets, but in the future, we will migrate
 // the pool manager to the same model.
 func (p *Provider) loadAllRunners() error {
-	runners, err := p.store.ListAllInstances(p.ctx)
+	ctx, cancel := context.WithTimeout(p.ctx, storeLoadTimeout)
+	defer cancel()
+
+	runners, err := p.store.ListAllInstances(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching runners: %w", err)
 	}

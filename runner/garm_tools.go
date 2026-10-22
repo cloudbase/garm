@@ -46,7 +46,7 @@ func (r *Runner) ListGARMAgentReleases(ctx context.Context) (params.GARMAgentRel
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	info, err := r.store.ControllerInfo()
+	info, err := r.store.ControllerInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting controller info: %w", err)
 	}

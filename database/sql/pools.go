@@ -37,10 +37,10 @@ const (
 	entityTypeForgeInstanceName = "forge_instance_id"
 )
 
-func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
+func (s *sqlDatabase) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 	var pools []Pool
 
-	q := s.conn.
+	q := s.conn.WithContext(ctx).
 		Preload("Tags").
 		Preload("Organization").
 		Preload("Organization.Endpoint").
@@ -67,7 +67,7 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	return ret, nil
 }
 
-func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool, error) {
+func (s *sqlDatabase) GetPoolByID(ctx context.Context, poolID string) (params.Pool, error) {
 	preloadList := []string{
 		"Tags",
 		"Instances",
@@ -82,15 +82,15 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 		"Template",
 		"Proxy",
 	}
-	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
+	pool, err := s.getPoolByID(s.conn.WithContext(ctx), poolID, preloadList...)
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("error fetching pool by ID: %w", err)
 	}
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err error) {
-	pool, err := s.getPoolByID(s.conn, poolID)
+func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) (err error) {
+	pool, err := s.getPoolByID(s.conn.WithContext(ctx), poolID)
 	if err != nil {
 		return fmt.Errorf("error fetching pool by ID: %w", err)
 	}
@@ -101,7 +101,7 @@ func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err erro
 		}
 	}()
 
-	if q := s.conn.Unscoped().Delete(&pool); q.Error != nil {
+	if q := s.conn.WithContext(ctx).Unscoped().Delete(&pool); q.Error != nil {
 		return fmt.Errorf("error removing pool: %w", q.Error)
 	}
 
@@ -212,7 +212,7 @@ func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.ForgeEntity
 	return pools, nil
 }
 
-func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) findPoolByTags(ctx context.Context, id string, poolType params.ForgeEntityType, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}
@@ -242,7 +242,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 
 	var pools []Pool
 	where := fmt.Sprintf("LOWER(tags.name) in ? and %s = ? and enabled = true", fieldName)
-	q := s.conn.Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
+	q := s.conn.WithContext(ctx).Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
 		Joins("JOIN tags on tags.id=pool_tags.tag_id").
 		Group("pools.id").
 		Preload("Tags").
@@ -273,12 +273,12 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 	return ret, nil
 }
 
-func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) FindPoolsMatchingAllTags(ctx context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}
 
-	pools, err := s.findPoolByTags(entityID, entityType, tags)
+	pools, err := s.findPoolByTags(ctx, entityID, entityType, tags)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return []params.Pool{}, nil
@@ -340,7 +340,7 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 	case params.ForgeEntityTypeInstance:
 		newPool.ForgeInstanceID = &entityID
 	}
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
 			return fmt.Errorf("error checking entity existence: %w", err)
 		}
@@ -380,7 +380,7 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 	return s.GetPoolByID(ctx, newPool.ID.String())
 }
 
-func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error) {
+func (s *sqlDatabase) GetEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error) {
 	preloadList := []string{
 		"Tags",
 		"Instances",
@@ -395,14 +395,14 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity
 		"Template",
 		"Proxy",
 	}
-	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, preloadList...)
+	pool, err := s.getEntityPool(s.conn.WithContext(ctx), entity.EntityType, entity.ID, poolID, preloadList...)
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("fetching pool: %w", err)
 	}
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (err error) {
+func (s *sqlDatabase) DeleteEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) (err error) {
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
 		return fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
@@ -435,7 +435,7 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEnt
 		return fmt.Errorf("invalid entityType: %v", entity.EntityType)
 	}
 	condition := fmt.Sprintf("id = ? and %s = ?", fieldName)
-	if err := s.conn.Unscoped().Where(condition, poolUUID, entityID).Delete(&Pool{}).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Unscoped().Where(condition, poolUUID, entityID).Delete(&Pool{}).Error; err != nil {
 		return fmt.Errorf("error removing pool: %w", err)
 	}
 	return nil
@@ -448,7 +448,7 @@ func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeE
 			s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		pool, err := s.getEntityPool(tx.Clauses(clause.Locking{Strength: "UPDATE"}), entity.EntityType, entity.ID, poolID, "Tags", "Instances")
 		if err != nil {
 			return fmt.Errorf("error fetching pool: %w", err)
@@ -471,8 +471,8 @@ func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeE
 	return updatedPool, nil
 }
 
-func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.ForgeEntity) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Tags")
+func (s *sqlDatabase) ListEntityPools(ctx context.Context, entity params.ForgeEntity) ([]params.Pool, error) {
+	pools, err := s.listEntityPools(s.conn.WithContext(ctx), entity.EntityType, entity.ID, "Tags")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
@@ -488,8 +488,8 @@ func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.ForgeEnti
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.ForgeEntity) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Instances", "Instances.Job")
+func (s *sqlDatabase) ListEntityInstances(ctx context.Context, entity params.ForgeEntity) ([]params.Instance, error) {
+	pools, err := s.listEntityPools(s.conn.WithContext(ctx), entity.EntityType, entity.ID, "Instances", "Instances.Job")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching entity: %w", err)
 	}

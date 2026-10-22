@@ -106,7 +106,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, conn *gorm.DB,
 	}
 
 	if job.RunnerName != "" {
-		instance, err := s.getInstance(s.ctx, conn, job.RunnerName)
+		instance, err := s.getInstance(ctx, conn, job.RunnerName)
 		if err != nil {
 			// This usually is very normal as not all jobs run on our runners.
 			slog.DebugContext(ctx, "failed to get instance by name", "instance_name", job.RunnerName)
@@ -118,10 +118,10 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, conn *gorm.DB,
 	return workflofJob, nil
 }
 
-func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) error {
+func (s *sqlDatabase) DeleteJob(ctx context.Context, jobID int64) error {
 	var removedJob params.Job
 
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
 		q := tx.Where("workflow_job_id = ?", jobID).Preload("Instance").First(&workflowJob)
 		if q.Error != nil {
@@ -158,7 +158,7 @@ func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) error {
 	return nil
 }
 
-func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) error {
+func (s *sqlDatabase) LockJob(ctx context.Context, jobID int64, entityID string) error {
 	entityUUID, err := uuid.Parse(entityID)
 	if err != nil {
 		return fmt.Errorf("error parsing entity id: %w", err)
@@ -166,7 +166,7 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 
 	var asParams params.Job
 
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("workflow_job_id = ?", jobID).First(&workflowJob)
 
@@ -209,10 +209,10 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 	return nil
 }
 
-func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) error {
+func (s *sqlDatabase) BreakLockJobIsQueued(ctx context.Context, jobID int64) error {
 	var asParams params.Job
 
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("workflow_job_id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
 
@@ -250,10 +250,10 @@ func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) error
 	return nil
 }
 
-func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string) error {
+func (s *sqlDatabase) UnlockJob(ctx context.Context, jobID int64, entityID string) error {
 	var asParams params.Job
 
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("workflow_job_id = ?", jobID).First(&workflowJob)
 
@@ -299,7 +299,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 	var asParams params.Job
 	var operation common.OperationType
 
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
 
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("workflow_job_id = ?", job.WorkflowJobID).First(&workflowJob)
@@ -392,9 +392,9 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 }
 
 // ListJobsByStatus lists all jobs for a given status.
-func (s *sqlDatabase) ListJobsByStatus(_ context.Context, status params.JobStatus) ([]params.Job, error) {
+func (s *sqlDatabase) ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error) {
 	var jobs []WorkflowJob
-	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("status = ?", status)
+	query := s.conn.WithContext(ctx).Model(&WorkflowJob{}).Preload("Instance").Where("status = ?", status)
 
 	if err := query.Find(&jobs); err.Error != nil {
 		return nil, err.Error
@@ -412,14 +412,14 @@ func (s *sqlDatabase) ListJobsByStatus(_ context.Context, status params.JobStatu
 }
 
 // ListEntityJobsByStatus lists all jobs for a given entity type and id.
-func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
+func (s *sqlDatabase) ListEntityJobsByStatus(ctx context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
 		return nil, err
 	}
 
 	var jobs []WorkflowJob
-	query := s.conn.
+	query := s.conn.WithContext(ctx).
 		Model(&WorkflowJob{}).
 		Preload("Instance").
 		Where("status = ?", status)
@@ -453,9 +453,9 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListAllJobs(_ context.Context) ([]params.Job, error) {
+func (s *sqlDatabase) ListAllJobs(ctx context.Context) ([]params.Job, error) {
 	var jobs []WorkflowJob
-	query := s.conn.Model(&WorkflowJob{})
+	query := s.conn.WithContext(ctx).Model(&WorkflowJob{})
 
 	if err := query.
 		Preload("Instance").
@@ -541,9 +541,9 @@ func applyListJobsFilter(q *gorm.DB, filter params.ListJobsFilter) *gorm.DB {
 }
 
 // ListJobs lists webhook jobs, filtered and paginated, newest first.
-func (s *sqlDatabase) ListJobs(_ context.Context, filter params.ListJobsFilter) (params.JobsPaginatedResponse, error) {
+func (s *sqlDatabase) ListJobs(ctx context.Context, filter params.ListJobsFilter) (params.JobsPaginatedResponse, error) {
 	var total int64
-	if err := applyListJobsFilter(s.conn.Model(&WorkflowJob{}), filter).Count(&total).Error; err != nil {
+	if err := applyListJobsFilter(s.conn.WithContext(ctx).Model(&WorkflowJob{}), filter).Count(&total).Error; err != nil {
 		return params.JobsPaginatedResponse{}, fmt.Errorf("counting jobs: %w", err)
 	}
 
@@ -553,7 +553,7 @@ func (s *sqlDatabase) ListJobs(_ context.Context, filter params.ListJobsFilter) 
 	}
 
 	var jobs []WorkflowJob
-	q := applyListJobsFilter(s.conn.Model(&WorkflowJob{}).Preload("Instance"), filter).
+	q := applyListJobsFilter(s.conn.WithContext(ctx).Model(&WorkflowJob{}).Preload("Instance"), filter).
 		Limit(info.limit).
 		Offset(info.offset).
 		Order("id DESC")
@@ -581,9 +581,9 @@ func (s *sqlDatabase) ListJobs(_ context.Context, filter params.ListJobsFilter) 
 }
 
 // GetJobByID gets a job by id.
-func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, error) {
+func (s *sqlDatabase) GetJobByID(ctx context.Context, jobID int64) (params.Job, error) {
 	var job WorkflowJob
-	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("workflow_job_id = ?", jobID)
+	query := s.conn.WithContext(ctx).Model(&WorkflowJob{}).Preload("Instance").Where("workflow_job_id = ?", jobID)
 
 	if err := query.First(&job); err.Error != nil {
 		if errors.Is(err.Error, gorm.ErrRecordNotFound) {
@@ -601,11 +601,11 @@ func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, er
 // When a job transitions from queued to anything else, GARM only uses them for informational
 // purposes. So they are safe to delete.
 // Also deletes completed jobs with GARM runners attached as they are no longer needed.
-func (s *sqlDatabase) DeleteInactionableJobs(_ context.Context, olderThan time.Duration) error {
+func (s *sqlDatabase) DeleteInactionableJobs(ctx context.Context, olderThan time.Duration) error {
 	// Fetch and delete within a transaction to avoid races.
 	var jobs []WorkflowJob
 
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.
 			Model(&WorkflowJob{}).
 			Preload("Instance").

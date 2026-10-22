@@ -42,7 +42,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		}
 	}()
 
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		pool, err := s.getPoolByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), poolID)
 		if err != nil {
 			return fmt.Errorf("error fetching pool: %w", err)
@@ -106,14 +106,14 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	return s.GetInstance(ctx, param.Name)
 }
 
-func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) (Instance, error) {
-	pool, err := s.getPoolByID(s.conn, poolID)
+func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (Instance, error) {
+	pool, err := s.getPoolByID(s.conn.WithContext(ctx), poolID)
 	if err != nil {
 		return Instance{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	var instance Instance
-	q := s.conn.Model(&Instance{}).
+	q := s.conn.WithContext(ctx).Model(&Instance{}).
 		Preload(clause.Associations).
 		Where("name = ? and pool_id = ?", instanceName, pool.ID).
 		First(&instance)
@@ -128,7 +128,8 @@ func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) 
 	return instance, nil
 }
 
-func (s *sqlDatabase) getInstance(_ context.Context, tx *gorm.DB, instanceNameOrID string, preload ...string) (Instance, error) {
+func (s *sqlDatabase) getInstance(ctx context.Context, tx *gorm.DB, instanceNameOrID string, preload ...string) (Instance, error) {
+	tx = tx.WithContext(ctx)
 	var instance Instance
 
 	var whereArg any = instanceNameOrID
@@ -168,8 +169,8 @@ func (s *sqlDatabase) GetInstance(ctx context.Context, instanceName string) (par
 	return s.sqlToParamsInstance(instance)
 }
 
-func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) (err error) {
-	instance, err := s.getPoolInstanceByName(poolID, instanceName)
+func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) (err error) {
+	instance, err := s.getPoolInstanceByName(ctx, poolID, instanceName)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
@@ -202,7 +203,7 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 		}
 	}()
 
-	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
+	if q := s.conn.WithContext(ctx).Unscoped().Delete(&instance); q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
@@ -244,7 +245,7 @@ func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName str
 		}
 	}()
 
-	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
+	if q := s.conn.WithContext(ctx).Unscoped().Delete(&instance); q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
@@ -267,21 +268,21 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 
 	// Use Create instead of Association.Append to avoid loading all existing messages
 	msg.InstanceID = instance.ID
-	if err := s.conn.Create(&msg).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Create(&msg).Error; err != nil {
 		return fmt.Errorf("error adding status message: %w", err)
 	}
 
 	// Keep only the latest 30 status messages to prevent database bloat
 	const maxStatusMessages = 30
 	var count int64
-	if err := s.conn.Model(&InstanceStatusUpdate{}).Where("instance_id = ?", instance.ID).Count(&count).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Model(&InstanceStatusUpdate{}).Where("instance_id = ?", instance.ID).Count(&count).Error; err != nil {
 		return fmt.Errorf("error counting status messages: %w", err)
 	}
 
 	if count > maxStatusMessages {
 		// Get the ID of the 30th most recent message
 		var cutoffMsg InstanceStatusUpdate
-		if err := s.conn.Model(&InstanceStatusUpdate{}).
+		if err := s.conn.WithContext(ctx).Model(&InstanceStatusUpdate{}).
 			Select("id").
 			Where("instance_id = ?", instance.ID).
 			Order("id desc").
@@ -292,7 +293,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 		}
 
 		// Delete all messages older than the cutoff
-		if err := s.conn.Where("instance_id = ? and id < ?", instance.ID, cutoffMsg.ID).Unscoped().Delete(&InstanceStatusUpdate{}).Error; err != nil {
+		if err := s.conn.WithContext(ctx).Where("instance_id = ? and id < ?", instance.ID, cutoffMsg.ID).Unscoped().Delete(&InstanceStatusUpdate{}).Error; err != nil {
 			return fmt.Errorf("error deleting old status messages: %w", err)
 		}
 	}
@@ -406,7 +407,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 
 func (s *sqlDatabase) updateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams, force bool) (params.Instance, error) {
 	var rowsAffected int64
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		instance, err := s.getInstance(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), instanceName, "Pool", "ScaleSet")
 		if err != nil {
 			return fmt.Errorf("error updating instance: %w", err)
@@ -475,9 +476,9 @@ func (s *sqlDatabase) updateInstance(ctx context.Context, instanceName string, p
 // listInstancesBatched is a helper function that retrieves instances in batches
 // and converts them to params.Instance. It accepts a query modifier function
 // to customize the base query (e.g., add WHERE clauses).
-func (s *sqlDatabase) listInstancesBatched(queryModifier func(*gorm.DB) *gorm.DB) ([]params.Instance, error) {
+func (s *sqlDatabase) listInstancesBatched(ctx context.Context, queryModifier func(*gorm.DB) *gorm.DB) ([]params.Instance, error) {
 	ret := []params.Instance{}
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		batchSize := 1000
 		offset := 0
 		for {
@@ -524,13 +525,13 @@ func (s *sqlDatabase) listInstancesBatched(queryModifier func(*gorm.DB) *gorm.DB
 	return ret, err
 }
 
-func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string, outdatedOnly bool) ([]params.Instance, error) {
+func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string, outdatedOnly bool) ([]params.Instance, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
-	ret, err := s.listInstancesBatched(func(query *gorm.DB) *gorm.DB {
+	ret, err := s.listInstancesBatched(ctx, func(query *gorm.DB) *gorm.DB {
 		q := query.Where("pool_id = ?", u)
 		if outdatedOnly {
 			q = q.Where("instances.generation < (SELECT pools.generation FROM pools WHERE pools.id = instances.pool_id)")
@@ -543,22 +544,22 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string, outdat
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
-	ret, err := s.listInstancesBatched(nil)
+func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, error) {
+	ret, err := s.listInstancesBatched(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all instances: %w", err)
 	}
 	return ret, nil
 }
 
-func (s *sqlDatabase) PoolInstanceCount(_ context.Context, poolID string) (int64, error) {
-	pool, err := s.getPoolByID(s.conn, poolID)
+func (s *sqlDatabase) PoolInstanceCount(ctx context.Context, poolID string) (int64, error) {
+	pool, err := s.getPoolByID(s.conn.WithContext(ctx), poolID)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	var cnt int64
-	q := s.conn.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
+	q := s.conn.WithContext(ctx).Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
 	if q.Error != nil {
 		return 0, fmt.Errorf("error fetching instance count: %w", q.Error)
 	}

@@ -52,9 +52,11 @@ const (
 	forgeInstanceFieldName string = "ForgeInstance"
 )
 
-// newDBConn returns a new gorm db connection, given the config
-func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
-	dbType, connURI, err := dbCfg.GormParams()
+// newDBConn returns a new gorm db connection, given the config and the
+// purpose the connection is opened for. The purpose selects the query timeout
+// profile. See config.ConnPurpose.
+func newDBConn(dbCfg config.Database, purpose config.ConnPurpose) (conn *gorm.DB, err error) {
+	dbType, connURI, err := dbCfg.GormParams(purpose)
 	if err != nil {
 		return nil, fmt.Errorf("error getting DB URI string: %w", err)
 	}
@@ -83,8 +85,66 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 	return conn, nil
 }
 
+// openMigrationConn opens a connection for schema migrations and returns it
+// with a function that closes it again. Migrations get their own connection so
+// the runtime statement and lock timeouts cannot abort an AutoMigrate over a
+// large table.
+func openMigrationConn(ctx context.Context, cfg config.Database) (*gorm.DB, func(), error) {
+	conn, err := newDBConn(cfg, config.ConnPurposeMigration)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating migration DB connection: %w", err)
+	}
+
+	sqlDB, err := conn.DB()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get underlying migration database connection: %w", err)
+	}
+	// Migrations are single threaded.
+	sqlDB.SetMaxOpenConns(1)
+
+	return conn, func() {
+		if err := sqlDB.Close(); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to close migration DB connection")
+		}
+	}, nil
+}
+
+// runSchemaMigrations brings the schema up to date over connections it opens
+// and closes itself, before any runtime connection exists.
+func runSchemaMigrations(ctx context.Context, cfg config.Database) error {
+	conn, closeConn, err := openMigrationConn(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeConn()
+
+	// On PostgreSQL the file object tables live in the main database. SQLite
+	// keeps them in a separate file to avoid WAL contention.
+	objectsConn := conn
+	if cfg.DbBackend == config.SQLiteBackend {
+		objectsCfg, err := cfg.SQLiteBlobDatabaseConfig()
+		if err != nil {
+			return fmt.Errorf("failed to get blob DB config: %w", err)
+		}
+		objectsMigrationConn, closeObjectsConn, err := openMigrationConn(ctx, objectsCfg)
+		if err != nil {
+			return err
+		}
+		defer closeObjectsConn()
+		objectsConn = objectsMigrationConn
+	}
+
+	return migrateSchema(ctx, conn, objectsConn)
+}
+
 func NewSQLStore(ctx context.Context, cfg config.Database) (common.Store, error) {
-	conn, err := newDBConn(cfg)
+	// The schema is migrated before any runtime connection exists, over
+	// connections that runSchemaMigrations opens and closes itself.
+	if err := runSchemaMigrations(ctx, cfg); err != nil {
+		return nil, fmt.Errorf("error migrating database: %w", err)
+	}
+
+	conn, err := newDBConn(cfg, config.ConnPurposeRuntime)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DB connection: %w", err)
 	}
@@ -127,7 +187,7 @@ func NewSQLStore(ctx context.Context, cfg config.Database) (common.Store, error)
 			return nil, fmt.Errorf("failed to get blob DB config: %w", err)
 		}
 
-		objectsConn, err := newDBConn(objectsCfg)
+		objectsConn, err := newDBConn(objectsCfg, config.ConnPurposeRuntime)
 		if err != nil {
 			return nil, fmt.Errorf("error creating objects DB connection: %w", err)
 		}
@@ -144,8 +204,8 @@ func NewSQLStore(ctx context.Context, cfg config.Database) (common.Store, error)
 		db.objectsConn = conn
 	}
 
-	if err := db.migrateDB(); err != nil {
-		return nil, fmt.Errorf("error migrating database: %w", err)
+	if err := db.seedDefaults(ctx); err != nil {
+		return nil, fmt.Errorf("error seeding database: %w", err)
 	}
 
 	if cfg.DbBackend == config.SQLiteBackend {
@@ -180,24 +240,25 @@ func (s *sqlDatabase) startSQLiteMaintenance() {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			s.runSQLiteMaintenance(s.conn, "main")
+			s.runSQLiteMaintenance(s.ctx, s.conn, "main")
 			if s.objectsConn != nil {
-				s.runSQLiteMaintenance(s.objectsConn, "objects")
+				s.runSQLiteMaintenance(s.ctx, s.objectsConn, "objects")
 			}
 		}
 	}
 }
 
-func (s *sqlDatabase) runSQLiteMaintenance(conn *gorm.DB, dbName string) {
+func (s *sqlDatabase) runSQLiteMaintenance(ctx context.Context, conn *gorm.DB, dbName string) {
+	conn = conn.WithContext(ctx)
 	if err := conn.Exec("PRAGMA wal_checkpoint(TRUNCATE)").Error; err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to checkpoint WAL", "database", dbName)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to checkpoint WAL", "database", dbName)
 	}
 	if err := conn.Exec("PRAGMA incremental_vacuum").Error; err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to incremental vacuum database", "database", dbName)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to incremental vacuum database", "database", dbName)
 	}
 }
 
-func (s *sqlDatabase) ensureGithubEndpoint() error {
+func (s *sqlDatabase) ensureGithubEndpoint(ctx context.Context) error {
 	// Create the default Github endpoint.
 	createEndpointParams := params.CreateGithubEndpointParams{
 		Name:          "github.com",
@@ -208,14 +269,14 @@ func (s *sqlDatabase) ensureGithubEndpoint() error {
 	}
 
 	var epCount int64
-	if err := s.conn.Model(&GithubEndpoint{}).Count(&epCount).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Model(&GithubEndpoint{}).Count(&epCount).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("error counting github endpoints: %w", err)
 		}
 	}
 
 	if epCount == 0 {
-		if _, err := s.CreateGithubEndpoint(context.Background(), createEndpointParams); err != nil {
+		if _, err := s.CreateGithubEndpoint(ctx, createEndpointParams); err != nil {
 			if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
 				return fmt.Errorf("error creating default github endpoint: %w", err)
 			}
@@ -238,16 +299,16 @@ var fileObjectMigrationOptions = &gormigrate.Options{
 	ValidateUnknownMigrations: gormigrate.DefaultOptions.ValidateUnknownMigrations,
 }
 
-func (s *sqlDatabase) migrateFileObjects() error {
-	if s.objectsConn == nil {
+func migrateFileObjects(ctx context.Context, conn, objectsConn *gorm.DB) error {
+	if objectsConn == nil {
 		return nil
 	}
-	if err := s.migrateLegacyFileObjectTracking(); err != nil {
+	if err := migrateLegacyFileObjectTracking(ctx, conn, objectsConn); err != nil {
 		return fmt.Errorf("error migrating legacy file object tracking table: %w", err)
 	}
-	m := gormigrate.New(s.objectsConn, fileObjectMigrationOptions, migrations.AllFileObjects())
-	if !s.objectsConn.Migrator().HasTable("file_objects") {
-		// See migrateDB for why InitSchema is only used on empty databases.
+	m := gormigrate.New(objectsConn, fileObjectMigrationOptions, migrations.AllFileObjects())
+	if !objectsConn.Migrator().HasTable("file_objects") {
+		// See migrateSchema for why InitSchema is only used on empty databases.
 		m.InitSchema(func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&FileObject{}, &FileBlob{}, &FileObjectTag{})
 		})
@@ -273,21 +334,22 @@ func (s *sqlDatabase) migrateFileObjects() error {
 // (e.g. 0002's swap of idx_fileobject_tags_tag to a functional LOWER(tag)
 // index) would be silently skipped, and the risk would compound with every
 // new file-object migration added to the branch.
-func (s *sqlDatabase) migrateLegacyFileObjectTracking() error {
-	if s.objectsConn == s.conn {
+func migrateLegacyFileObjectTracking(ctx context.Context, conn, objectsConn *gorm.DB) error {
+	if objectsConn == conn {
 		return nil
 	}
-	migrator := s.objectsConn.Migrator()
+	objectsConn = objectsConn.WithContext(ctx)
+	migrator := objectsConn.Migrator()
 	if migrator.HasTable("file_object_migrations") {
 		return nil
 	}
 	if !migrator.HasTable("migrations") {
 		return nil
 	}
-	return s.objectsConn.Exec("ALTER TABLE migrations RENAME TO file_object_migrations").Error
+	return objectsConn.Exec("ALTER TABLE migrations RENAME TO file_object_migrations").Error
 }
 
-func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
+func (s *sqlDatabase) ensureTemplates(ctx context.Context, migrateTemplates bool) error {
 	if !migrateTemplates {
 		return nil
 	}
@@ -312,7 +374,7 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 		return fmt.Errorf("failed to get windows template for gitea: %w", err)
 	}
 
-	adminCtx := auth.GetAdminContext(s.ctx)
+	adminCtx := auth.GetAdminContext(ctx)
 
 	githubWindowsParams := params.CreateTemplateParams{
 		Name:        "github_windows",
@@ -365,7 +427,7 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 	return nil
 }
 
-func (s *sqlDatabase) initSchema(tx *gorm.DB) error {
+func initSchema(tx *gorm.DB) error {
 	if err := tx.AutoMigrate(
 		&User{},
 		&GithubEndpoint{},
@@ -396,34 +458,44 @@ func (s *sqlDatabase) initSchema(tx *gorm.DB) error {
 	return nil
 }
 
-func (s *sqlDatabase) migrateDB() error {
-	m := gormigrate.New(s.conn, gormigrate.DefaultOptions, migrations.All())
-	if !s.conn.Migrator().HasTable("users") {
+// migrateDB brings the schema up to date using schemaConn, then seeds default
+// data over the runtime connection. Only the schema work needs to escape the
+// runtime query timeouts. The seeding is a handful of small statements.
+// migrateSchema brings the schema up to date over the given connections.
+// objectsConn is where the file object tables live, which is the same
+// connection on PostgreSQL and a separate database on SQLite.
+func migrateSchema(ctx context.Context, conn, objectsConn *gorm.DB) error {
+	m := gormigrate.New(conn, gormigrate.DefaultOptions, migrations.All())
+	if !conn.Migrator().HasTable("users") {
 		// Empty database; create the schema in one step. A populated
 		// database without migration records predates gormigrate (v0.2.1
 		// or older) and must run the numbered migrations instead: its
 		// schema matches the 0001_baseline marker, and 0002 onwards bring
 		// it up to date.
-		m.InitSchema(s.initSchema)
+		m.InitSchema(initSchema)
 	}
 
 	if err := m.Migrate(); err != nil {
 		return fmt.Errorf("error running migrations: %w", err)
 	}
 
-	// Migrate file object tables in the separate objects database
-	if err := s.migrateFileObjects(); err != nil {
+	if err := migrateFileObjects(ctx, conn, objectsConn); err != nil {
 		return fmt.Errorf("error migrating file objects: %w", err)
 	}
 
-	// Seed default data
-	if err := s.ensureGithubEndpoint(); err != nil {
+	return nil
+}
+
+// seedDefaults creates the rows a fresh install needs. It runs over the
+// store's own connection, since it goes through the normal store methods.
+func (s *sqlDatabase) seedDefaults(ctx context.Context) error {
+	if err := s.ensureGithubEndpoint(ctx); err != nil {
 		return fmt.Errorf("error ensuring github endpoint: %w", err)
 	}
 
 	var tplCount int64
-	s.conn.Model(&Template{}).Count(&tplCount)
-	if err := s.ensureTemplates(tplCount == 0); err != nil {
+	s.conn.WithContext(ctx).Model(&Template{}).Count(&tplCount)
+	if err := s.ensureTemplates(ctx, tplCount == 0); err != nil {
 		return fmt.Errorf("failed to create default templates: %w", err)
 	}
 

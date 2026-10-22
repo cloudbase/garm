@@ -331,7 +331,7 @@ func (g *garmToolsSync) persistIndex(index garmUtil.AgentReleaseIndex) error {
 	if err != nil {
 		return err
 	}
-	if err := g.store.UpdateCachedGARMAgentReleases(data, time.Now()); err != nil {
+	if err := g.store.UpdateCachedGARMAgentReleases(g.ctx, data, time.Now()); err != nil {
 		return fmt.Errorf("failed to update cached release index: %w", err)
 	}
 	slog.InfoContext(g.ctx, "updated GARM agent release index",

@@ -211,7 +211,7 @@ func (s *sqlDatabase) createFileObjectPostgres(ctx context.Context, param params
 	fileObj.SHA256 = sha256sum
 
 	var fileBlob FileBlob
-	err = s.objectsConn.Transaction(func(tx *gorm.DB) error {
+	err = s.objectsConn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&fileObj).Error; err != nil {
 			return fmt.Errorf("failed to create file object: %w", err)
 		}
@@ -236,13 +236,13 @@ func (s *sqlDatabase) createFileObjectPostgres(ctx context.Context, param params
 	if err != nil {
 		// Best-effort cleanup of the orphaned Large Object. Log on failure so the
 		// OID can be recovered manually via vacuumlo if needed.
-		if unlinkErr := s.objectsConn.Exec("SELECT lo_unlink(?)", oid).Error; unlinkErr != nil {
+		if unlinkErr := s.objectsConn.WithContext(ctx).Exec("SELECT lo_unlink(?)", oid).Error; unlinkErr != nil {
 			slog.With(slog.Any("error", unlinkErr)).Error("failed to clean up orphaned large object", "oid", oid)
 		}
 		return params.FileObject{}, fmt.Errorf("failed to create database entry for blob: %w", err)
 	}
 
-	if err := s.objectsConn.Preload("TagsList").Omit("content").First(&fileObj, fileObj.ID).Error; err != nil {
+	if err := s.objectsConn.WithContext(ctx).Preload("TagsList").Omit("content").First(&fileObj, fileObj.ID).Error; err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to get file object: %w", err)
 	}
 	return s.sqlFileObjectToCommonParams(fileObj), nil
@@ -256,7 +256,7 @@ func (s *sqlDatabase) createFileObjectSQLite(ctx context.Context, param params.C
 		return params.FileObject{}, fmt.Errorf("failed to seek tmp file: %w", err)
 	}
 	var fileBlob FileBlob
-	err := s.objectsConn.Transaction(func(tx *gorm.DB) error {
+	err := s.objectsConn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&fileObj).Error; err != nil {
 			return fmt.Errorf("failed to create file object: %w", err)
 		}
@@ -298,17 +298,17 @@ func (s *sqlDatabase) createFileObjectSQLite(ctx context.Context, param params.C
 		return params.FileObject{}, err
 	}
 
-	if err := s.objectsConn.Model(&fileObj).Update("sha256", sha256sum).Error; err != nil {
+	if err := s.objectsConn.WithContext(ctx).Model(&fileObj).Update("sha256", sha256sum).Error; err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to update sha256sum: %w", err)
 	}
 
-	if err := s.objectsConn.Preload("TagsList").Omit("content").First(&fileObj, fileObj.ID).Error; err != nil {
+	if err := s.objectsConn.WithContext(ctx).Preload("TagsList").Omit("content").First(&fileObj, fileObj.ID).Error; err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to get file object: %w", err)
 	}
 	return s.sqlFileObjectToCommonParams(fileObj), nil
 }
 
-func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param params.UpdateFileObjectParams) (fileObjParam params.FileObject, err error) {
+func (s *sqlDatabase) UpdateFileObject(ctx context.Context, objID uint, param params.UpdateFileObjectParams) (fileObjParam params.FileObject, err error) {
 	if err := param.Validate(); err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to validate update params: %w", err)
 	}
@@ -321,7 +321,7 @@ func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param para
 	}()
 
 	var fileObj FileObject
-	err = s.objectsConn.Transaction(func(tx *gorm.DB) error {
+	err = s.objectsConn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", objID).Omit("content").First(&fileObj).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return runnerErrors.NewNotFoundError("could not find file object with ID: %d", objID)
@@ -385,7 +385,7 @@ func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param para
 	return s.sqlFileObjectToCommonParams(fileObj), nil
 }
 
-func (s *sqlDatabase) DeleteFileObject(_ context.Context, objID uint) (err error) {
+func (s *sqlDatabase) DeleteFileObject(ctx context.Context, objID uint) (err error) {
 	var fileObjParam params.FileObject
 	var noop bool
 	defer func() {
@@ -395,7 +395,7 @@ func (s *sqlDatabase) DeleteFileObject(_ context.Context, objID uint) (err error
 	}()
 
 	var fileObj FileObject
-	err = s.objectsConn.Transaction(func(tx *gorm.DB) error {
+	err = s.objectsConn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ?", objID).Omit("content").First(&fileObj).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return runnerErrors.ErrNotFound
@@ -427,14 +427,14 @@ func (s *sqlDatabase) DeleteFileObject(_ context.Context, objID uint) (err error
 	return nil
 }
 
-func (s *sqlDatabase) DeleteFileObjectsByTags(_ context.Context, tags []string) (int64, error) {
+func (s *sqlDatabase) DeleteFileObjectsByTags(ctx context.Context, tags []string) (int64, error) {
 	if len(tags) == 0 {
 		return 0, fmt.Errorf("no tags provided")
 	}
 
 	var deletedCount int64
 
-	err := s.objectsConn.Transaction(func(tx *gorm.DB) error {
+	err := s.objectsConn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Build query to find all file objects matching ALL tags
 		query := tx.Model(&FileObject{}).Preload("TagsList").Omit("content")
 		for _, tag := range tags {
@@ -486,9 +486,9 @@ func (s *sqlDatabase) DeleteFileObjectsByTags(_ context.Context, tags []string) 
 	return deletedCount, nil
 }
 
-func (s *sqlDatabase) GetFileObject(_ context.Context, objID uint) (params.FileObject, error) {
+func (s *sqlDatabase) GetFileObject(ctx context.Context, objID uint) (params.FileObject, error) {
 	var fileObj FileObject
-	if err := s.objectsConn.Preload("TagsList").Where("id = ?", objID).Omit("content").First(&fileObj).Error; err != nil {
+	if err := s.objectsConn.WithContext(ctx).Preload("TagsList").Where("id = ?", objID).Omit("content").First(&fileObj).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return params.FileObject{}, runnerErrors.NewNotFoundError("could not find file object with ID: %d", objID)
 		}
@@ -497,7 +497,7 @@ func (s *sqlDatabase) GetFileObject(_ context.Context, objID uint) (params.FileO
 	return s.sqlFileObjectToCommonParams(fileObj), nil
 }
 
-func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
+func (s *sqlDatabase) SearchFileObjectByTags(ctx context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
 	if page == 0 {
 		page = 1
 	}
@@ -506,7 +506,7 @@ func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, p
 	}
 
 	var fileObjectRes []FileObject
-	query := s.objectsConn.Model(&FileObject{}).Preload("TagsList").Omit("content")
+	query := s.objectsConn.WithContext(ctx).Model(&FileObject{}).Preload("TagsList").Omit("content")
 	for _, t := range tags {
 		query = query.Where("EXISTS (SELECT 1 FROM file_object_tags WHERE file_object_tags.file_object_id = file_objects.id AND LOWER(file_object_tags.tag) = LOWER(?))", t)
 	}
@@ -575,7 +575,7 @@ func (s *sqlDatabase) OpenFileObjectContent(ctx context.Context, objID uint) (io
 	// With MaxOpenConns(1), pinning the connection before this query would
 	// deadlock because GORM needs the same pooled connection.
 	var fileBlob FileBlob
-	if err := s.objectsConn.Where("file_object_id = ?", objID).Omit("content").First(&fileBlob).Error; err != nil {
+	if err := s.objectsConn.WithContext(ctx).Where("file_object_id = ?", objID).Omit("content").First(&fileBlob).Error; err != nil {
 		return nil, fmt.Errorf("failed to get file blob: %w", err)
 	}
 
@@ -706,7 +706,7 @@ func (b *blobReadCloser) Close() error {
 	return connErr
 }
 
-func (s *sqlDatabase) ListFileObjects(_ context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
+func (s *sqlDatabase) ListFileObjects(ctx context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
 	if page == 0 {
 		page = 1
 	}
@@ -715,7 +715,7 @@ func (s *sqlDatabase) ListFileObjects(_ context.Context, page, pageSize uint64) 
 	}
 
 	var total int64
-	if err := s.objectsConn.Model(&FileObject{}).Count(&total).Error; err != nil {
+	if err := s.objectsConn.WithContext(ctx).Model(&FileObject{}).Count(&total).Error; err != nil {
 		return params.FileObjectPaginatedResponse{}, fmt.Errorf("failed to count file objects: %w", err)
 	}
 
@@ -739,7 +739,7 @@ func (s *sqlDatabase) ListFileObjects(_ context.Context, page, pageSize uint64) 
 	}
 
 	var fileObjs []FileObject
-	if err := s.objectsConn.Preload("TagsList").Omit("content").
+	if err := s.objectsConn.WithContext(ctx).Preload("TagsList").Omit("content").
 		Limit(queryPageSize).
 		Offset(queryOffset).
 		Order("id DESC").

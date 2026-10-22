@@ -14,6 +14,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -21,18 +22,21 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+// providerHelper is the instance manager's view of the store. Every method
+// that reaches the database takes a context. The caller owns the deadline,
+// because it is the caller that is stranded if the query never returns.
 type providerHelper interface {
-	SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error
+	SetInstanceStatus(ctx context.Context, instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error
 	InstanceTokenGetter() auth.InstanceTokenGetter
-	persistProviderInstanceState(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
-	GetControllerInfo() (params.ControllerInfo, error)
-	GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error)
+	persistProviderInstanceState(ctx context.Context, instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
+	GetControllerInfo(ctx context.Context) (params.ControllerInfo, error)
+	GetGithubEntity(ctx context.Context, entity params.ForgeEntity) (params.ForgeEntity, error)
 }
 
 // persistProviderInstanceState commits the provider-reported state of an
 // instance (provider ID, addresses, OS info, status) to the store and returns
 // the full post-commit instance as re-read from the database.
-func (p *Provider) persistProviderInstanceState(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
+func (p *Provider) persistProviderInstanceState(ctx context.Context, instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		ProviderID:    providerInstance.ProviderID,
 		OSName:        providerInstance.OSName,
@@ -42,15 +46,15 @@ func (p *Provider) persistProviderInstanceState(instanceName string, providerIns
 		ProviderFault: providerInstance.ProviderFault,
 	}
 
-	updated, err := p.store.UpdateInstance(p.ctx, instanceName, updateParams)
+	updated, err := p.store.UpdateInstance(ctx, instanceName, updateParams)
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("updating instance %s: %w", instanceName, err)
 	}
 	return updated, nil
 }
 
-func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
-	info, err := p.store.ControllerInfo()
+func (p *Provider) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
+	info, err := p.store.ControllerInfo(ctx)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("getting controller info: %w", err)
 	}
@@ -58,7 +62,7 @@ func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
 	return info, nil
 }
 
-func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error {
+func (p *Provider) SetInstanceStatus(ctx context.Context, instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error {
 	updateParams := params.UpdateInstanceParams{
 		Status:        status,
 		ProviderFault: providerFault,
@@ -67,9 +71,9 @@ func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.In
 	var err error
 	switch force {
 	case true:
-		_, err = p.store.ForceUpdateInstance(p.ctx, instanceName, updateParams)
+		_, err = p.store.ForceUpdateInstance(ctx, instanceName, updateParams)
 	default:
-		_, err = p.store.UpdateInstance(p.ctx, instanceName, updateParams)
+		_, err = p.store.UpdateInstance(ctx, instanceName, updateParams)
 	}
 	if err != nil {
 		return fmt.Errorf("updating instance %s: %w", instanceName, err)
@@ -82,8 +86,8 @@ func (p *Provider) InstanceTokenGetter() auth.InstanceTokenGetter {
 	return p.tokenGetter
 }
 
-func (p *Provider) GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error) {
-	ghEntity, err := p.store.GetForgeEntity(p.ctx, entity.EntityType, entity.ID)
+func (p *Provider) GetGithubEntity(ctx context.Context, entity params.ForgeEntity) (params.ForgeEntity, error) {
+	ghEntity, err := p.store.GetForgeEntity(ctx, entity.EntityType, entity.ID)
 	if err != nil {
 		return params.ForgeEntity{}, fmt.Errorf("getting github entity: %w", err)
 	}

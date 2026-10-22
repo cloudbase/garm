@@ -28,14 +28,14 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+func (s *sqlDatabase) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.CreateOperation, ghEndpoint)
 		}
 	}()
 	var endpoint GithubEndpoint
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("LOWER(name) = LOWER(?)", param.Name).First(&endpoint).Error; err == nil {
 			return fmt.Errorf("error github endpoint already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
@@ -64,9 +64,9 @@ func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.Creat
 	return ghEndpoint, nil
 }
 
-func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.ForgeEndpoint, error) {
+func (s *sqlDatabase) ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
 	var endpoints []GithubEndpoint
-	err := s.conn.Where("endpoint_type = ?", params.GithubEndpointType).Find(&endpoints).Error
+	err := s.conn.WithContext(ctx).Where("endpoint_type = ?", params.GithubEndpointType).Find(&endpoints).Error
 	if err != nil {
 		return nil, fmt.Errorf("error fetching github endpoints: %w", err)
 	}
@@ -82,7 +82,7 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.ForgeEndp
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+func (s *sqlDatabase) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	var rowsAffected int64
 	defer func() {
 		if err == nil && rowsAffected > 0 {
@@ -90,7 +90,7 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 		}
 	}()
 	var endpoint GithubEndpoint
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("error github endpoint not found: %w", runnerErrors.ErrNotFound)
@@ -159,10 +159,10 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 	return ghEndpoint, nil
 }
 
-func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error) {
+func (s *sqlDatabase) GetGithubEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
 	var endpoint GithubEndpoint
 
-	err := s.conn.Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error
+	err := s.conn.WithContext(ctx).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return params.ForgeEndpoint{}, fmt.Errorf("github endpoint not found: %w", runnerErrors.ErrNotFound)
@@ -173,13 +173,13 @@ func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.
 	return s.sqlToCommonGithubEndpoint(endpoint)
 }
 
-func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err error) {
+func (s *sqlDatabase) DeleteGithubEndpoint(ctx context.Context, name string) (err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.ForgeEndpoint{Name: name})
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -246,7 +246,7 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 		}
 	}()
 	var creds GithubCredentials
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", param.Endpoint, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -303,6 +303,7 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 }
 
 func (s *sqlDatabase) getGithubCredentialsByName(ctx context.Context, tx *gorm.DB, name string, detailed bool) (GithubCredentials, error) {
+	tx = tx.WithContext(ctx)
 	var creds GithubCredentials
 	q := tx.Preload("Endpoint")
 
@@ -343,7 +344,7 @@ func (s *sqlDatabase) GetGithubCredentialsByName(ctx context.Context, name strin
 
 func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error) {
 	var creds GithubCredentials
-	q := s.conn.Preload("Endpoint")
+	q := s.conn.WithContext(ctx).Preload("Endpoint")
 
 	if detailed {
 		q = q.
@@ -375,7 +376,7 @@ func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detaile
 }
 
 func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
-	q := s.conn.Preload("Endpoint")
+	q := s.conn.WithContext(ctx).Preload("Endpoint")
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
@@ -409,7 +410,7 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 		}
 	}()
 	var creds GithubCredentials
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Endpoint")
 		if !auth.IsAdmin(ctx) {
 			userID, err := getUIDFromContext(ctx)
@@ -500,7 +501,7 @@ func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) (err
 			s.sendNotify(common.GithubCredentialsEntityType, common.DeleteOperation, params.ForgeCredentials{ID: id, Name: name, ForgeType: params.GithubEndpointType})
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).
 			Preload("Repositories").
 			Preload("Organizations").

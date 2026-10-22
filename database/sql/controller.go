@@ -15,6 +15,7 @@
 package sql
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -102,9 +103,9 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 	return ret, nil
 }
 
-func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
+func (s *sqlDatabase) ControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
 	var info ControllerInfo
-	q := s.conn.Model(&ControllerInfo{}).First(&info)
+	q := s.conn.WithContext(ctx).Model(&ControllerInfo{}).First(&info)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return params.ControllerInfo{}, fmt.Errorf("error fetching controller info: %w", runnerErrors.ErrNotFound)
@@ -120,26 +121,26 @@ func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
 	return paramInfo, nil
 }
 
-func (s *sqlDatabase) HasEntitiesWithAgentModeEnabled() (bool, error) {
+func (s *sqlDatabase) HasEntitiesWithAgentModeEnabled(ctx context.Context) (bool, error) {
 	var reposCnt int64
-	if err := s.conn.Model(&Repository{}).Where("agent_mode = ?", true).Count(&reposCnt).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Model(&Repository{}).Where("agent_mode = ?", true).Count(&reposCnt).Error; err != nil {
 		return false, fmt.Errorf("error fetching repo count: %w", err)
 	}
 
 	var orgCount int64
-	if err := s.conn.Model(&Organization{}).Where("agent_mode = ?", true).Count(&orgCount).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Model(&Organization{}).Where("agent_mode = ?", true).Count(&orgCount).Error; err != nil {
 		return false, fmt.Errorf("error fetching repo count: %w", err)
 	}
 
 	var enterpriseCount int64
-	if err := s.conn.Model(&Enterprise{}).Where("agent_mode = ?", true).Count(&enterpriseCount).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Model(&Enterprise{}).Where("agent_mode = ?", true).Count(&enterpriseCount).Error; err != nil {
 		return false, fmt.Errorf("error fetching repo count: %w", err)
 	}
 	return reposCnt+orgCount+enterpriseCount > 0, nil
 }
 
-func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
-	if _, err := s.ControllerInfo(); err == nil {
+func (s *sqlDatabase) InitController(ctx context.Context) (params.ControllerInfo, error) {
+	if _, err := s.ControllerInfo(ctx); err == nil {
 		return params.ControllerInfo{}, runnerErrors.NewConflictError("controller already initialized")
 	}
 
@@ -154,7 +155,7 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 		GARMAgentReleasesURL: appdefaults.GARMAgentDefaultReleasesURL,
 	}
 
-	q := s.conn.Save(&newInfo)
+	q := s.conn.WithContext(ctx).Save(&newInfo)
 	if q.Error != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error saving controller info: %w", q.Error)
 	}
@@ -229,7 +230,7 @@ func controllerUpdates(info params.UpdateControllerParams, dbInfo ControllerInfo
 	return updates
 }
 
-func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
+func (s *sqlDatabase) UpdateController(ctx context.Context, info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
 	var rowsAffected int64
 	defer func() {
 		if err == nil && rowsAffected > 0 {
@@ -237,7 +238,7 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 		}
 	}()
 	var dbInfo ControllerInfo
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.Model(&ControllerInfo{}).Clauses(clause.Locking{Strength: "UPDATE"}).First(&dbInfo)
 		if q.Error != nil {
 			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -272,10 +273,10 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 
 // UpdateCachedGARMAgentReleases persists the release index (a marshaled
 // util.AgentReleaseIndex) fetched from the controller's releases URL.
-func (s *sqlDatabase) UpdateCachedGARMAgentReleases(index []byte, fetchedAt time.Time) error {
+func (s *sqlDatabase) UpdateCachedGARMAgentReleases(ctx context.Context, index []byte, fetchedAt time.Time) error {
 	var dbInfo ControllerInfo
 	var rowsAffected int64
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.Model(&ControllerInfo{}).Clauses(clause.Locking{Strength: "UPDATE"}).First(&dbInfo)
 		if q.Error != nil {
 			if errors.Is(q.Error, gorm.ErrRecordNotFound) {

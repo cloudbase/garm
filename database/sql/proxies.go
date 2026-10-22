@@ -87,9 +87,9 @@ func (s *sqlDatabase) hasProxy(tx *gorm.DB, id uint) error {
 	return nil
 }
 
-func (s *sqlDatabase) ListProxies(_ context.Context) ([]params.Proxy, error) {
+func (s *sqlDatabase) ListProxies(ctx context.Context) ([]params.Proxy, error) {
 	var proxies []Proxy
-	q := s.conn.Model(&Proxy{}).Find(&proxies)
+	q := s.conn.WithContext(ctx).Model(&Proxy{}).Find(&proxies)
 	if q.Error != nil {
 		return nil, fmt.Errorf("failed to list proxies: %w", q.Error)
 	}
@@ -122,8 +122,8 @@ func (s *sqlDatabase) getProxy(tx *gorm.DB, id uint, preload ...string) (Proxy, 
 	return proxy, nil
 }
 
-func (s *sqlDatabase) GetProxy(_ context.Context, id uint) (params.Proxy, error) {
-	proxy, err := s.getProxy(s.conn, id)
+func (s *sqlDatabase) GetProxy(ctx context.Context, id uint) (params.Proxy, error) {
+	proxy, err := s.getProxy(s.conn.WithContext(ctx), id)
 	if err != nil {
 		return params.Proxy{}, fmt.Errorf("failed to get proxy: %w", err)
 	}
@@ -135,9 +135,9 @@ func (s *sqlDatabase) GetProxy(_ context.Context, id uint) (params.Proxy, error)
 	return ret, nil
 }
 
-func (s *sqlDatabase) GetProxyByName(_ context.Context, name string) (params.Proxy, error) {
+func (s *sqlDatabase) GetProxyByName(ctx context.Context, name string) (params.Proxy, error) {
 	var proxy Proxy
-	q := s.conn.Model(&Proxy{}).Where("LOWER(name) = LOWER(?)", name).First(&proxy)
+	q := s.conn.WithContext(ctx).Model(&Proxy{}).Where("LOWER(name) = LOWER(?)", name).First(&proxy)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return params.Proxy{}, runnerErrors.ErrNotFound
@@ -152,7 +152,7 @@ func (s *sqlDatabase) GetProxyByName(_ context.Context, name string) (params.Pro
 	return ret, nil
 }
 
-func (s *sqlDatabase) CreateProxy(_ context.Context, param params.CreateProxyParams) (proxy params.Proxy, err error) {
+func (s *sqlDatabase) CreateProxy(ctx context.Context, param params.CreateProxyParams) (proxy params.Proxy, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.ProxyEntityType, common.CreateOperation, proxy)
@@ -176,7 +176,7 @@ func (s *sqlDatabase) CreateProxy(_ context.Context, param params.CreateProxyPar
 		Credentials: sealed,
 	}
 
-	if err := s.conn.Create(&newProxy).Error; err != nil {
+	if err := s.conn.WithContext(ctx).Create(&newProxy).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return params.Proxy{}, runnerErrors.NewConflictError("a proxy already exists with the specified name")
 		}
@@ -224,7 +224,7 @@ func (s *sqlDatabase) updateProxyCredentials(dbProxy *Proxy, param params.Update
 	return true, nil
 }
 
-func (s *sqlDatabase) UpdateProxy(_ context.Context, id uint, param params.UpdateProxyParams) (proxy params.Proxy, err error) {
+func (s *sqlDatabase) UpdateProxy(ctx context.Context, id uint, param params.UpdateProxyParams) (proxy params.Proxy, err error) {
 	var hasChange bool
 	defer func() {
 		if err == nil && hasChange {
@@ -235,7 +235,7 @@ func (s *sqlDatabase) UpdateProxy(_ context.Context, id uint, param params.Updat
 		return params.Proxy{}, fmt.Errorf("failed to validate update params: %w", err)
 	}
 
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		dbProxy, err := s.getProxy(tx.Clauses(clause.Locking{Strength: "UPDATE"}), id)
 		if err != nil {
 			return fmt.Errorf("failed to get proxy: %w", err)
@@ -305,7 +305,7 @@ func (s *sqlDatabase) UpdateProxy(_ context.Context, id uint, param params.Updat
 	return proxy, nil
 }
 
-func (s *sqlDatabase) DeleteProxy(_ context.Context, id uint) (err error) {
+func (s *sqlDatabase) DeleteProxy(ctx context.Context, id uint) (err error) {
 	var proxy params.Proxy
 
 	defer func() {
@@ -313,7 +313,7 @@ func (s *sqlDatabase) DeleteProxy(_ context.Context, id uint) (err error) {
 			s.sendNotify(common.ProxyEntityType, common.DeleteOperation, proxy)
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		dbProxy, err := s.getProxy(tx.Clauses(clause.Locking{Strength: "UPDATE"}), id, "Pools", "ScaleSets")
 		if err != nil {
 			return fmt.Errorf("failed to get proxy: %w", err)

@@ -29,7 +29,7 @@ import (
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
-func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.CreateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+func (s *sqlDatabase) CreateGiteaEndpoint(ctx context.Context, param params.CreateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	if param.ToolsMetadataURL == "" {
 		param.ToolsMetadataURL = appdefaults.GiteaRunnerReleasesURL
 	}
@@ -39,7 +39,7 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 		}
 	}()
 	var endpoint GithubEndpoint
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("LOWER(name) = LOWER(?)", param.Name).First(&endpoint).Error; err == nil {
 			return fmt.Errorf("gitea endpoint already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
@@ -71,9 +71,9 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 	return ghEndpoint, nil
 }
 
-func (s *sqlDatabase) ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpoint, error) {
+func (s *sqlDatabase) ListGiteaEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
 	var endpoints []GithubEndpoint
-	err := s.conn.Where("endpoint_type = ?", params.GiteaEndpointType).Find(&endpoints).Error
+	err := s.conn.WithContext(ctx).Where("endpoint_type = ?", params.GiteaEndpointType).Find(&endpoints).Error
 	if err != nil {
 		return nil, fmt.Errorf("error fetching gitea endpoints: %w", err)
 	}
@@ -89,7 +89,7 @@ func (s *sqlDatabase) ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpo
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param params.UpdateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+func (s *sqlDatabase) UpdateGiteaEndpoint(ctx context.Context, name string, param params.UpdateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	var rowsAffected int64
 	defer func() {
 		if err == nil && rowsAffected > 0 {
@@ -97,7 +97,7 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 		}
 	}()
 	var endpoint GithubEndpoint
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return runnerErrors.NewNotFoundError("gitea endpoint %q not found", name)
@@ -165,9 +165,9 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 	return ghEndpoint, nil
 }
 
-func (s *sqlDatabase) GetGiteaEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error) {
+func (s *sqlDatabase) GetGiteaEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
 	var endpoint GithubEndpoint
-	err := s.conn.Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error
+	err := s.conn.WithContext(ctx).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return params.ForgeEndpoint{}, runnerErrors.NewNotFoundError("gitea endpoint %q not found", name)
@@ -178,13 +178,13 @@ func (s *sqlDatabase) GetGiteaEndpoint(_ context.Context, name string) (params.F
 	return s.sqlToCommonGithubEndpoint(endpoint)
 }
 
-func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err error) {
+func (s *sqlDatabase) DeleteGiteaEndpoint(ctx context.Context, name string) (err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.ForgeEndpoint{Name: name})
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -244,7 +244,7 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		}
 	}()
 	var creds GiteaCredentials
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", param.Endpoint, params.GiteaEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -297,6 +297,7 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 }
 
 func (s *sqlDatabase) getGiteaCredentialsByName(ctx context.Context, tx *gorm.DB, name string, detailed bool) (GiteaCredentials, error) {
+	tx = tx.WithContext(ctx)
 	var creds GiteaCredentials
 	q := tx.Preload("Endpoint")
 
@@ -338,7 +339,7 @@ func (s *sqlDatabase) GetGiteaCredentialsByName(ctx context.Context, name string
 
 func (s *sqlDatabase) GetGiteaCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error) {
 	var creds GiteaCredentials
-	q := s.conn.Preload("Endpoint")
+	q := s.conn.WithContext(ctx).Preload("Endpoint")
 
 	if detailed {
 		q = q.
@@ -370,7 +371,7 @@ func (s *sqlDatabase) GetGiteaCredentials(ctx context.Context, id uint, detailed
 }
 
 func (s *sqlDatabase) ListGiteaCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
-	q := s.conn.Preload("Endpoint")
+	q := s.conn.WithContext(ctx).Preload("Endpoint")
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
@@ -404,7 +405,7 @@ func (s *sqlDatabase) UpdateGiteaCredentials(ctx context.Context, id uint, param
 		}
 	}()
 	var creds GiteaCredentials
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Endpoint")
 		if !auth.IsAdmin(ctx) {
 			userID, err := getUIDFromContext(ctx)
@@ -478,7 +479,7 @@ func (s *sqlDatabase) DeleteGiteaCredentials(ctx context.Context, id uint) (err 
 			s.sendNotify(common.GiteaCredentialsEntityType, common.DeleteOperation, params.ForgeCredentials{ID: creds.ID, Name: creds.Name, ForgeType: params.GiteaEndpointType})
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).
 			Preload("Repositories").
 			Preload("Organizations")

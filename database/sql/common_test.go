@@ -108,8 +108,12 @@ func newSQLStoreFromSQLDB(ctx context.Context, sqlDB *dbsql.DB, cfg config.Datab
 		producer:    producer,
 	}
 
-	if err := db.migrateDB(); err != nil {
+	if err := migrateSchema(ctx, conn, conn); err != nil {
 		return nil, fmt.Errorf("error migrating database: %w", err)
+	}
+
+	if err := db.seedDefaults(ctx); err != nil {
+		return nil, fmt.Errorf("error seeding database: %w", err)
 	}
 
 	return db, nil

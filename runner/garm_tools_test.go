@@ -467,7 +467,7 @@ func TestGARMToolsTestSuite(t *testing.T) {
 }
 
 func (s *GARMToolsTestSuite) TestListGARMAgentReleases() {
-	_, err := s.Store.InitController()
+	_, err := s.Store.InitController(s.AdminContext)
 	s.Require().NoError(err)
 
 	index := garmUtil.AgentReleaseIndex{
@@ -492,10 +492,10 @@ func (s *GARMToolsTestSuite) TestListGARMAgentReleases() {
 	}
 	data, err := garmUtil.MarshalReleaseIndex(index)
 	s.Require().NoError(err)
-	s.Require().NoError(s.Store.UpdateCachedGARMAgentReleases(data, time.Now()))
+	s.Require().NoError(s.Store.UpdateCachedGARMAgentReleases(s.AdminContext, data, time.Now()))
 
 	version := "v0.1.0"
-	_, err = s.Store.UpdateController(params.UpdateControllerParams{GARMAgentVersion: &version})
+	_, err = s.Store.UpdateController(s.AdminContext, params.UpdateControllerParams{GARMAgentVersion: &version})
 	s.Require().NoError(err)
 
 	releases, err := s.Runner.ListGARMAgentReleases(s.AdminContext)
