@@ -44,7 +44,13 @@ func (s *sqlDatabase) CreateScaleSetInstance(ctx context.Context, scaleSetID uin
 		}
 	}
 
+	// The scale set is set both as the foreign key and as the association.
+	// The key is what gets persisted; the association is only here so
+	// sqlToParamsInstance can read ProviderName off it. Omit("ScaleSet")
+	// below stops gorm upserting the parent row as a side effect of
+	// creating a runner.
 	newInstance := Instance{
+		ScaleSetFkID:      &scaleSet.ID,
 		ScaleSet:          scaleSet,
 		Name:              param.Name,
 		Status:            param.Status,
@@ -57,7 +63,7 @@ func (s *sqlDatabase) CreateScaleSetInstance(ctx context.Context, scaleSetID uin
 		JitConfiguration:  secret,
 		AgentID:           param.AgentID,
 	}
-	q := s.conn.WithContext(ctx).Create(&newInstance)
+	q := s.conn.WithContext(ctx).Omit("ScaleSet").Create(&newInstance)
 	if q.Error != nil {
 		return params.Instance{}, fmt.Errorf("error creating instance: %w", q.Error)
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -750,7 +751,7 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 
 	var rowsAffected int64
 	if len(updates) > 0 {
-		q := tx.Model(&pool).Omit("Repository", "Organization", "Enterprise", "Tags").Updates(updates)
+		q := tx.Model(&pool).Omit(clause.Associations).Updates(updates)
 		if q.Error != nil {
 			return params.Pool{}, 0, fmt.Errorf("error saving database entry: %w", q.Error)
 		}
