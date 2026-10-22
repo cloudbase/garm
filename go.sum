@@ -29,8 +29,8 @@ github.com/cloudbase/garm-provider-common v0.1.10-0.20261010221645-ec82f622d2d4 
 github.com/cloudbase/garm-provider-common v0.1.10-0.20261010221645-ec82f622d2d4/go.mod h1:9UvQ/bHlwgSAeLFV94by9M7kRg3d0H3kemkjcFzJMmc=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dlclark/regexp2/v2 v2.8.4 h1:yfDDXTn4oxyLDC10/ieOBNDCCdIVWS9WbT6ddVXsPKI=
-github.com/dlclark/regexp2/v2 v2.8.4/go.mod h1:avUrQvPaLz2DrFNHJF0taWAFFX2C1GMSSoeiqFjcBmU=
+github.com/dlclark/regexp2/v2 v2.9.1 h1:q6bZW/NN9VodqMjYXpuic2lZxdHPfFTzGS+MJxIJmKQ=
+github.com/dlclark/regexp2/v2 v2.9.1/go.mod h1:avUrQvPaLz2DrFNHJF0taWAFFX2C1GMSSoeiqFjcBmU=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
 github.com/gabriel-samfira/go-sqlite3 v0.0.0-20251005121134-bc61ecf9b4c7 h1:+r9O7HrPI4OpkdFsZ9l5sjRD99KOl9uw4XpYJiP2HV4=
@@ -62,8 +62,8 @@ github.com/go-openapi/runtime/server-middleware v0.33.3 h1:Td5UBla/J/KCjlsD0tmZY
 github.com/go-openapi/runtime/server-middleware v0.33.3/go.mod h1:dopwrwqIqXe4xWtovDZkkXJzYqKw+Ybmy7G/hIDUWKY=
 github.com/go-openapi/spec v1.0.1 h1:lj2vdGpNDcVgwRc6qXdw6qt/KQpCtSa9tnUH6vpDPDk=
 github.com/go-openapi/spec v1.0.1/go.mod h1:M//GWQGtDUAjnP37gE6fInLgaczB+FatoipV3H1fYw8=
-github.com/go-openapi/strfmt v0.27.3 h1:cyf4J5Wjpd6bFpAs44MF8PsbWF/mWXhn82Ck/hgQZgw=
-github.com/go-openapi/strfmt v0.27.3/go.mod h1:Bl+xadPLa3nhBiaCAxNND1vrQfzyEjF0vBrLx96n/4E=
+github.com/go-openapi/strfmt v0.27.4 h1:E1xsvHb8R9vsuYru4TP2PVVTv9AIgSFAUACUZrFQfCI=
+github.com/go-openapi/strfmt v0.27.4/go.mod h1:SCOff81PPhU26acBiW96jHaFycEbT2nkQRvojM+V2z0=
 github.com/go-openapi/swag v0.29.2 h1:9n8frkcsuQRA0INU31VbxNxt1zBaHxrHYGEf5BUjFi4=
 github.com/go-openapi/swag v0.29.2/go.mod h1:RkCiX1gCVXWgLOavDXE3ALJrQ/VO2ziiIzOUs3z10xo=
 github.com/go-openapi/swag/cmdutils v0.29.2 h1:cXEzX/nWCODon251f+1HgL75/R4XXML5IZxgLCWMoro=
@@ -94,8 +94,8 @@ github.com/go-openapi/testify/enable/yaml/v2 v2.8.0 h1:dvOQNZ2ovOdogn902NYq7i6jU
 github.com/go-openapi/testify/enable/yaml/v2 v2.8.0/go.mod h1:3VwZZUT6nWcAjhIr2RypXxlsxd3mPPtXh3T8z65aRlQ=
 github.com/go-openapi/testify/v2 v2.8.0 h1:19QDx5b57p8KjO2E4sgs/woL4Akp+FGLRlVm2xn0Rho=
 github.com/go-openapi/testify/v2 v2.8.0/go.mod h1:4gUN8jC+RqOE2qjW/vDmfyTvl5BCht4qL7oca0odrak=
-github.com/go-openapi/validate v1.0.0 h1:dFsYCLVUQUL6Vi2lQSexgwmCXDuHe7eWRDhQxkE+xYA=
-github.com/go-openapi/validate v1.0.0/go.mod h1:wwXGRqMQzOZ7PCqBcgNk+DD9+Cacnxv7we5T0M/eA3Y=
+github.com/go-openapi/validate v1.0.1 h1:Z337eNvBb5KhZiKtjBKfpk2ZHPI8otENKyp/I60XVos=
+github.com/go-openapi/validate v1.0.1/go.mod h1:2ZKOLz7jBYipFCn3IDGwppZwtbUHlQTMuKfSWTO7Nqk=
 github.com/go-sql-driver/mysql v1.10.1 h1:arlSnNLq6a5yxGxV7qg9lF4j0C+KwD6NbQyKr9QL6ME=
 github.com/go-sql-driver/mysql v1.10.1/go.mod h1:M+cqaI7+xxXGG9swrdeUIoPG3Y3KCkF0pZej+SK+nWk=
 github.com/go-viper/mapstructure/v2 v2.5.0 h1:vM5IJoUAy3d7zRSVtIwQgBj7BiWtMPfmPEgAXnvj1Ro=
@@ -175,8 +175,8 @@ github.com/prometheus/client_golang v1.25.0 h1:cDtW1TcFsMi1RJc8khwCKB4VhzwV04aKq
 github.com/prometheus/client_golang v1.25.0/go.mod h1:j2X/4/kaQHLPnmyEU8zjmkndo1T317VpCIQEml8LTKk=
 github.com/prometheus/client_model v0.6.3 h1:O0jaTVAYNxTHYInEPFJt5I3+sN8zqBtVMPTB1qyxiEo=
 github.com/prometheus/client_model v0.6.3/go.mod h1:gpN5P9S7Rr6Yr92PiQ+Ixvhf6JZEkF1dnxsYL2aPBEM=
-github.com/prometheus/common v0.72.0 h1:tAYsE+sPJxIncDAobm4H5aQjmox9ZxEIIqPbiffa8G4=
-github.com/prometheus/common v0.72.0/go.mod h1:77NWqAQ2tXT7BIK40qjJdw5Acrsrg1TlHAnsQi3i6mk=
+github.com/prometheus/common v0.72.1 h1:ZAiQed/nk8IIcsdzb2TlJu23NEUDyDLQ9TXTN2WRK6Y=
+github.com/prometheus/common v0.72.1/go.mod h1:1IoBY4IRaJnhs2ESjNzjilP1cJ/P8pimGoomq7zRXrA=
 github.com/prometheus/procfs v0.22.0 h1:6q9+/JL9IKAPbCmBrv9n5O5Ty3NKnciV5X7YGw0oics=
 github.com/prometheus/procfs v0.22.0/go.mod h1:CvmFr/GVhIjIvWJZW3tgkODBQMRIf0EyWMQLHCHab58=
 github.com/rivo/tview v0.42.0 h1:b/ftp+RxtDsHSaynXTbJb+/n/BxDEi+W3UfF5jILK6c=
@@ -190,8 +190,8 @@ github.com/spf13/pflag v1.0.9/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/pflag v1.0.10 h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=
 github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
-github.com/stretchr/objx v0.5.3 h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=
-github.com/stretchr/objx v0.5.3/go.mod h1:rDQraq+vQZU7Fde9LOZLr8Tax6zZvy4kuNKF+QYS+U0=
+github.com/stretchr/objx v0.8.0 h1:rm9oMkeprG/wHifkZP4EuDww9S0mvEaQ/p9cXTNT4cw=
+github.com/stretchr/objx v0.8.0/go.mod h1:xSzHnPHkdEv7vtgdQej8atlCuU1mdX+ELge8bn0hCsE=
 github.com/stretchr/testify v1.1.4/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
