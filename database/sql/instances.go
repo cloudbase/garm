@@ -78,7 +78,11 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 			}
 		}
 
+		// See CreateScaleSetInstance: the key is what gets persisted, the
+		// association is only here so sqlToParamsInstance can read
+		// ProviderName off it.
 		newInstance := Instance{
+			PoolID:            &pool.ID,
 			Pool:              pool,
 			Name:              param.Name,
 			Status:            param.Status,
@@ -93,7 +97,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 			AgentID:           param.AgentID,
 			Generation:        param.Generation,
 		}
-		q = tx.Create(&newInstance)
+		q = tx.Omit("Pool").Create(&newInstance)
 		if q.Error != nil {
 			return fmt.Errorf("error creating instance: %w", q.Error)
 		}
@@ -433,7 +437,7 @@ func (s *sqlDatabase) updateInstance(ctx context.Context, instanceName string, p
 		}
 
 		// Save instance
-		result := tx.Save(&instance)
+		result := tx.Omit(clause.Associations).Save(&instance)
 		if result.Error != nil {
 			return fmt.Errorf("error updating instance: %w", result.Error)
 		}

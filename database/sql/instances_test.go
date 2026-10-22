@@ -391,9 +391,9 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `instances` WHERE pool_id = ? AND `instances`.`deleted_at` IS NULL")).
 		WithArgs(pool.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	s.Fixtures.SQLMock.
-		ExpectExec("INSERT INTO `pools`").
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	// No INSERT INTO `pools` here. Creating a runner sets the pool foreign
+	// key directly and omits the association, so the parent row is not
+	// upserted as a side effect.
 	s.Fixtures.SQLMock.
 		ExpectExec("INSERT INTO `instances`").
 		WillReturnError(fmt.Errorf("mocked insert instance error"))
@@ -652,6 +652,12 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("UPDATE `instances` SET")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	// The instance row is saved without its associations, so the addresses
+	// are written by the explicit Replace below. gorm touches the owner
+	// before writing the new rows.
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("UPDATE `instances` SET `updated_at`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `addresses`")).
 		WillReturnError(fmt.Errorf("update addresses mock error"))
@@ -660,7 +666,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error updating instance: error updating instance: update addresses mock error; update addresses mock error", err.Error())
+	s.Require().Equal("error updating instance: error updating addresses: update addresses mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 

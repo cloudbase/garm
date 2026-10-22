@@ -416,7 +416,7 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	var rowsAffected int64
 	if len(updates) > 0 {
-		q := tx.Model(&scaleSet).Omit("Repository", "Organization", "Enterprise", "Instances", "Template", "Proxy", "Tags").Updates(updates)
+		q := tx.Model(&scaleSet).Omit(clause.Associations).Updates(updates)
 		if q.Error != nil {
 			return params.ScaleSet{}, 0, fmt.Errorf("error saving database entry: %w", q.Error)
 		}
@@ -501,7 +501,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID u
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
-		result := tx.Model(&dbSet).Updates(map[string]interface{}{
+		result := tx.Model(&dbSet).Omit(clause.Associations).Updates(map[string]interface{}{
 			"last_message_id": lastMessageID,
 		})
 		if result.Error != nil {
@@ -538,7 +538,7 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSe
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
-		result := tx.Model(&dbSet).Updates(map[string]interface{}{
+		result := tx.Model(&dbSet).Omit(clause.Associations).Updates(map[string]interface{}{
 			"desired_runner_count": desiredRunnerCount,
 		})
 		if result.Error != nil {
