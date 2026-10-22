@@ -422,6 +422,31 @@ func (i *instanceManager) consolidateState() error {
 				return fmt.Errorf("setting instance status to error: %w", err)
 			}
 		}
+	case commonParams.InstanceCreating:
+		// Our own create pass returned without recording an outcome, so the
+		// instance is orphaned rather than in progress. Consolidation is
+		// serialized and runs on the same goroutine that performs the create,
+		// so no create call can be in flight while we are in this switch.
+		// Fail it and let the error lane below clean it up.
+		//
+		// Not forced on purpose. If the runner booted and registered anyway
+		// the row is already running, which does not allow a move to error,
+		// so the state machine refuses us instead of killing a live runner.
+		slog.ErrorContext(
+			i.ctx, "create left instance in creating; failing it",
+			"runner_name", instance.Name)
+		err := i.setInstanceStatus(
+			instance.Name, commonParams.InstanceError,
+			[]byte("create was interrupted before the provider result was recorded"), false)
+		if err != nil {
+			var te *runnerErrors.InstanceTransitionError
+			if errors.As(err, &te) || errors.Is(err, runnerErrors.ErrNotFound) {
+				// The row moved on without us. The watcher delivers the new
+				// state, so there is nothing to do here.
+				return nil
+			}
+			return fmt.Errorf("failing interrupted instance: %w", err)
+		}
 	case commonParams.InstanceRunning:
 		// Nothing to do. The provider finished creating the instance.
 	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete, commonParams.InstanceDeleting:
