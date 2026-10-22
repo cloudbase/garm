@@ -103,7 +103,7 @@ func (s *PoolStressTestSuite) SetupTest() {
 	cache.SetEntity(entity)
 	cache.SetEntityPool(entity.ID, pool)
 
-	s.controllerInfo, err = db.InitController()
+	s.controllerInfo, err = db.InitController(context.Background())
 	s.Require().NoError(err)
 
 	backoff, err := locking.NewInstanceDeleteBackoff(context.Background())

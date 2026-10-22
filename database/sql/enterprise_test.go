@@ -29,6 +29,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -206,7 +207,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 	cfg := garmTesting.GetTestSqliteDBConfig(s.T())
-	conn, err := newDBConn(cfg)
+	conn, err := newDBConn(cfg, config.ConnPurposeRuntime)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}

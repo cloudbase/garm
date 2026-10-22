@@ -634,7 +634,7 @@ func (s *WatcherStoreTestSuite) TestControllerWatcher() {
 		MetadataURL: &metadataURL,
 	}
 
-	controller, err := s.store.UpdateController(updateParams)
+	controller, err := s.store.UpdateController(s.ctx, updateParams)
 	s.Require().NoError(err)
 	s.Require().Equal(metadataURL, controller.MetadataURL)
 

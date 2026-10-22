@@ -24,8 +24,8 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {
-	scaleSet, err := s.getScaleSetByID(s.conn, scaleSetID)
+func (s *sqlDatabase) CreateScaleSetInstance(ctx context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {
+	scaleSet, err := s.getScaleSetByID(s.conn.WithContext(ctx), scaleSetID)
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
@@ -57,7 +57,7 @@ func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint,
 		JitConfiguration:  secret,
 		AgentID:           param.AgentID,
 	}
-	q := s.conn.Create(&newInstance)
+	q := s.conn.WithContext(ctx).Create(&newInstance)
 	if q.Error != nil {
 		return params.Instance{}, fmt.Errorf("error creating instance: %w", q.Error)
 	}
@@ -65,8 +65,8 @@ func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint,
 	return s.sqlToParamsInstance(newInstance)
 }
 
-func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
-	ret, err := s.listInstancesBatched(func(query *gorm.DB) *gorm.DB {
+func (s *sqlDatabase) ListScaleSetInstances(ctx context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
+	ret, err := s.listInstancesBatched(ctx, func(query *gorm.DB) *gorm.DB {
 		q := query.Where("scale_set_fk_id = ?", scalesetID)
 		if outdatedOnly {
 			q = q.Where("instances.generation < (SELECT scale_sets.generation FROM scale_sets WHERE scale_sets.id = instances.scale_set_fk_id)")

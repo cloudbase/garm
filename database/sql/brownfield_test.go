@@ -363,7 +363,7 @@ func TestBrownfieldMigration(t *testing.T) {
 	require.Equal(t, "garm-scaleset-runner", scaleSetJobs[0].RunnerName)
 	require.Zero(t, scaleSetJobs[0].ScaleSetID, "moved records have no owner attribution")
 
-	controllerInfo, err := store.ControllerInfo()
+	controllerInfo, err := store.ControllerInfo(adminCtx)
 	require.NoError(t, err)
 	require.Equal(t, seedControllerID, controllerInfo.ControllerID.String())
 
@@ -432,7 +432,7 @@ func TestConstraintParityOnPostgres(t *testing.T) {
 		"INSERT INTO pools (id, created_at, updated_at, provider_name, runner_prefix, max_runners, min_idle_runners, runner_bootstrap_timeout, image, flavor, os_type, os_arch, enabled, generation, priority, proxy_id) VALUES ('99999999-9999-9999-9999-999999999999', now(), now(), 'test-provider', 'garm', 4, 0, 20, 'ubuntu:24.04', 'default', 'linux', 'amd64', true, 1, 0, 12345)").Error)
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0008_constraint_parity'").Error)
 
-	require.NoError(t, db.migrateDB(), "0008 failed on a PostgreSQL database missing the constraints")
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn), "0008 failed on a PostgreSQL database missing the constraints")
 
 	require.Contains(t, migrationIDs(t, db.conn, "migrations"), "0008_constraint_parity")
 	for constraint := range parityConstraints {
@@ -444,7 +444,7 @@ func TestConstraintParityOnPostgres(t *testing.T) {
 
 	// Phase 2: a database that already has everything; 0008 must no-op.
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0008_constraint_parity'").Error)
-	require.NoError(t, db.migrateDB(), "0008 must be a no-op on a constrained PostgreSQL database")
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn), "0008 must be a no-op on a constrained PostgreSQL database")
 	for constraint := range parityConstraints {
 		requireConstraintCountPG(t, db.conn, constraint, 1)
 	}
@@ -471,7 +471,7 @@ func TestTagNameLengthOnPostgres(t *testing.T) {
 	require.NoError(t, db.conn.Exec("INSERT INTO tags (id, created_at, updated_at, name) VALUES (gen_random_uuid(), now(), now(), 'existing-tag')").Error)
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0009_tag_name_length'").Error)
 
-	require.NoError(t, db.migrateDB())
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn))
 
 	require.Contains(t, migrationIDs(t, db.conn, "migrations"), "0009_tag_name_length")
 	var maxLength int64
@@ -507,7 +507,7 @@ func TestScaleSetJobsMoveOnPostgres(t *testing.T) {
 		"INSERT INTO workflow_jobs (id, workflow_job_id, scale_set_job_id, run_id, action, conclusion, status, name, repository_name, repository_owner, created_at, updated_at) VALUES (2, 201, '', 101, 'queued', '', 'queued', 'pool job', 'garm-testing', 'gsamfira', now(), now())").Error)
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0010_scaleset_jobs'").Error)
 
-	require.NoError(t, db.migrateDB())
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn))
 
 	require.Contains(t, migrationIDs(t, db.conn, "migrations"), "0010_scaleset_jobs")
 	require.True(t, db.conn.Migrator().HasTable("scale_set_jobs"))
@@ -610,7 +610,7 @@ func TestScaleSetJobsMoveRerunIsSafe(t *testing.T) {
 		"INSERT INTO scale_set_jobs (scale_set_job_id, workflow_run_id, name, status, created_at, updated_at) VALUES ('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 100, 'scaleset job', 'in_progress', datetime('now'), datetime('now'))").Error)
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id = '0010_scaleset_jobs'").Error)
 
-	require.NoError(t, db.migrateDB(), "0010 rerun must tolerate rows that were already copied")
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn), "0010 rerun must tolerate rows that were already copied")
 
 	require.False(t, hasColumn(t, db.conn, "workflow_jobs", "scale_set_job_id"))
 	require.EqualValues(t, 0, countRows(t, db.conn, "workflow_jobs"))
@@ -695,7 +695,7 @@ func TestForgeInstanceColumnTypesOnPostgres(t *testing.T) {
 	}
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations WHERE id IN ?", blocked).Error)
 
-	require.NoError(t, db.migrateDB(), "migrating a database with text forge instance columns failed")
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn), "migrating a database with text forge instance columns failed")
 
 	ids := migrationIDs(t, db.conn, "migrations")
 	for _, id := range blocked {

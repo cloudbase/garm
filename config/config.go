@@ -306,20 +306,38 @@ type Database struct {
 	Passphrase string `toml:"passphrase"`
 }
 
-// GormParams returns the database type and connection URI
-func (d *Database) GormParams() (dbType DBBackendType, uri string, err error) {
+// ConnPurpose selects which connection profile a DSN is built for. Schema
+// migrations get their own profile. An AutoMigrate over a large table can
+// legitimately run far longer than any runtime query, so the runtime statement
+// and lock timeouts must not apply to it.
+type ConnPurpose string
+
+const (
+	// ConnPurposeRuntime is the profile for normal query traffic. Query
+	// timeouts apply.
+	ConnPurposeRuntime ConnPurpose = "runtime"
+	// ConnPurposeMigration is the profile for schema migrations. Query
+	// timeouts are disabled.
+	ConnPurposeMigration ConnPurpose = "migration"
+)
+
+// GormParams returns the database type and connection URI for the given
+// connection purpose.
+func (d *Database) GormParams(purpose ConnPurpose) (dbType DBBackendType, uri string, err error) {
 	if err := d.Validate(); err != nil {
 		return "", "", fmt.Errorf("error validating database config: %w", err)
 	}
 	dbType = d.DbBackend
 	switch dbType {
 	case SQLiteBackend:
+		// SQLite has no server side statement or lock timeout, so both
+		// profiles are the same connection string.
 		uri, err = d.SQLite.ConnectionString()
 		if err != nil {
 			return "", "", fmt.Errorf("error fetching sqlite3 connection string: %w", err)
 		}
 	case PostgreSQLBackend:
-		uri, err = d.PostgreSQL.ConnectionString()
+		uri, err = d.PostgreSQL.ConnectionString(purpose)
 		if err != nil {
 			return "", "", fmt.Errorf("error fetching postgresql connection string: %w", err)
 		}
@@ -449,6 +467,22 @@ type PostgreSQL struct {
 	// ConnMaxIdleTimeSecs is the maximum time a connection may be idle before
 	// being closed, in seconds. Defaults to 300 (5 minutes).
 	ConnMaxIdleTimeSecs int `toml:"conn_max_idle_time_secs" json:"conn_max_idle_time_secs"`
+
+	// Query timeouts. These bound how long a single query may run or wait,
+	// server side. They are the backstop for a query whose caller passed a
+	// context with no deadline. Zero uses the default, -1 disables.
+	//
+	// ConnectTimeoutSecs bounds the TCP connect and startup handshake.
+	// Defaults to 10.
+	ConnectTimeoutSecs int `toml:"connect_timeout_secs" json:"connect_timeout_secs"`
+	// StatementTimeoutSecs aborts any statement that runs longer than this.
+	// Defaults to 60. Schema migrations run on their own connection and are
+	// never subject to it.
+	StatementTimeoutSecs int `toml:"statement_timeout_secs" json:"statement_timeout_secs"`
+	// LockTimeoutSecs bounds how long a statement waits for a row lock before
+	// giving up. The read-modify-write transactions in the sql package take
+	// SELECT ... FOR UPDATE, which waits forever by default. Defaults to 30.
+	LockTimeoutSecs int `toml:"lock_timeout_secs" json:"lock_timeout_secs"`
 }
 
 // Validate validates a PostgreSQL config entry and applies defaults for optional fields.
@@ -491,11 +525,40 @@ func (p *PostgreSQL) Validate() error {
 	if p.ConnMaxIdleTimeSecs == 0 {
 		p.ConnMaxIdleTimeSecs = 300
 	}
+	if p.ConnectTimeoutSecs == 0 {
+		p.ConnectTimeoutSecs = 10
+	}
+	if p.StatementTimeoutSecs == 0 {
+		p.StatementTimeoutSecs = 60
+	}
+	if p.LockTimeoutSecs == 0 {
+		p.LockTimeoutSecs = 30
+	}
+	for _, tm := range []struct {
+		name  string
+		value int
+	}{
+		{"connect_timeout_secs", p.ConnectTimeoutSecs},
+		{"statement_timeout_secs", p.StatementTimeoutSecs},
+		{"lock_timeout_secs", p.LockTimeoutSecs},
+	} {
+		if tm.value < -1 {
+			return fmt.Errorf("invalid %s %d: must be -1 (disabled) or a positive number of seconds", tm.name, tm.value)
+		}
+	}
 	return nil
 }
 
-// ConnectionString returns a pgx-compatible DSN in libpq key=value format.
-func (p *PostgreSQL) ConnectionString() (string, error) {
+// ConnectionString returns a pgx-compatible DSN in libpq key=value format for
+// the given connection purpose.
+//
+// statement_timeout and lock_timeout are not recognised by pgx itself. It
+// forwards unknown keys as session run-time parameters, so Postgres applies
+// them as the session default for every connection opened from this DSN.
+// They are the backstop for a query whose caller passed a context with no
+// deadline. Without them such a query waits forever, and the goroutine that
+// issued it is parked for as long as the server stays silent.
+func (p *PostgreSQL) ConnectionString(purpose ConnPurpose) (string, error) {
 	if err := p.Validate(); err != nil {
 		return "", err
 	}
@@ -503,6 +566,18 @@ func (p *PostgreSQL) ConnectionString() (string, error) {
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		pgQuoteValue(p.Hostname), p.Port, pgQuoteValue(p.Username), pgQuoteValue(p.Password), pgQuoteValue(p.Database), pgQuoteValue(p.SSLMode),
 	)
+	if p.ConnectTimeoutSecs > 0 {
+		dsn += fmt.Sprintf(" connect_timeout=%d", p.ConnectTimeoutSecs)
+	}
+	if purpose == ConnPurposeMigration {
+		return dsn, nil
+	}
+	if p.StatementTimeoutSecs > 0 {
+		dsn += fmt.Sprintf(" statement_timeout=%d", p.StatementTimeoutSecs*1000)
+	}
+	if p.LockTimeoutSecs > 0 {
+		dsn += fmt.Sprintf(" lock_timeout=%d", p.LockTimeoutSecs*1000)
+	}
 	return dsn, nil
 }
 

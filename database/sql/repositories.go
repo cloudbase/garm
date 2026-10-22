@@ -52,7 +52,7 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, 
 		PoolBalancerType: poolBalancerType,
 		AgentMode:        agentMode,
 	}
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		switch credentials.ForgeType {
 		case params.GithubEndpointType:
 			newRepo.CredentialsID = &credentials.ID
@@ -95,9 +95,9 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name, endpointNa
 	return param, nil
 }
 
-func (s *sqlDatabase) ListRepositories(_ context.Context, filter params.RepositoryFilter) ([]params.Repository, error) {
+func (s *sqlDatabase) ListRepositories(ctx context.Context, filter params.RepositoryFilter) ([]params.Repository, error) {
 	var repos []Repository
-	q := s.conn.
+	q := s.conn.WithContext(ctx).
 		Preload("Credentials").
 		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
@@ -146,7 +146,7 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err 
 		}
 	}(repo)
 
-	q := s.conn.Unscoped().Delete(&repo)
+	q := s.conn.WithContext(ctx).Unscoped().Delete(&repo)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("error deleting repo: %w", q.Error)
 	}
@@ -162,7 +162,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		}
 	}()
 	var repo Repository
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
 		repo, err = s.getRepoByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), repoID, "Endpoint")
 		if err != nil {
@@ -258,10 +258,10 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 	return param, nil
 }
 
-func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName string) (Repository, error) {
+func (s *sqlDatabase) getRepo(ctx context.Context, owner, name, endpointName string) (Repository, error) {
 	var repo Repository
 
-	q := s.conn.Where("LOWER(name) = LOWER(?) and LOWER(owner) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, owner, endpointName).
+	q := s.conn.WithContext(ctx).Where("LOWER(name) = LOWER(?) and LOWER(owner) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, owner, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("GiteaCredentials").
@@ -280,7 +280,8 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 	return repo, nil
 }
 
-func (s *sqlDatabase) getRepoByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Repository, error) {
+func (s *sqlDatabase) getRepoByID(ctx context.Context, tx *gorm.DB, id string, preload ...string) (Repository, error) {
+	tx = tx.WithContext(ctx)
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Repository{}, runnerErrors.NewBadRequestError("error parsing id: %s", err)

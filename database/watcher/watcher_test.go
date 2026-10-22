@@ -304,12 +304,12 @@ func (s *WatcherTestSuite) TestWithAllFilter() {
 	s.Require().Nil(receivedPayload)
 }
 
-func maybeInitController(db common.Store) error {
-	if _, err := db.ControllerInfo(); err == nil {
+func maybeInitController(ctx context.Context, db common.Store) error {
+	if _, err := db.ControllerInfo(ctx); err == nil {
 		return nil
 	}
 
-	if _, err := db.InitController(); err != nil {
+	if _, err := db.InitController(ctx); err != nil {
 		return fmt.Errorf("error initializing controller: %w", err)
 	}
 
@@ -1538,7 +1538,7 @@ func TestWatcherTestSuite(t *testing.T) {
 		t.Fatalf("failed to create db connection: %s", err)
 	}
 
-	err = maybeInitController(store)
+	err = maybeInitController(ctx, store)
 	if err != nil {
 		t.Fatalf("failed to init controller: %s", err)
 	}

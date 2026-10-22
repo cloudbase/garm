@@ -56,7 +56,7 @@ func (s *sqlDatabase) CreateForgeInstance(ctx context.Context, endpointName stri
 		PoolBalancerType: poolBalancerType,
 		AgentMode:        agentMode,
 	}
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		newForgeInstance.GiteaCredentialsID = &credentials.ID
 		newForgeInstance.EndpointName = &endpointName
 
@@ -111,9 +111,9 @@ func (s *sqlDatabase) GetForgeInstanceByID(ctx context.Context, forgeInstanceID 
 	return param, nil
 }
 
-func (s *sqlDatabase) ListForgeInstances(_ context.Context, filter params.ForgeInstanceFilter) ([]params.ForgeInstance, error) {
+func (s *sqlDatabase) ListForgeInstances(ctx context.Context, filter params.ForgeInstanceFilter) ([]params.ForgeInstance, error) {
 	var forgeInstances []ForgeInstance
-	q := s.conn.
+	q := s.conn.WithContext(ctx).
 		Preload("GiteaCredentials").
 		Preload("GiteaCredentials.Endpoint").
 		Preload("Endpoint")
@@ -154,7 +154,7 @@ func (s *sqlDatabase) DeleteForgeInstance(ctx context.Context, forgeInstanceID s
 		}
 	}(fi)
 
-	q := s.conn.Unscoped().Delete(&fi)
+	q := s.conn.WithContext(ctx).Unscoped().Delete(&fi)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("error deleting forge instance: %w", q.Error)
 	}
@@ -170,7 +170,7 @@ func (s *sqlDatabase) UpdateForgeInstance(ctx context.Context, forgeInstanceID s
 		}
 	}()
 	var fi ForgeInstance
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
 		fi, err = s.getForgeInstanceByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), forgeInstanceID, "Endpoint")
 		if err != nil {
@@ -243,7 +243,8 @@ func (s *sqlDatabase) UpdateForgeInstance(ctx context.Context, forgeInstanceID s
 	return newParams, nil
 }
 
-func (s *sqlDatabase) getForgeInstanceByName(_ context.Context, tx *gorm.DB, name string, preload ...string) (ForgeInstance, error) {
+func (s *sqlDatabase) getForgeInstanceByName(ctx context.Context, tx *gorm.DB, name string, preload ...string) (ForgeInstance, error) {
+	tx = tx.WithContext(ctx)
 	if name == "" {
 		return ForgeInstance{}, fmt.Errorf("missing forge instance name: %w", runnerErrors.ErrBadRequest)
 	}
@@ -264,7 +265,8 @@ func (s *sqlDatabase) getForgeInstanceByName(_ context.Context, tx *gorm.DB, nam
 	return fi, nil
 }
 
-func (s *sqlDatabase) getForgeInstanceByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (ForgeInstance, error) {
+func (s *sqlDatabase) getForgeInstanceByID(ctx context.Context, tx *gorm.DB, id string, preload ...string) (ForgeInstance, error) {
+	tx = tx.WithContext(ctx)
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return ForgeInstance{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)

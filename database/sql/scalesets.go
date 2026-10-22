@@ -29,10 +29,10 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, error) {
+func (s *sqlDatabase) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error) {
 	var scaleSets []ScaleSet
 
-	q := s.conn.Model(&ScaleSet{}).
+	q := s.conn.WithContext(ctx).Model(&ScaleSet{}).
 		Preload("Organization").
 		Preload("Organization.Endpoint").
 		Preload("Repository").
@@ -111,7 +111,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.Fo
 	case params.ForgeEntityTypeEnterprise:
 		newScaleSet.EnterpriseID = &entityID
 	}
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
 			return fmt.Errorf("error checking entity existence: %w", err)
 		}
@@ -205,8 +205,8 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEn
 	return scaleSets, nil
 }
 
-func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
-	scaleSets, err := s.listEntityScaleSets(s.conn, entity.EntityType, entity.ID, "Tags")
+func (s *sqlDatabase) ListEntityScaleSets(ctx context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
+	scaleSets, err := s.listEntityScaleSets(s.conn.WithContext(ctx), entity.EntityType, entity.ID, "Tags")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching scale sets: %w", err)
 	}
@@ -229,7 +229,7 @@ func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.Fo
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, updatedScaleSet)
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		scaleSet, err := s.getEntityScaleSet(tx.Clauses(clause.Locking{Strength: "UPDATE"}), entity.EntityType, entity.ID, scaleSetID, "Instances", "Tags")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
@@ -435,9 +435,9 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 	return commonScaleSet, rowsAffected, nil
 }
 
-func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.ScaleSet, error) {
+func (s *sqlDatabase) GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error) {
 	set, err := s.getScaleSetByID(
-		s.conn,
+		s.conn.WithContext(ctx),
 		scaleSet,
 		"Instances",
 		"Enterprise",
@@ -456,14 +456,14 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 	return s.sqlToCommonScaleSet(set)
 }
 
-func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (err error) {
+func (s *sqlDatabase) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error) {
 	var scaleSet params.ScaleSet
 	defer func() {
 		if err == nil && scaleSet.ID != 0 {
 			s.sendNotify(common.ScaleSetEntityType, common.DeleteOperation, scaleSet)
 		}
 	}()
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		dbSet, err := s.getScaleSetByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
@@ -488,7 +488,7 @@ func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (er
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uint, lastMessageID int64) (err error) {
+func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) (err error) {
 	var scaleSet params.ScaleSet
 	var rowsAffected int64
 	defer func() {
@@ -496,7 +496,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, scaleSet)
 		}
 	}()
-	if err := s.conn.Transaction(func(tx *gorm.DB) error {
+	if err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		dbSet, err := s.getScaleSetByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
@@ -525,7 +525,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
+func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
 	var scaleSet params.ScaleSet
 	var rowsAffected int64
 	defer func() {
@@ -533,7 +533,7 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetI
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, scaleSet)
 		}
 	}()
-	if err := s.conn.Transaction(func(tx *gorm.DB) error {
+	if err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		dbSet, err := s.getScaleSetByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)

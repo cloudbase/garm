@@ -63,7 +63,7 @@ type failedEntity struct {
 }
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token auth.InstanceTokenGetter) (*Runner, error) {
-	ctrlID, err := db.ControllerInfo()
+	ctrlID, err := db.ControllerInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching controller info: %w", err)
 	}
@@ -357,7 +357,7 @@ func (r *Runner) UpdateController(ctx context.Context, param params.UpdateContro
 		}
 	}
 
-	info, err := r.store.UpdateController(param)
+	info, err := r.store.UpdateController(ctx, param)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error updating controller info: %w", err)
 	}
@@ -372,7 +372,7 @@ func (r *Runner) ForceToolsSync(ctx context.Context) (params.ControllerInfo, err
 	}
 
 	// Get current controller info
-	info, err := r.store.ControllerInfo()
+	info, err := r.store.ControllerInfo(ctx)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error getting controller info: %w", err)
 	}
@@ -384,13 +384,13 @@ func (r *Runner) ForceToolsSync(ctx context.Context) (params.ControllerInfo, err
 
 	// Reset the cached index to trigger force sync.
 	// This will cause the watcher to pick up the change and sync immediately
-	err = r.store.UpdateCachedGARMAgentReleases(nil, time.Time{})
+	err = r.store.UpdateCachedGARMAgentReleases(ctx, nil, time.Time{})
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error resetting cached release index: %w", err)
 	}
 
 	// Get updated controller info
-	info, err = r.store.ControllerInfo()
+	info, err = r.store.ControllerInfo(ctx)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error getting updated controller info: %w", err)
 	}
@@ -430,7 +430,7 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 		return params.ControllerInfo{}, fmt.Errorf("error fetching hostname: %w", err)
 	}
 
-	info, err := r.store.ControllerInfo()
+	info, err := r.store.ControllerInfo(ctx)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error fetching controller info: %w", err)
 	}

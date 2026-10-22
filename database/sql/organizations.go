@@ -51,7 +51,7 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, crede
 		AgentMode:        agentMode,
 	}
 
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		switch credentials.ForgeType {
 		case params.GithubEndpointType:
 			newOrg.CredentialsID = &credentials.ID
@@ -94,9 +94,9 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName st
 	return param, nil
 }
 
-func (s *sqlDatabase) ListOrganizations(_ context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
+func (s *sqlDatabase) ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
 	var orgs []Organization
-	q := s.conn.
+	q := s.conn.WithContext(ctx).
 		Preload("Credentials").
 		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
@@ -144,7 +144,7 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err
 		}
 	}(org)
 
-	q := s.conn.Unscoped().Delete(&org)
+	q := s.conn.WithContext(ctx).Unscoped().Delete(&org)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("error deleting org: %w", q.Error)
 	}
@@ -160,7 +160,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		}
 	}()
 	var org Organization
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
 		org, err = s.getOrgByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), orgID, "Endpoint")
 		if err != nil {
@@ -256,7 +256,8 @@ func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (pa
 	return param, nil
 }
 
-func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, preload ...string) (Organization, error) {
+func (s *sqlDatabase) getOrgByID(ctx context.Context, db *gorm.DB, id string, preload ...string) (Organization, error) {
+	db = db.WithContext(ctx)
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Organization{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
@@ -280,10 +281,10 @@ func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, prel
 	return org, nil
 }
 
-func (s *sqlDatabase) getOrg(_ context.Context, name, endpointName string) (Organization, error) {
+func (s *sqlDatabase) getOrg(ctx context.Context, name, endpointName string) (Organization, error) {
 	var org Organization
 
-	q := s.conn.Where("LOWER(name) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, endpointName).
+	q := s.conn.WithContext(ctx).Where("LOWER(name) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, endpointName).
 		Preload("Credentials").
 		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").

@@ -126,7 +126,7 @@ func initInfrastructure(ctx context.Context, cfg *config.Config, hub *websocket.
 		return nil, fmt.Errorf("creating database: %w", err)
 	}
 
-	controllerInfo, err := maybeInitController(db)
+	controllerInfo, err := maybeInitController(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -385,12 +385,12 @@ func shutdownComponents(comp *serverComponents) {
 	}
 }
 
-func maybeInitController(db dbCommon.Store) (params.ControllerInfo, error) {
-	if info, err := db.ControllerInfo(); err == nil {
+func maybeInitController(ctx context.Context, db dbCommon.Store) (params.ControllerInfo, error) {
+	if info, err := db.ControllerInfo(ctx); err == nil {
 		return info, nil
 	}
 
-	info, err := db.InitController()
+	info, err := db.InitController(ctx)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("initializing controller: %w", err)
 	}

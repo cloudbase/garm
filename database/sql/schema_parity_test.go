@@ -223,7 +223,7 @@ func requireMigrationsReapplyCleanly(t *testing.T, db *sqlDatabase) {
 	before := dumpSchema(t, db.conn)
 
 	require.NoError(t, db.conn.Exec("DELETE FROM migrations").Error)
-	require.NoError(t, db.migrateDB(), "re-running the migrations failed")
+	require.NoError(t, migrateSchema(context.Background(), db.conn, db.objectsConn), "re-running the migrations failed")
 	require.Len(t, migrationIDs(t, db.conn, "migrations"), len(migrations.All()))
 
 	compareSchemas(t, before, dumpSchema(t, db.conn))

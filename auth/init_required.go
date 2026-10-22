@@ -65,7 +65,7 @@ type urlsRequired struct {
 func (u *urlsRequired) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		ctrlInfo, err := u.store.ControllerInfo()
+		ctrlInfo, err := u.store.ControllerInfo(ctx)
 		if err != nil || ctrlInfo.MetadataURL == "" || ctrlInfo.CallbackURL == "" || ctrlInfo.AgentURL == "" {
 			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)

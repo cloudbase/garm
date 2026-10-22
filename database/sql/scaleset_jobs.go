@@ -84,7 +84,7 @@ func scaleSetJobStatusRank(status string) int {
 	return 0
 }
 
-func (s *sqlDatabase) CreateOrUpdateScaleSetJob(_ context.Context, job params.ScaleSetJob) (params.ScaleSetJob, error) {
+func (s *sqlDatabase) CreateOrUpdateScaleSetJob(ctx context.Context, job params.ScaleSetJob) (params.ScaleSetJob, error) {
 	if job.ScaleSetJobID == "" {
 		return params.ScaleSetJob{}, fmt.Errorf("scale set job has no ID")
 	}
@@ -97,7 +97,7 @@ func (s *sqlDatabase) CreateOrUpdateScaleSetJob(_ context.Context, job params.Sc
 	var asParams params.ScaleSetJob
 	var operation common.OperationType
 
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var dbJob ScaleSetJob
 		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("scale_set_job_id = ?", job.ScaleSetJobID).First(&dbJob)
 		if q.Error != nil {
@@ -184,9 +184,9 @@ func (s *sqlDatabase) CreateOrUpdateScaleSetJob(_ context.Context, job params.Sc
 	return asParams, nil
 }
 
-func (s *sqlDatabase) ListScaleSetJobs(_ context.Context, scaleSetID uint) ([]params.ScaleSetJob, error) {
+func (s *sqlDatabase) ListScaleSetJobs(ctx context.Context, scaleSetID uint) ([]params.ScaleSetJob, error) {
 	var jobs []ScaleSetJob
-	q := s.conn.Model(&ScaleSetJob{}).Where("scale_set_fk_id = ?", scaleSetID).Order("id desc").Find(&jobs)
+	q := s.conn.WithContext(ctx).Model(&ScaleSetJob{}).Where("scale_set_fk_id = ?", scaleSetID).Order("id desc").Find(&jobs)
 	if q.Error != nil {
 		return nil, fmt.Errorf("error fetching scale set jobs: %w", q.Error)
 	}
@@ -202,9 +202,9 @@ func (s *sqlDatabase) ListScaleSetJobs(_ context.Context, scaleSetID uint) ([]pa
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListAllScaleSetJobs(_ context.Context) ([]params.ScaleSetJob, error) {
+func (s *sqlDatabase) ListAllScaleSetJobs(ctx context.Context) ([]params.ScaleSetJob, error) {
 	var jobs []ScaleSetJob
-	q := s.conn.Model(&ScaleSetJob{}).Order("id desc").Find(&jobs)
+	q := s.conn.WithContext(ctx).Model(&ScaleSetJob{}).Order("id desc").Find(&jobs)
 	if q.Error != nil {
 		return nil, fmt.Errorf("error fetching scale set jobs: %w", q.Error)
 	}
@@ -222,9 +222,9 @@ func (s *sqlDatabase) ListAllScaleSetJobs(_ context.Context) ([]params.ScaleSetJ
 
 // ListScaleSetJobsPaginated filters and paginates the scale set job ledger,
 // newest first. A zero scaleSetID lists jobs across all scale sets.
-func (s *sqlDatabase) ListScaleSetJobsPaginated(_ context.Context, scaleSetID uint, filter params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error) {
+func (s *sqlDatabase) ListScaleSetJobsPaginated(ctx context.Context, scaleSetID uint, filter params.ListJobsFilter) (params.ScaleSetJobsPaginatedResponse, error) {
 	baseQuery := func() *gorm.DB {
-		q := s.conn.Model(&ScaleSetJob{})
+		q := s.conn.WithContext(ctx).Model(&ScaleSetJob{})
 		if scaleSetID != 0 {
 			q = q.Where("scale_set_fk_id = ?", scaleSetID)
 		}
@@ -273,10 +273,10 @@ func (s *sqlDatabase) ListScaleSetJobsPaginated(_ context.Context, scaleSetID ui
 // duration, regardless of status. The records are informational and the
 // scale set listener refreshes any job that is still live, so a record this
 // stale belongs to a job we will never hear about again.
-func (s *sqlDatabase) DeleteOldScaleSetJobs(_ context.Context, olderThan time.Duration) error {
+func (s *sqlDatabase) DeleteOldScaleSetJobs(ctx context.Context, olderThan time.Duration) error {
 	var jobs []ScaleSetJob
 
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		q := tx.
 			Model(&ScaleSetJob{}).
 			Where("updated_at < ?", time.Now().Add(-olderThan))

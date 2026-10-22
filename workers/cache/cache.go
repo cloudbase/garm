@@ -253,7 +253,7 @@ func (w *Worker) Start() error {
 	g, _ := errgroup.WithContext(w.ctx)
 
 	g.Go(func() error {
-		ctrlInfo, err := w.store.ControllerInfo()
+		ctrlInfo, err := w.store.ControllerInfo(w.ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get controller info: %w", err)
 		}

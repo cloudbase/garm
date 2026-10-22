@@ -119,7 +119,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 }
 
 func (a *Authenticator) InitController(ctx context.Context, param params.NewUserParams) (params.User, error) {
-	_, err := a.store.ControllerInfo()
+	_, err := a.store.ControllerInfo(ctx)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.User{}, fmt.Errorf("error initializing controller: %w", err)

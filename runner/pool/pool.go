@@ -88,7 +88,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		return nil, fmt.Errorf("webhook secret is empty")
 	}
 
-	controllerInfo, err := store.ControllerInfo()
+	controllerInfo, err := store.ControllerInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting controller info: %w", err)
 	}

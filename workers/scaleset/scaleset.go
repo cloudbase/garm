@@ -40,7 +40,7 @@ import (
 
 func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleSet, provider common.Provider) (*Worker, error) {
 	consumerID := fmt.Sprintf("scaleset-worker-%s-%d", scaleSet.Name, scaleSet.ID)
-	controllerInfo, err := store.ControllerInfo()
+	controllerInfo, err := store.ControllerInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting controller info: %w", err)
 	}
@@ -1106,7 +1106,7 @@ func (w *Worker) handleScaleUp() {
 		return
 	}
 
-	controllerConfig, err := w.store.ControllerInfo()
+	controllerConfig, err := w.store.ControllerInfo(w.ctx)
 	if err != nil {
 		slog.ErrorContext(w.ctx, "error getting controller config", "error", err)
 		return

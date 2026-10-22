@@ -54,7 +54,7 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credent
 		PoolBalancerType: poolBalancerType,
 		AgentMode:        agentMode,
 	}
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		newEnterprise.CredentialsID = &credentials.ID
 		newEnterprise.EndpointName = &credentials.Endpoint.Name
 
@@ -114,9 +114,9 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 	return param, nil
 }
 
-func (s *sqlDatabase) ListEnterprises(_ context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error) {
+func (s *sqlDatabase) ListEnterprises(ctx context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error) {
 	var enterprises []Enterprise
-	q := s.conn.
+	q := s.conn.WithContext(ctx).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("Endpoint")
@@ -160,7 +160,7 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 		}
 	}(enterprise)
 
-	q := s.conn.Unscoped().Delete(&enterprise)
+	q := s.conn.WithContext(ctx).Unscoped().Delete(&enterprise)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("error deleting enterprise: %w", q.Error)
 	}
@@ -176,7 +176,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		}
 	}()
 	var enterprise Enterprise
-	err = s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
 		enterprise, err = s.getEnterpriseByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), enterpriseID, "Endpoint")
 		if err != nil {
@@ -251,10 +251,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	return newParams, nil
 }
 
-func (s *sqlDatabase) getEnterprise(_ context.Context, name, endpointName string) (Enterprise, error) {
+func (s *sqlDatabase) getEnterprise(ctx context.Context, name, endpointName string) (Enterprise, error) {
 	var enterprise Enterprise
 
-	q := s.conn.Where("LOWER(name) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, endpointName).
+	q := s.conn.WithContext(ctx).Where("LOWER(name) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("Endpoint").
@@ -268,7 +268,8 @@ func (s *sqlDatabase) getEnterprise(_ context.Context, name, endpointName string
 	return enterprise, nil
 }
 
-func (s *sqlDatabase) getEnterpriseByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Enterprise, error) {
+func (s *sqlDatabase) getEnterpriseByID(ctx context.Context, tx *gorm.DB, id string, preload ...string) (Enterprise, error) {
+	tx = tx.WithContext(ctx)
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Enterprise{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
