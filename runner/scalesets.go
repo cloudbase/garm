@@ -80,7 +80,7 @@ func (r *Runner) ListScaleSetJobs(ctx context.Context, scaleSetID uint, filter p
 	return jobs, nil
 }
 
-func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error {
+func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint, bypassGHErrors bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -123,11 +123,11 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 
 	slog.DebugContext(ctx, "deleting scale set", "scale_set_id", scaleSet.ScaleSetID)
 	if err := scalesetCli.DeleteRunnerScaleSet(ctx, scaleSet.ScaleSetID); err != nil {
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
+		if !errors.Is(err, runnerErrors.ErrNotFound) && !bypassGHErrors {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to delete scale set from github")
 			return fmt.Errorf("error deleting scale set from github: %w", err)
 		}
-		slog.InfoContext(ctx, "scale set not found", "scale_set_id", scaleSet.ScaleSetID)
+		slog.With(slog.Any("error", err)).WarnContext(ctx, "removing scale set despite github error", "scale_set_id", scaleSet.ScaleSetID)
 	}
 	if err := r.store.DeleteScaleSetByID(ctx, scaleSetID); err != nil {
 		return fmt.Errorf("error deleting scale set: %w", err)

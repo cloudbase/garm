@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewDeleteScaleSetParams creates a new DeleteScaleSetParams object,
@@ -60,6 +61,12 @@ DeleteScaleSetParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type DeleteScaleSetParams struct {
+
+	/* BypassGHErrors.
+
+	   If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
+	*/
+	BypassGHErrors *bool
 
 	/* ScalesetID.
 
@@ -120,6 +127,17 @@ func (o *DeleteScaleSetParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithBypassGHErrors adds the bypassGHErrors to the delete scale set params
+func (o *DeleteScaleSetParams) WithBypassGHErrors(bypassGHErrors *bool) *DeleteScaleSetParams {
+	o.SetBypassGHErrors(bypassGHErrors)
+	return o
+}
+
+// SetBypassGHErrors adds the bypassGHErrors to the delete scale set params
+func (o *DeleteScaleSetParams) SetBypassGHErrors(bypassGHErrors *bool) {
+	o.BypassGHErrors = bypassGHErrors
+}
+
 // WithScalesetID adds the scalesetID to the delete scale set params
 func (o *DeleteScaleSetParams) WithScalesetID(scalesetID string) *DeleteScaleSetParams {
 	o.SetScalesetID(scalesetID)
@@ -138,6 +156,23 @@ func (o *DeleteScaleSetParams) WriteToRequest(r runtime.ClientRequest, reg strfm
 		return err
 	}
 	var res []error
+
+	if o.BypassGHErrors != nil {
+
+		// query param bypassGHErrors
+		var qrBypassGHErrors bool
+
+		if o.BypassGHErrors != nil {
+			qrBypassGHErrors = *o.BypassGHErrors
+		}
+		qBypassGHErrors := swag.FormatBool(qrBypassGHErrors)
+		if qBypassGHErrors != "" {
+
+			if err := r.SetQueryParam("bypassGHErrors", qBypassGHErrors); err != nil {
+				return err
+			}
+		}
+	}
 
 	// path param scalesetID
 	if err := r.SetPathParam("scalesetID", o.ScalesetID); err != nil {

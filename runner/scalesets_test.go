@@ -62,6 +62,7 @@ func TestDeleteScaleSetByID(t *testing.T) {
 	tests := []struct {
 		name    string
 		github  fakeGithub
+		bypass  bool
 		wantErr bool
 	}{
 		{
@@ -81,6 +82,11 @@ func TestDeleteScaleSetByID(t *testing.T) {
 			name:    "github fails the delete",
 			github:  fakeGithub{deleteStatus: http.StatusInternalServerError},
 			wantErr: true,
+		},
+		{
+			name:   "bypass with an unresolved entity",
+			github: fakeGithub{actionsServiceStatus: http.StatusNotFound},
+			bypass: true,
 		},
 	}
 
@@ -115,7 +121,7 @@ func TestDeleteScaleSetByID(t *testing.T) {
 			require.NoError(t, err)
 
 			r := &Runner{ctx: ctx, store: db}
-			err = r.DeleteScaleSetByID(ctx, scaleSet.ID)
+			err = r.DeleteScaleSetByID(ctx, scaleSet.ID, tt.bypass)
 			_, getErr := db.GetScaleSetByID(ctx, scaleSet.ID)
 			if tt.wantErr {
 				require.Error(t, err)
