@@ -18,11 +18,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -64,6 +66,10 @@ func (s *ScaleSetClient) getActionServiceInfo(ctx context.Context) (_ params.Act
 
 	resp, err := s.Do(req)
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return params.ActionsServiceAdminInfoResponse{}, runnerErrors.NewConflictError(
+				"actions service returned 404 for %s, was it renamed or transferred?", entity.String())
+		}
 		return params.ActionsServiceAdminInfoResponse{}, fmt.Errorf("failed to get actions service admin info: %w", err)
 	}
 	defer resp.Body.Close()
