@@ -15786,10 +15786,11 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
          * 
          * @summary Delete scale set by ID.
          * @param {string} scalesetID ID of the scale set to delete.
+         * @param {boolean} [bypassGHErrors] If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteScaleSet: async (scalesetID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteScaleSet: async (scalesetID: string, bypassGHErrors?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'scalesetID' is not null or undefined
             assertParamExists('deleteScaleSet', 'scalesetID', scalesetID)
             const localVarPath = `/scalesets/{scalesetID}`
@@ -15807,6 +15808,10 @@ export const ScalesetsApiAxiosParamCreator = function (configuration?: Configura
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (bypassGHErrors !== undefined) {
+                localVarQueryParameter['bypassGHErrors'] = bypassGHErrors;
+            }
 
 
     
@@ -16225,11 +16230,12 @@ export const ScalesetsApiFp = function(configuration?: Configuration) {
          * 
          * @summary Delete scale set by ID.
          * @param {string} scalesetID ID of the scale set to delete.
+         * @param {boolean} [bypassGHErrors] If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async deleteScaleSet(scalesetID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteScaleSet(scalesetID, options);
+        async deleteScaleSet(scalesetID: string, bypassGHErrors?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteScaleSet(scalesetID, bypassGHErrors, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ScalesetsApi.deleteScaleSet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -16392,11 +16398,12 @@ export const ScalesetsApiFactory = function (configuration?: Configuration, base
          * 
          * @summary Delete scale set by ID.
          * @param {string} scalesetID ID of the scale set to delete.
+         * @param {boolean} [bypassGHErrors] If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteScaleSet(scalesetID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
-            return localVarFp.deleteScaleSet(scalesetID, options).then((request) => request(axios, basePath));
+        deleteScaleSet(scalesetID: string, bypassGHErrors?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteScaleSet(scalesetID, bypassGHErrors, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -16538,12 +16545,13 @@ export class ScalesetsApi extends BaseAPI {
      * 
      * @summary Delete scale set by ID.
      * @param {string} scalesetID ID of the scale set to delete.
+     * @param {boolean} [bypassGHErrors] If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ScalesetsApi
      */
-    public deleteScaleSet(scalesetID: string, options?: RawAxiosRequestConfig) {
-        return ScalesetsApiFp(this.configuration).deleteScaleSet(scalesetID, options).then((request) => request(this.axios, this.basePath));
+    public deleteScaleSet(scalesetID: string, bypassGHErrors?: boolean, options?: RawAxiosRequestConfig) {
+        return ScalesetsApiFp(this.configuration).deleteScaleSet(scalesetID, bypassGHErrors, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

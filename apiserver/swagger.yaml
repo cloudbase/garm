@@ -2954,6 +2954,10 @@ paths:
                   name: scalesetID
                   required: true
                   type: string
+                - description: If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
+                  in: query
+                  name: bypassGHErrors
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse

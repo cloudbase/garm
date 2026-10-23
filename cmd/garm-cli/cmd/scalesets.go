@@ -61,6 +61,7 @@ var (
 	scalesetJobsPageSize           int64
 	scalesetJobsSince              string
 	scalesetJobsUntil              string
+	scaleSetBypassGHErrors         bool
 )
 
 type scalesetPayloadGetter interface {
@@ -207,6 +208,7 @@ var scaleSetDeleteCmd = &cobra.Command{
 
 		deleteScaleSetReq := apiClientScaleSets.NewDeleteScaleSetParams()
 		deleteScaleSetReq.ScalesetID = args[0]
+		deleteScaleSetReq.BypassGHErrors = &scaleSetBypassGHErrors
 		if err := apiCli.Scalesets.DeleteScaleSet(deleteScaleSetReq, authToken); err != nil {
 			return err
 		}
@@ -644,6 +646,8 @@ func init() {
 	scaleSetUpdateCmd.Flags().BoolVar(&scaleSetClearProxy, "clear-proxy", false, "Remove the proxy from this scale set.")
 	scaleSetUpdateCmd.MarkFlagsMutuallyExclusive("proxy", "clear-proxy")
 	scaleSetUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
+
+	scaleSetDeleteCmd.Flags().BoolVarP(&scaleSetBypassGHErrors, "bypass-github-errors", "b", false, "Remove the scale set even if GitHub fails to delete it. May leave it orphaned on GitHub.")
 
 	scaleSetAddCmd.Flags().StringVar(&scalesetProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	scaleSetAddCmd.Flags().StringVar(&scalesetImage, "image", "", "The provider-specific image name to use for runners in this scale set.")

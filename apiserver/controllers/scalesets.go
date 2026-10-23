@@ -112,6 +112,12 @@ func (a *APIController) GetScaleSetByIDHandler(w http.ResponseWriter, r *http.Re
 //	    in: path
 //	    required: true
 //
+//	  + name: bypassGHErrors
+//	    description: If true GARM removes the scale set even if GitHub fails to delete it, which may leave it orphaned on GitHub.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  default: APIErrorResponse
 func (a *APIController) DeleteScaleSetByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +143,8 @@ func (a *APIController) DeleteScaleSetByIDHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	if err := a.r.DeleteScaleSetByID(ctx, uint(id)); err != nil {
+	bypassGHErrors, _ := strconv.ParseBool(r.URL.Query().Get("bypassGHErrors"))
+	if err := a.r.DeleteScaleSetByID(ctx, uint(id), bypassGHErrors); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing scale set")
 		handleError(ctx, w, err)
 		return

@@ -93,6 +93,12 @@ garm-cli scaleset runner rotate <SCALESET_ID>
 garm-cli scaleset delete <SCALESET_ID>
 ```
 
+If GitHub can no longer delete it, for example after a repository transfer, `--bypass-github-errors` removes it from GARM only:
+
+```bash
+garm-cli scaleset delete --bypass-github-errors <SCALESET_ID>
+```
+
 ## Targeting a scale set in workflows
 
 Use the scale set name in `runs-on`:
