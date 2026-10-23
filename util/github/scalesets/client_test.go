@@ -19,8 +19,10 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	"github.com/google/go-github/v84/github"
 	"github.com/stretchr/testify/require"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -150,4 +152,21 @@ func TestDoMapsOtherStatuses(t *testing.T) {
 	}
 
 	require.NoError(t, doAgainstStatus(t, http.StatusOK, "ok"))
+}
+
+func TestActionServiceInfoNotFoundIsConflict(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(srv.Close)
+	baseURL, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+
+	ghCli := githubClientWithCABundle(t, nil)
+	ghCli.On("GithubBaseURL").Return(baseURL)
+	cli := &ScaleSetClient{
+		ghCli:                   ghCli,
+		httpClient:              srv.Client(),
+		runnerRegistrationToken: &github.RegistrationToken{Token: github.Ptr("token")},
+	}
+	_, err = cli.getActionServiceInfo(context.Background())
+	require.ErrorIs(t, err, &runnerErrors.ConflictError{})
 }
