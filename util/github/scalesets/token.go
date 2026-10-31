@@ -36,7 +36,7 @@ func (s *ScaleSetClient) getActionServiceInfo(ctx context.Context) (_ params.Act
 		}
 	}()
 
-	regPath := "/actions/runner-registration"
+	regPath := "actions/runner-registration"
 	baseURL := s.ghCli.GithubBaseURL()
 	url, err := baseURL.Parse(regPath)
 	if err != nil {
