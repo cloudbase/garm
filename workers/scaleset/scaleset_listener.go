@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/metrics"
@@ -28,6 +29,8 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
+
+const sessionCleanupTimeout = 10 * time.Second
 
 var closed = make(chan struct{})
 
@@ -115,6 +118,9 @@ func (l *scaleSetListener) Stop() error {
 	if !l.running.Load() {
 		return nil
 	}
+	// Stop the long poll and token refresh before attempting remote cleanup.
+	// In particular, Close can otherwise wait for an in-flight refresh.
+	l.cancelFunc()
 	if l.messageSession != nil {
 		slog.DebugContext(l.ctx, "closing message session", "scale_set", l.scaleSetHelper.GetScaleSet().ScaleSetID)
 		if err := l.messageSession.Close(); err != nil {
@@ -124,7 +130,11 @@ func (l *scaleSetListener) Stop() error {
 		if err != nil {
 			slog.ErrorContext(l.ctx, "error getting scale set client", "error", err)
 		} else {
-			if err := scaleSetClient.DeleteMessageSession(context.Background(), l.messageSession); err != nil {
+			// The worker context is cancelled during shutdown, but deleting the
+			// remote session still needs a bounded opportunity to finish.
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(l.ctx), sessionCleanupTimeout)
+			defer cleanupCancel()
+			if err := scaleSetClient.DeleteMessageSession(cleanupCtx, l.messageSession); err != nil {
 				slog.ErrorContext(l.ctx, "error deleting message session", "error", err)
 			}
 		}
@@ -132,7 +142,6 @@ func (l *scaleSetListener) Stop() error {
 
 	l.running.Store(false)
 	close(l.quit)
-	l.cancelFunc()
 	return nil
 }
 
