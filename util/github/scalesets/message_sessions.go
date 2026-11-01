@@ -74,10 +74,6 @@ func (m *MessageSession) loop() {
 	defer timer.Stop()
 	defer m.Close()
 
-	if m.closed {
-		slog.DebugContext(m.ctx, "message session refresh loop closed")
-		return
-	}
 	for {
 		select {
 		case <-m.ctx.Done():
