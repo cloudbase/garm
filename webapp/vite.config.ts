@@ -1,4 +1,5 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import { svelteKitConfig } from './sveltekit.config';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
 
@@ -9,7 +10,7 @@ export default defineConfig(({ mode }) => {
 
 	console.log(env.VITE_GARM_API_URL);
 	return {
-		plugins: [tailwindcss(), sveltekit()],
+		plugins: [tailwindcss(), sveltekit(svelteKitConfig)],
 		server: {
 			proxy: {
 				// Proxy API calls to GARM backend
