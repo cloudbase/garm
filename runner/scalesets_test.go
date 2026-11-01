@@ -29,6 +29,14 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+// apiBasePath is where the fake serves the REST API. go-github appends
+// api/v3/ to any enterprise base whose host is not api.github.com, so this is
+// the path the client actually uses and every REST route has to sit under it.
+// The runner registration the scale set client exchanges its token at is one
+// of those routes, which is what GHES gets wrong when the path is resolved
+// against the host root instead of the API base.
+const apiBasePath = "/api/v3"
+
 // fakeGithub answers with success for a zero actionsServiceStatus.
 type fakeGithub struct {
 	actionsServiceStatus int
@@ -40,10 +48,10 @@ func (f fakeGithub) serve(t *testing.T) *httptest.Server {
 
 	mux := http.NewServeMux()
 	var srv *httptest.Server
-	mux.HandleFunc("POST /api/v3/repos/test-owner/test-repo/actions/runners/registration-token", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST "+apiBasePath+"/repos/test-owner/test-repo/actions/runners/registration-token", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, `{"token": "registration-token"}`)
 	})
-	mux.HandleFunc("POST /actions/runner-registration", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST "+apiBasePath+"/actions/runner-registration", func(w http.ResponseWriter, _ *http.Request) {
 		if f.actionsServiceStatus != 0 {
 			w.WriteHeader(f.actionsServiceStatus)
 			return
@@ -100,7 +108,7 @@ func TestDeleteScaleSetByID(t *testing.T) {
 
 			endpoint, err := db.CreateGithubEndpoint(ctx, params.CreateGithubEndpointParams{
 				Name:          "fake-github",
-				APIBaseURL:    srv.URL + "/api/v3/",
+				APIBaseURL:    srv.URL + apiBasePath + "/",
 				UploadBaseURL: srv.URL + "/api/uploads/",
 				BaseURL:       srv.URL,
 			})
