@@ -17,6 +17,7 @@ package scalesets
 import (
 	"context"
 	"encoding/pem"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -169,4 +170,43 @@ func TestActionServiceInfoNotFoundIsConflict(t *testing.T) {
 	}
 	_, err = cli.getActionServiceInfo(context.Background())
 	require.ErrorIs(t, err, &runnerErrors.ConflictError{})
+}
+
+// The runner registration path must resolve against the API base, not the
+// host root. On github.com the base carries no path so both forms agree, but
+// GHES serves the API under /api/v3 and an absolute reference silently
+// discards it, which is a 404 at token exchange time.
+func TestActionServiceInfoKeepsAPIBasePath(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		basePath string
+		wantPath string
+	}{
+		{"github.com", "/", "/actions/runner-registration"},
+		{"ghes", "/api/v3/", "/api/v3/actions/runner-registration"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotPath string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				fmt.Fprint(w, `{"url": "https://pipeline.example.com", "token": "actions-token"}`)
+			}))
+			t.Cleanup(srv.Close)
+
+			baseURL, err := url.Parse(srv.URL + tt.basePath)
+			require.NoError(t, err)
+
+			ghCli := githubClientWithCABundle(t, nil)
+			ghCli.On("GithubBaseURL").Return(baseURL)
+			cli := &ScaleSetClient{
+				ghCli:                   ghCli,
+				httpClient:              srv.Client(),
+				runnerRegistrationToken: &github.RegistrationToken{Token: github.Ptr("token")},
+			}
+
+			_, err = cli.getActionServiceInfo(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, tt.wantPath, gotPath)
+		})
+	}
 }
