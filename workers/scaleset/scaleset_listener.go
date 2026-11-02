@@ -253,7 +253,17 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		l.lastMessageID = msg.MessageID
 	}
 
-	if err := l.scaleSetHelper.SetDesiredRunnerCount(msg.Statistics.TotalAssignedJobs); err != nil {
+	// GitHub can send a JobAssigned message whose statistics still count zero
+	// assigned jobs, seemingly on the first assignment after the scale set has
+	// been idle. Sizing from the statistics alone then starts no runner, and
+	// the job waits until GitHub re-assigns it about five minutes later.
+	desired := max(msg.Statistics.TotalAssignedJobs, len(assignedJobs))
+	slog.DebugContext(l.ctx, "setting desired runner count",
+		"desired", desired, "assigned_in_message", len(assignedJobs),
+		"total_assigned_jobs", msg.Statistics.TotalAssignedJobs,
+		"total_available_jobs", msg.Statistics.TotalAvailableJobs,
+		"total_busy_runners", msg.Statistics.TotalBusyRunners)
+	if err := l.scaleSetHelper.SetDesiredRunnerCount(desired); err != nil {
 		slog.ErrorContext(l.ctx, "setting desired runner count", "error", err)
 	}
 
