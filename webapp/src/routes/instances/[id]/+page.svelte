@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Instance } from '$lib/api/generated/api.js';
@@ -22,7 +22,7 @@
 	let statusMessagesContainer: HTMLElement;
 
 
-	$: instanceName = decodeURIComponent($page.params.id || '');
+	$: instanceName = decodeURIComponent(page.params.id || '');
 
 	// Current time for heartbeat staleness check - updates every second
 	let currentTime = Date.now();

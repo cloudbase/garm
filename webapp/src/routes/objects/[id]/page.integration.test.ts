@@ -30,12 +30,9 @@ vi.mock('$lib/utils/format', () => ({
 	formatDateTime: vi.fn((date) => date || 'N/A')
 }));
 
-vi.mock('$app/stores', () => ({
+vi.mock('$app/state', () => ({
 	page: {
-		subscribe: vi.fn((callback) => {
-			callback({ params: { id: '1' } });
-			return () => {};
-		})
+		params: { id: '1' }
 	}
 }));
 

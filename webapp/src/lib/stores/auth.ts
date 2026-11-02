@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { garmApi } from '../api/client.js';
 import { getCookie, setCookie, deleteCookie } from '../utils/cookies.js';
 import { isTokenExpired } from '../utils/jwt.js';

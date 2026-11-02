@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { garmApi } from '$lib/api/client.js';
 	import type { ForgeCredentials, Repository, Organization, Enterprise } from '$lib/api/generated/api.js';
@@ -19,8 +19,8 @@
 	let showDeleteModal = false;
 	let unsubscribeWebsocket: (() => void) | null = null;
 
-	$: credentialId = $page.params.id;
-	$: forgeType = $page.params.forge_type;
+	$: credentialId = page.params.id;
+	$: forgeType = page.params.forge_type;
 	$: isGithub = forgeType === 'github';
 	$: isGitea = forgeType === 'gitea';
 

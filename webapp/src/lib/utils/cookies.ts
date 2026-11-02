@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 /**
  * Read a cookie value by name. Returns null when not found or outside the browser.
