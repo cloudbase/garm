@@ -4,15 +4,10 @@ import InstanceDetailsPage from './+page.svelte';
 import { createMockInstance } from '../../../test/factories.js';
 
 // Mock app stores and navigation
-vi.mock('$app/stores', () => ({
+vi.mock('$app/state', () => ({
 	page: {
-		subscribe: vi.fn((callback) => {
-			callback({
-				params: { id: 'test-instance' },
-				url: { pathname: '/instances/test-instance' }
-			});
-			return () => {};
-		})
+		params: { id: 'test-instance' },
+		url: { pathname: '/instances/test-instance' }
 	}
 }));
 
@@ -452,15 +447,9 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 
 	describe('URL Parameter Integration', () => {
 		it('should handle URL parameter decoding', async () => {
-			// Mock page store with encoded parameter
-			const { page } = await import('$app/stores');
-			vi.mocked(page.subscribe).mockImplementation((callback: any) => {
-				callback({
-					params: { id: 'test%2Dinstance%2Dwith%2Ddashes' },
-					url: { pathname: '/instances/test%2Dinstance%2Dwith%2Ddashes' }
-				});
-				return () => {};
-			});
+			// Point page state at an encoded parameter
+			const { page } = await import('$app/state');
+			page.params.id = 'test%2Dinstance%2Dwith%2Ddashes';
 
 			render(InstanceDetailsPage);
 
@@ -471,15 +460,9 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 		});
 
 		it('should handle parameter changes', async () => {
-			// Reset the page store mock to use default test-instance
-			const { page } = await import('$app/stores');
-			vi.mocked(page.subscribe).mockImplementation((callback: any) => {
-				callback({
-					params: { id: 'test-instance' },
-					url: { pathname: '/instances/test-instance' }
-				});
-				return () => {};
-			});
+			// Reset page state back to the default test-instance
+			const { page } = await import('$app/state');
+			page.params.id = 'test-instance';
 
 			render(InstanceDetailsPage);
 

@@ -4,7 +4,7 @@ import InstancesPage from './+page.svelte';
 import { createMockInstance } from '../../test/factories.js';
 
 // Mock app stores and navigation
-vi.mock('$app/stores', () => ({}));
+vi.mock('$app/state', () => ({}));
 
 vi.mock('$app/navigation', () => ({}));
 

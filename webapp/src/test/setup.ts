@@ -3,10 +3,11 @@ import '@testing-library/jest-dom';
 // Mock SvelteKit runtime modules
 import { vi } from 'vitest';
 
-// Mock SvelteKit stores
-vi.mock('$app/stores', () => ({
+// Mock SvelteKit page state
+vi.mock('$app/state', () => ({
 	page: {
-		subscribe: vi.fn(() => () => {})
+		params: {},
+		url: new URL('http://localhost/')
 	}
 }));
 
@@ -15,8 +16,8 @@ vi.mock('$app/paths', () => ({
 	resolve: vi.fn((path: string) => path)
 }));
 
-// Mock SvelteKit environment - Set browser to true for client-side rendering
-vi.mock('$app/environment', () => ({
+// Mock SvelteKit env - Set browser to true for client-side rendering
+vi.mock('$app/env', () => ({
 	browser: true,
 	dev: true,
 	building: false,

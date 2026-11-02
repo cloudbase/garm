@@ -31,7 +31,7 @@ vi.mock('$lib/stores/websocket.js', () => ({
 	}
 }));
 
-vi.mock('$app/stores', () => ({}));
+vi.mock('$app/state', () => ({}));
 vi.mock('$app/navigation', () => ({
 	goto: vi.fn()
 }));

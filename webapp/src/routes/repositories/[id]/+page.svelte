@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Repository, Pool, Instance } from '$lib/api/generated/api.js';
@@ -33,7 +33,7 @@
 	let unsubscribeWebsocket: (() => void) | null = null;
 	let eventsContainer: HTMLElement;
 
-	$: repositoryId = $page.params.id;
+	$: repositoryId = page.params.id;
 
 	async function loadRepository() {
 		if (!repositoryId) return;

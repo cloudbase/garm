@@ -4,7 +4,7 @@ import PoolsPage from './+page.svelte';
 import { createMockPool } from '../../test/factories.js';
 
 // Mock app stores
-vi.mock('$app/stores', () => ({}));
+vi.mock('$app/state', () => ({}));
 
 vi.mock('$app/navigation', () => ({}));
 

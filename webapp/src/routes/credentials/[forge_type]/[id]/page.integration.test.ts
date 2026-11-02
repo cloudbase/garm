@@ -7,17 +7,18 @@ vi.unmock('$lib/components/DataTable.svelte');
 vi.unmock('$lib/components/DeleteModal.svelte');
 vi.unmock('$lib/components/cells');
 
-// Mock $app/stores - page is a Svelte store with subscribe
+// Mock $app/state - page is a plain reactive object
 let mockPageParams = { forge_type: 'github', id: '1001' };
-vi.mock('$app/stores', () => ({
+vi.mock('$app/state', () => ({
 	page: {
-		subscribe: vi.fn((callback) => {
-			callback({
-				params: mockPageParams,
-				url: new URL(`http://localhost/credentials/${mockPageParams.forge_type}/${mockPageParams.id}`)
-			});
-			return () => {};
-		})
+		// Lazy so the hoisted factory does not read mockPageParams before it
+		// is initialized, and so beforeEach can reassign it.
+		get params() {
+			return mockPageParams;
+		},
+		get url() {
+			return new URL(`http://localhost/credentials/${mockPageParams.forge_type}/${mockPageParams.id}`);
+		}
 	}
 }));
 

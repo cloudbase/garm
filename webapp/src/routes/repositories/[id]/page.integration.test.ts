@@ -124,12 +124,9 @@ vi.mock('$lib/stores/eager-cache.js', () => ({
 }));
 
 // Mock SvelteKit modules
-vi.mock('$app/stores', () => ({
+vi.mock('$app/state', () => ({
 	page: {
-		subscribe: vi.fn((callback) => {
-			callback({ params: { id: 'repo-123' } });
-			return () => {};
-		})
+		params: { id: 'repo-123' }
 	}
 }));
 

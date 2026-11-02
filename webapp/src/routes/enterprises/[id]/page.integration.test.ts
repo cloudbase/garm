@@ -4,12 +4,9 @@ import EnterpriseDetailsPage from './+page.svelte';
 import { createMockEnterprise, createMockInstance } from '../../../test/factories.js';
 
 // Mock page store
-vi.mock('$app/stores', () => ({
+vi.mock('$app/state', () => ({
 	page: {
-		subscribe: vi.fn((callback) => {
-			callback({ params: { id: 'ent-123' } });
-			return () => {};
-		})
+		params: { id: 'ent-123' }
 	}
 }));
 

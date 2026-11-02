@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { garmApi } from '$lib/api/client.js';
@@ -27,7 +27,7 @@
 	};
 	let updateTagInput = '';
 
-	$: objectId = $page.params.id || '';
+	$: objectId = page.params.id || '';
 
 	onMount(async () => {
 		await loadObject();

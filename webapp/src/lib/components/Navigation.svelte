@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import { websocketStore } from '$lib/stores/websocket.js';
@@ -16,7 +16,7 @@
 	$: serverVersion = $eagerCache.controllerInfo?.version || '';
 
 	// Close mobile menu when route changes  
-	$: $page.url.pathname && (mobileMenuOpen = false);
+	$: page.url.pathname && (mobileMenuOpen = false);
 
 	onMount(() => {
 		// Listen for system theme changes - theme store handles initialization
@@ -117,7 +117,7 @@
 		}
 	];
 
-	$: currentPath = $page.url.pathname;
+	$: currentPath = page.url.pathname;
 </script>
 
 <!-- Fixed sidebar for desktop -->

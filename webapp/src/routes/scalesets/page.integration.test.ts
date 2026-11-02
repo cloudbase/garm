@@ -49,7 +49,7 @@ function createMockCacheState(overrides: any = {}) {
 }
 
 // Mock app stores and navigation
-vi.mock('$app/stores', () => ({}));
+vi.mock('$app/state', () => ({}));
 vi.mock('$app/navigation', () => ({}));
 
 const mockScaleSet = createMockScaleSet({
