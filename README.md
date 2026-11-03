@@ -85,6 +85,7 @@ GARM uses external providers to create runners in a particular IaaS. Providers a
 | LXD | [cloudbase/garm-provider-lxd](https://github.com/cloudbase/garm-provider-lxd) |
 | OpenStack | [cloudbase/garm-provider-openstack](https://github.com/cloudbase/garm-provider-openstack) |
 | Oracle OCI | [cloudbase/garm-provider-oci](https://github.com/cloudbase/garm-provider-oci) |
+| Tart | [yanksyoon/garm-provider-tart](https://github.com/yanksyoon/garm-provider-tart) |
 
 Follow the instructions in each provider's README to install them.
 

@@ -80,7 +80,7 @@ var templateCreateCmd = &cobra.Command{
 
 		osType := commonParams.OSType(templateOSType)
 		switch osType {
-		case commonParams.Linux, commonParams.Windows:
+		case commonParams.Linux, commonParams.Windows, commonParams.Darwin:
 		default:
 			return fmt.Errorf("invalid OS type: %q (supported: %s)", osType, strings.Join([]string{string(params.GithubEndpointType), string(params.GiteaEndpointType)}, ", "))
 		}
@@ -394,7 +394,7 @@ restore only a specific template. When either flag is specified, both must be pr
 
 			osType := commonParams.OSType(templateOSType)
 			switch osType {
-			case commonParams.Linux, commonParams.Windows:
+			case commonParams.Linux, commonParams.Windows, commonParams.Darwin:
 			default:
 				return fmt.Errorf("invalid OS type: %q (supported: %s)", osType, strings.Join([]string{string(commonParams.Linux), string(commonParams.Windows)}, ", "))
 			}

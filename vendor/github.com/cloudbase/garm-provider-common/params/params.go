@@ -30,6 +30,7 @@ type (
 const (
 	Windows OSType = "windows"
 	Linux   OSType = "linux"
+	Darwin  OSType = "darwin"
 	Unknown OSType = "unknown"
 )
 
@@ -156,7 +157,7 @@ type BootstrapInstance struct {
 	// OSArch is the target OS CPU architecture of the runner.
 	OSArch OSArch `json:"arch"`
 
-	// OSType is the target OS platform of the runner (windows, linux).
+	// OSType is the target OS platform of the runner (windows, linux, darwin).
 	OSType OSType `json:"os_type"`
 
 	// Flavor is the platform specific abstraction that defines what resources will be allocated
@@ -205,8 +206,8 @@ type ProviderInstance struct {
 	// instance.
 	Name string `json:"name,omitempty"`
 
-	// OSType is the operating system type. For now, only Linux and
-	// Windows are supported.
+	// OSType is the operating system type. Supported values are Linux,
+	// Windows and Darwin.
 	OSType OSType `json:"os_type,omitempty"`
 
 	// OSName is the name of the OS. Eg: ubuntu, centos, etc.

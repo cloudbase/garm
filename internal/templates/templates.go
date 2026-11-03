@@ -200,6 +200,10 @@ func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType,
 		}
 	}
 
+	if osType == commonParams.Darwin {
+		osType = commonParams.Linux // identical POSIX bash; there is no darwin-specific wrapper
+	}
+
 	templateName := fmt.Sprintf("%s_wrapper.tmpl", osType)
 	var b bytes.Buffer
 	wr := bufio.NewWriter(&b)
