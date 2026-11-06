@@ -361,6 +361,55 @@ func (s *ScaleSetsTestSuite) TestScaleSetOperations() {
 	})
 }
 
+func (s *ScaleSetsTestSuite) TestScaleSetInstanceGeneration() {
+	scaleSet, err := s.Store.CreateEntityScaleSet(s.adminCtx, s.repoEntity, params.CreateScaleSetParams{
+		Name:         "generation-scaleset",
+		ProviderName: "test-provider",
+		MaxRunners:   10,
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+		ExtraSpecs:   json.RawMessage(`{"test": 1}`),
+	})
+	s.Require().NoError(err)
+	newInstance := func(name string, scaleSetID uint) params.Instance {
+		inst, err := s.Store.CreateScaleSetInstance(s.adminCtx, scaleSetID, params.CreateInstanceParams{
+			Name:         name,
+			Status:       commonParams.InstancePendingCreate,
+			RunnerStatus: params.RunnerPending,
+			OSType:       commonParams.Linux,
+			OSArch:       commonParams.Amd64,
+		})
+		s.Require().NoError(err)
+		s.T().Cleanup(func() {
+			_ = s.Store.DeleteInstanceByName(s.adminCtx, name)
+		})
+		return inst
+	}
+	s.T().Cleanup(func() {
+		_ = s.Store.DeleteScaleSetByID(s.adminCtx, scaleSet.ID)
+	})
+
+	before := newInstance("before-update", scaleSet.ID)
+	s.Require().Equal(scaleSet.Generation, before.Generation)
+
+	// Changing extra specs bumps the scale set generation.
+	updated, err := s.Store.UpdateEntityScaleSet(s.adminCtx, s.repoEntity, scaleSet.ID, params.UpdateScaleSetParams{
+		ExtraSpecs: json.RawMessage(`{"test": 2}`),
+	}, nil)
+	s.Require().NoError(err)
+	s.Require().Greater(updated.Generation, scaleSet.Generation)
+
+	after := newInstance("after-update", scaleSet.ID)
+	s.Require().Equal(updated.Generation, after.Generation)
+
+	outdated, err := s.Store.ListScaleSetInstances(s.adminCtx, scaleSet.ID, true)
+	s.Require().NoError(err)
+	s.Require().Len(outdated, 1)
+	s.Require().Equal("before-update", outdated[0].Name)
+}
+
 func TestScaleSetsTestSuite(t *testing.T) {
 	suite.Run(t, new(ScaleSetsTestSuite))
 }

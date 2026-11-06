@@ -62,6 +62,9 @@ func (s *sqlDatabase) CreateScaleSetInstance(ctx context.Context, scaleSetID uin
 		GitHubRunnerGroup: param.GitHubRunnerGroup,
 		JitConfiguration:  secret,
 		AgentID:           param.AgentID,
+		// Record the scale set generation at creation time, so the
+		// outdated filter only matches runners created before an update.
+		Generation: scaleSet.Generation,
 	}
 	q := s.conn.WithContext(ctx).Omit("ScaleSet").Create(&newInstance)
 	if q.Error != nil {
