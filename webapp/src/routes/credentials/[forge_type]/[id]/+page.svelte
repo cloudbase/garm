@@ -379,7 +379,7 @@
 						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Base URL</dt>
 						<dd class="mt-1 text-sm text-gray-900 dark:text-white break-all">{credential.endpoint.base_url}</dd>
 					</div>
-					{#if isGitea && credential.endpoint.tools_metadata_url}
+					{#if credential.endpoint.tools_metadata_url}
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Tools Metadata URL</dt>
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white break-all">{credential.endpoint.tools_metadata_url}</dd>

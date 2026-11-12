@@ -898,6 +898,75 @@ func (s *GithubTestSuite) TestDeleteGithubEndpointFailsWithOrgsReposOrCredential
 	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
 
+// The tools metadata URL is optional and clearable: a nil pointer leaves it
+// alone, a pointer to the empty string takes the endpoint back to using only
+// the tools the forge API reports.
+func (s *GithubTestSuite) TestEndpointToolsMetadataURL() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	metadataURL := "https://api.github.com/repos/canonical/github-actions-runner/releases"
+	endpoint, err := s.db.CreateGithubEndpoint(ctx, params.CreateGithubEndpointParams{
+		Name:             testEndpointName,
+		Description:      testEndpointDescription,
+		APIBaseURL:       testAPIBaseURL,
+		UploadBaseURL:    testUploadBaseURL,
+		BaseURL:          testBaseURL,
+		ToolsMetadataURL: metadataURL,
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(metadataURL, endpoint.ToolsMetadataURL)
+
+	// It survives a round trip through the database.
+	fetched, err := s.db.GetGithubEndpoint(ctx, testEndpointName)
+	s.Require().NoError(err)
+	s.Require().Equal(metadataURL, fetched.ToolsMetadataURL)
+
+	// A nil pointer leaves it alone.
+	newDescription := "unrelated change"
+	updated, err := s.db.UpdateGithubEndpoint(ctx, testEndpointName, params.UpdateGithubEndpointParams{
+		Description: &newDescription,
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(metadataURL, updated.ToolsMetadataURL)
+
+	// A new value replaces it.
+	otherURL := "https://internal.example.com/releases"
+	updated, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, params.UpdateGithubEndpointParams{
+		ToolsMetadataURL: &otherURL,
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(otherURL, updated.ToolsMetadataURL)
+
+	// The empty string clears it.
+	empty := ""
+	updated, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, params.UpdateGithubEndpointParams{
+		ToolsMetadataURL: &empty,
+	})
+	s.Require().NoError(err)
+	s.Require().Equal("", updated.ToolsMetadataURL)
+
+	fetched, err = s.db.GetGithubEndpoint(ctx, testEndpointName)
+	s.Require().NoError(err)
+	s.Require().Equal("", fetched.ToolsMetadataURL)
+}
+
+// Unlike Gitea, a GitHub endpoint has no default tools metadata URL. An empty
+// value must stay empty rather than being filled in with a default.
+func (s *GithubTestSuite) TestEndpointToolsMetadataURLDefaultsEmpty() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	endpoint, err := s.db.CreateGithubEndpoint(ctx, params.CreateGithubEndpointParams{
+		Name:          testEndpointName,
+		Description:   testEndpointDescription,
+		APIBaseURL:    testAPIBaseURL,
+		UploadBaseURL: testUploadBaseURL,
+		BaseURL:       testBaseURL,
+	})
+	s.Require().NoError(err)
+	s.Require().Equal("", endpoint.ToolsMetadataURL)
+	s.Require().Nil(endpoint.UseInternalToolsMetadata)
+}
+
 func TestGithubTestSuite(t *testing.T) {
 	suite.Run(t, new(GithubTestSuite))
 }

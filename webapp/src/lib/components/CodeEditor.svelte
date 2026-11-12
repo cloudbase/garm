@@ -106,7 +106,7 @@
 		{ label: 'Labels', type: '[]string', detail: 'Array of runner labels' },
 		{ label: 'CACertBundle', type: '[]byte', detail: 'CA certificate bundle' },
 		{ label: 'OSType', type: 'string', detail: 'Operating system type (linux/windows)' },
-		{ label: 'OSArch', type: 'string', detail: 'Operating system architecture (amd64/arm64)' },
+		{ label: 'OSArch', type: 'string', detail: 'Operating system architecture (amd64, arm64, arm, ppc64le, s390x, riscv64)' },
 		{ label: 'Flavor', type: 'string', detail: 'Runner flavor/size specification' },
 		{ label: 'Image', type: 'string', detail: 'Runner image name' },
 		{ label: 'ImageOS', type: 'string', detail: 'Operating system of the image' },

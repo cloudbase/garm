@@ -80,10 +80,11 @@
 				upload_base_url: formData.upload_base_url
 			};
 
+			if (formData.tools_metadata_url.trim() !== '') {
+				endpointParams.tools_metadata_url = formData.tools_metadata_url.trim();
+			}
+
 			if (selectedForgeType === 'gitea') {
-				if (formData.tools_metadata_url.trim() !== '') {
-					endpointParams.tools_metadata_url = formData.tools_metadata_url.trim();
-				}
 				endpointParams.use_internal_tools_metadata = formData.use_internal_tools_metadata;
 			}
 

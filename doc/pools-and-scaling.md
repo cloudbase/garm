@@ -51,7 +51,7 @@ The `--image` and `--flavor` values are provider-specific. For example, on LXD/I
 | `--image` | (required) | Provider-specific image (LXD alias, cloud AMI, etc) |
 | `--flavor` | (required) | Provider-specific sizing (LXD profile, instance type, etc) |
 | `--os-type` | `linux` | `linux` or `windows` |
-| `--os-arch` | `amd64` | `amd64` or `arm64` |
+| `--os-arch` | `amd64` | `amd64`, `arm64`, `arm`, `ppc64le`, `s390x` or `riscv64`. On GitHub, anything other than `amd64`, `arm64` and `arm` needs a [tools metadata URL](/doc/managing-entities.md#runner-binaries-for-extra-architectures) on the endpoint. Gitea publishes all of them except `ppc64le`. |
 | `--tags` | | Comma-separated labels applied to runners |
 | `--min-idle-runners` | `0` | Runners kept warm waiting for jobs |
 | `--max-runners` | `5` | Maximum runners in this pool |

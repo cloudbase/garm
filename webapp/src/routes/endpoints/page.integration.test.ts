@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
 import EndpointsPage from './+page.svelte';
 import { createMockForgeEndpoint, createMockGiteaEndpoint } from '../../test/factories.js';
 
@@ -568,6 +568,92 @@ describe('Comprehensive Integration Tests for Endpoints Page', () => {
 			// File processing should be available for base64 encoding
 			// This enables CA certificate bundle handling in the forms
 			expect(true).toBe(true);
+		});
+
+		it('should offer a tools metadata URL for both forge types', async () => {
+			render(EndpointsPage);
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /Add Endpoint/i })).toBeInTheDocument();
+			});
+
+			await fireEvent.click(screen.getByRole('button', { name: /Add Endpoint/i }));
+
+			// GitHub is the default forge type. The metadata URL overrides the
+			// tools the endpoint API reports, so it has to be offered here too.
+			const metadataInput = await screen.findByLabelText(/Tools Metadata URL/i);
+			expect(metadataInput).toBeInTheDocument();
+			expect(metadataInput).not.toBeDisabled();
+			expect(metadataInput).toHaveAttribute(
+				'placeholder',
+				'https://api.github.com/repos/canonical/github-actions-runner/releases'
+			);
+
+			// Internal tools metadata is Gitea only.
+			expect(screen.queryByLabelText(/Use Internal Tools Metadata/i)).not.toBeInTheDocument();
+
+			await fireEvent.click(screen.getByRole('button', { name: /Gitea/i }));
+
+			await waitFor(() => {
+				expect(screen.getByLabelText(/Use Internal Tools Metadata/i)).toBeInTheDocument();
+				expect(screen.getByLabelText(/Tools Metadata URL/i)).toHaveAttribute(
+					'placeholder',
+					'https://gitea.com/api/v1/repos/gitea/runner/releases'
+				);
+			});
+		});
+
+		it('should disable the tools metadata URL when Gitea uses internal metadata', async () => {
+			render(EndpointsPage);
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /Add Endpoint/i })).toBeInTheDocument();
+			});
+
+			await fireEvent.click(screen.getByRole('button', { name: /Add Endpoint/i }));
+			await fireEvent.click(await screen.findByRole('button', { name: /Gitea/i }));
+
+			const internalCheckbox = await screen.findByLabelText(/Use Internal Tools Metadata/i);
+			await fireEvent.click(internalCheckbox);
+
+			await waitFor(() => {
+				expect(screen.getByLabelText(/Tools Metadata URL/i)).toBeDisabled();
+			});
+		});
+
+		it('should send the tools metadata URL when creating a GitHub endpoint', async () => {
+			render(EndpointsPage);
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /Add Endpoint/i })).toBeInTheDocument();
+			});
+
+			await fireEvent.click(screen.getByRole('button', { name: /Add Endpoint/i }));
+
+			await fireEvent.input(await screen.findByLabelText(/Endpoint Name/i), {
+				target: { value: 'ghes' }
+			});
+			await fireEvent.input(screen.getByLabelText(/^Base URL/i), {
+				target: { value: 'https://ghes.example.com' }
+			});
+			await fireEvent.input(screen.getByLabelText(/API Base URL/i), {
+				target: { value: 'https://ghes.example.com/api/v3' }
+			});
+			await fireEvent.input(screen.getByLabelText(/Tools Metadata URL/i), {
+				target: { value: 'https://api.github.com/repos/canonical/github-actions-runner/releases' }
+			});
+
+			await fireEvent.click(screen.getByRole('button', { name: /^Create Endpoint$/i }));
+
+			await waitFor(() => {
+				expect(garmApi.createGithubEndpoint).toHaveBeenCalledWith(
+					expect.objectContaining({
+						name: 'ghes',
+						tools_metadata_url:
+							'https://api.github.com/repos/canonical/github-actions-runner/releases'
+					})
+				);
+			});
 		});
 
 		it('should handle forge type selection', async () => {

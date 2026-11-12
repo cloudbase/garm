@@ -46,6 +46,11 @@ func (g *credentialCache) UpdateCredentialsUsingEndpoint(ep params.ForgeEndpoint
 		for _, creds := range cache {
 			if creds.Endpoint.Name == ep.Name {
 				creds.Endpoint = ep
+				// CABundle is a flattened copy of the endpoint bundle, made
+				// when the credentials were loaded. Leaving it behind means
+				// a rotated CA never reaches the clients built from these
+				// credentials.
+				creds.CABundle = ep.CACertBundle
 				cache[creds.ID] = creds
 				updated = append(updated, creds)
 			}
@@ -118,7 +123,11 @@ func GetAllGiteaCredentialsAsMap() map[uint]params.ForgeCredentials {
 	return giteaCredentialsCache.AsMap()
 }
 
+// UpdateCredentialsUsingEndpoint refreshes the endpoint embedded in every
+// cached credential that belongs to it. Endpoint names are unique across
+// forge types, so a name matches credentials in at most one of the caches.
 func UpdateCredentialsUsingEndpoint(ep params.ForgeEndpoint) {
+	credentialsCache.UpdateCredentialsUsingEndpoint(ep)
 	giteaCredentialsCache.UpdateCredentialsUsingEndpoint(ep)
 }
 

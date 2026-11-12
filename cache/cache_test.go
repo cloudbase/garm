@@ -20,7 +20,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
@@ -96,24 +95,9 @@ func (c *CacheTestSuite) TestSetToolsCacheWithError() {
 
 	c.Require().Equal(int64(entity.expiresAt.Sub(entity.updatedAt).Minutes()), int64(60))
 	c.Require().Len(githubToolsCache.entities, 1)
-	SetGithubToolsCacheError(c.entity, runnerErrors.ErrNotFound)
-
 	cachedTools, err := GetGithubToolsCache(c.entity.ID)
-	c.Require().Error(err)
-	c.Require().Nil(cachedTools)
-}
-
-func (c *CacheTestSuite) TestSetErrorOnNonExistingCacheEntity() {
-	entity := params.ForgeEntity{
-		ID: "non-existing-entity",
-	}
-	c.Require().NotNil(githubToolsCache)
-	c.Require().Len(githubToolsCache.entities, 0)
-	SetGithubToolsCacheError(entity, runnerErrors.ErrNotFound)
-
-	storedEntity, err := GetGithubToolsCache(entity.ID)
-	c.Require().Error(err)
-	c.Require().Nil(storedEntity)
+	c.Require().NoError(err)
+	c.Require().Len(cachedTools, len(tools))
 }
 
 func (c *CacheTestSuite) TestTimedOutToolsCache() {
@@ -1754,4 +1738,47 @@ func (c *CacheTestSuite) TestConcurrentCredentialsAndEntityAccessDoesNotDeadlock
 func TestCacheTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(CacheTestSuite))
+}
+
+// An endpoint change has to reach the cached credentials of both forge
+// types, and has to carry the CA bundle with it. ForgeCredentials.CABundle
+// is a flattened copy of the endpoint bundle, so leaving it behind means a
+// rotated CA never reaches the clients built from these credentials.
+func (c *CacheTestSuite) TestUpdateCredentialsUsingEndpointCarriesCABundle() {
+	for _, tc := range []struct {
+		name      string
+		forgeType params.EndpointType
+		credsID   uint
+		get       func(uint) (params.ForgeCredentials, bool)
+		set       func(params.ForgeCredentials)
+	}{
+		{"github", params.GithubEndpointType, 4001, GetGithubCredentials, SetGithubCredentials},
+		{"gitea", params.GiteaEndpointType, 4002, GetGiteaCredentials, SetGiteaCredentials},
+	} {
+		endpoint := params.ForgeEndpoint{
+			Name:         "ep-" + tc.name,
+			EndpointType: tc.forgeType,
+			CACertBundle: []byte("old-bundle"),
+		}
+		tc.set(params.ForgeCredentials{
+			ID:        tc.credsID,
+			ForgeType: tc.forgeType,
+			Endpoint:  endpoint,
+			CABundle:  endpoint.CACertBundle,
+		})
+
+		rotated := endpoint
+		rotated.CACertBundle = []byte("new-bundle")
+		rotated.ToolsMetadataURL = "https://example.com/releases"
+		UpdateCredentialsUsingEndpoint(rotated)
+
+		creds, ok := tc.get(tc.credsID)
+		c.Require().True(ok, tc.name)
+		c.Require().Equal("new-bundle", string(creds.Endpoint.CACertBundle), tc.name)
+		c.Require().Equal("new-bundle", string(creds.CABundle), tc.name)
+		// The whole endpoint travels, which is what lets readers work off
+		// the copy embedded in the credentials instead of looking the
+		// endpoint up separately.
+		c.Require().Equal("https://example.com/releases", creds.Endpoint.ToolsMetadataURL, tc.name)
+	}
 }

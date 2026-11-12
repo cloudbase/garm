@@ -66,6 +66,36 @@ func FetchTools(ctx context.Context, cli common.GithubClient) ([]commonParams.Ru
 	return ret, nil
 }
 
+// MergeTools merges two sets of runner tools on their OS/arch combo. An entry
+// in override replaces the base entry for the same combo, and combos only
+// override knows about are kept.
+//
+// It lets the tools metadata URL configured on an endpoint take precedence
+// over what the forge API reports, while keeping the combos only the forge
+// publishes. Within either set, the first entry for a combo wins.
+//
+// Note: This does not check versions of tools from the override URL. If the
+// 3td party tools URL serves outdated tools, GARM does not check. Runners using
+// tools that are too old, may not be able to connect to GitHub.
+func MergeTools(base, override []commonParams.RunnerApplicationDownload) []commonParams.RunnerApplicationDownload {
+	ret := make([]commonParams.RunnerApplicationDownload, 0, len(base)+len(override))
+	seen := make(map[string]struct{}, len(base)+len(override))
+
+	// The override goes first, so every combo it covers is taken before the
+	// base is considered. The base then only fills in what is left.
+	for _, tools := range [][]commonParams.RunnerApplicationDownload{override, base} {
+		for _, tool := range tools {
+			key := tool.Platform()
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			ret = append(ret, tool)
+		}
+	}
+	return ret
+}
+
 func ASCIIEqualFold(s, t string) bool {
 	// Fast ASCII path for equal-length ASCII strings
 	if len(s) == len(t) && isASCII(s) && isASCII(t) {

@@ -26,6 +26,15 @@ type RunnerApplicationDownload struct {
 	SHA256Checksum    *string `json:"sha256_checksum,omitempty"`
 }
 
+// Platform returns the "os/arch" pair this download is built for, using the
+// names the runner tools list uses (so "linux/x64", not "linux/amd64"). It is
+// the natural key for a set of tools: exactly one download serves any given
+// platform. An absent OS or architecture yields an empty segment rather than
+// an error, matching the other accessors.
+func (r *RunnerApplicationDownload) Platform() string {
+	return r.GetOS() + "/" + r.GetArchitecture()
+}
+
 // GetArchitecture returns the Architecture field if it's non-nil, zero value otherwise.
 func (r *RunnerApplicationDownload) GetArchitecture() string {
 	if r == nil || r.Architecture == nil {

@@ -70,14 +70,25 @@ var (
 		"windows":    params.Windows,
 	}
 
+	// githubArchMapping maps the CPU architecture names reported by providers
+	// and operating systems to the names used in the runner tools download
+	// list. Upstream GitHub only publishes x64 and arm64 (and arm for older
+	// releases), but third parties publish patched runners for the other
+	// architectures. Those are picked up through an endpoint tools metadata
+	// URL.
 	githubArchMapping map[string]string = map[string]string{
-		"x86_64":  "x64",
-		"amd64":   "x64",
-		"armv7l":  "arm",
-		"aarch64": "arm64",
-		"x64":     "x64",
-		"arm":     "arm",
-		"arm64":   "arm64",
+		"x86_64":      "x64",
+		"amd64":       "x64",
+		"armv7l":      "arm",
+		"aarch64":     "arm64",
+		"x64":         "x64",
+		"arm":         "arm",
+		"arm64":       "arm64",
+		"ppc64le":     "ppc64le",
+		"ppc64el":     "ppc64le",
+		"powerpc64le": "ppc64le",
+		"s390x":       "s390x",
+		"riscv64":     "riscv64",
 	}
 
 	githubOSTypeMap map[string]string = map[string]string{
@@ -195,14 +206,8 @@ func GetTools(osType params.OSType, osArch params.OSArch, tools []params.RunnerA
 		return params.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
 	}
 
-	switch osArch {
-	case params.Amd64:
-	case params.Arm:
-	case params.Arm64:
-	default:
-		return params.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
-	}
-
+	// The set of architectures we support is the set githubArchMapping knows
+	// how to translate.
 	ghArch, err := ResolveToGithubArch(string(osArch))
 	if err != nil {
 		return params.RunnerApplicationDownload{}, fmt.Errorf("failed to convert osArch: %w", err)

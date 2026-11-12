@@ -25,7 +25,7 @@ github.com/chzyer/readline
 # github.com/clipperhouse/uax29/v2 v2.7.0
 ## explicit; go 1.18
 github.com/clipperhouse/uax29/v2/graphemes
-# github.com/cloudbase/garm-provider-common v0.1.10-0.20261010221645-ec82f622d2d4
+# github.com/cloudbase/garm-provider-common v0.1.10-0.20261111212522-a63fbe8afd51
 ## explicit; go 1.25.0
 github.com/cloudbase/garm-provider-common/cloudconfig
 github.com/cloudbase/garm-provider-common/defaults

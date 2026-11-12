@@ -301,12 +301,14 @@
 			}
 		}
 		
-		// Gitea-only fields - only include if changed
+		// Both forge types accept a tools metadata URL. For GitHub it overrides
+		// the tools the endpoint API reports; for Gitea it is the only source.
+		if (formData.tools_metadata_url !== originalFormData.tools_metadata_url) {
+			updateParams.tools_metadata_url = formData.tools_metadata_url.trim();
+		}
+		
+		// Gitea-only field - only include if changed
 		if (editingEndpoint?.endpoint_type === 'gitea') {
-			if (formData.tools_metadata_url !== originalFormData.tools_metadata_url) {
-				updateParams.tools_metadata_url = formData.tools_metadata_url.trim();
-			}
-			
 			if (formData.use_internal_tools_metadata !== originalFormData.use_internal_tools_metadata) {
 				updateParams.use_internal_tools_metadata = formData.use_internal_tools_metadata;
 			}
@@ -327,11 +329,12 @@
 				upload_base_url: formData.upload_base_url
 			};
 			
+			if (formData.tools_metadata_url.trim() !== '') {
+				endpointParams.tools_metadata_url = formData.tools_metadata_url.trim();
+			}
+			
 			// Add Gitea-specific fields
 			if (formData.endpoint_type === 'gitea') {
-				if (formData.tools_metadata_url.trim() !== '') {
-					endpointParams.tools_metadata_url = formData.tools_metadata_url.trim();
-				}
 				endpointParams.use_internal_tools_metadata = formData.use_internal_tools_metadata;
 			}
 			

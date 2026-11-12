@@ -40,13 +40,14 @@ func (s *sqlDatabase) CreateGithubEndpoint(ctx context.Context, param params.Cre
 			return fmt.Errorf("error github endpoint already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
 		endpoint = GithubEndpoint{
-			Name:          param.Name,
-			Description:   param.Description,
-			APIBaseURL:    param.APIBaseURL,
-			BaseURL:       param.BaseURL,
-			UploadBaseURL: param.UploadBaseURL,
-			CACertBundle:  param.CACertBundle,
-			EndpointType:  params.GithubEndpointType,
+			Name:             param.Name,
+			Description:      param.Description,
+			APIBaseURL:       param.APIBaseURL,
+			BaseURL:          param.BaseURL,
+			UploadBaseURL:    param.UploadBaseURL,
+			CACertBundle:     param.CACertBundle,
+			ToolsMetadataURL: param.ToolsMetadataURL,
+			EndpointType:     params.GithubEndpointType,
 		}
 
 		if err := tx.Create(&endpoint).Error; err != nil {
@@ -125,6 +126,10 @@ func (s *sqlDatabase) UpdateGithubEndpoint(ctx context.Context, name string, par
 
 		if param.Description != nil && *param.Description != endpoint.Description {
 			updates["description"] = *param.Description
+		}
+
+		if param.ToolsMetadataURL != nil && *param.ToolsMetadataURL != endpoint.ToolsMetadataURL {
+			updates["tools_metadata_url"] = *param.ToolsMetadataURL
 		}
 
 		if credsCount > 0 {

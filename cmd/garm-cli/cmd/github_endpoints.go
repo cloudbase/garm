@@ -28,6 +28,18 @@ import (
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
+// githubToolsMetadataURL backs the --tools-metadata-url flag. It is separate
+// from the gitea flag variable: cobra assigns a flag default to its variable
+// at registration time, so sharing one variable across two commands with
+// different defaults makes the value depend on init order.
+var githubToolsMetadataURL string
+
+// toolsMetadataURLFlagHelp documents the --tools-metadata-url flag on the
+// github endpoint commands.
+const toolsMetadataURLFlagHelp = "GitHub API compatible releases URL publishing runner binaries. " +
+	"The tools it publishes override the ones the endpoint API reports for the OS/arch combos it covers. " +
+	"Use it to get runners for architectures GitHub does not build. Leave empty to use only the endpoint API."
+
 var githubEndpointCmd = &cobra.Command{
 	Use:          "endpoint",
 	SilenceUsage: true,
@@ -182,6 +194,10 @@ var githubEndpointUpdateCmd = &cobra.Command{
 			updateParams.APIBaseURL = &endpointAPIBaseURL
 		}
 
+		if cmd.Flags().Changed("tools-metadata-url") {
+			updateParams.ToolsMetadataURL = &githubToolsMetadataURL
+		}
+
 		newGHEndpointUpdateReq := apiClientEndpoints.NewUpdateGithubEndpointParams()
 		newGHEndpointUpdateReq.Name = args[0]
 		newGHEndpointUpdateReq.Body = updateParams
@@ -202,6 +218,7 @@ func init() {
 	githubEndpointCreateCmd.Flags().StringVar(&endpointUploadURL, "upload-url", "", "Upload URL of the GitHub endpoint")
 	githubEndpointCreateCmd.Flags().StringVar(&endpointAPIBaseURL, "api-base-url", "", "API Base URL of the GitHub endpoint")
 	githubEndpointCreateCmd.Flags().StringVar(&endpointCACertPath, "ca-cert-path", "", "CA Cert Path of the GitHub endpoint")
+	githubEndpointCreateCmd.Flags().StringVar(&githubToolsMetadataURL, "tools-metadata-url", "", toolsMetadataURLFlagHelp)
 
 	githubEndpointListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 
@@ -215,6 +232,7 @@ func init() {
 	githubEndpointUpdateCmd.Flags().StringVar(&endpointUploadURL, "upload-url", "", "Upload URL of the GitHub endpoint")
 	githubEndpointUpdateCmd.Flags().StringVar(&endpointAPIBaseURL, "api-base-url", "", "API Base URL of the GitHub endpoint")
 	githubEndpointUpdateCmd.Flags().StringVar(&endpointCACertPath, "ca-cert-path", "", "CA Cert Path of the GitHub endpoint")
+	githubEndpointUpdateCmd.Flags().StringVar(&githubToolsMetadataURL, "tools-metadata-url", "", toolsMetadataURLFlagHelp)
 
 	githubEndpointCmd.AddCommand(
 		githubEndpointListCmd,
@@ -256,12 +274,13 @@ func parseCreateParams() (params.CreateGithubEndpointParams, error) {
 	}
 
 	ret := params.CreateGithubEndpointParams{
-		Name:          endpointName,
-		BaseURL:       endpointBaseURL,
-		UploadBaseURL: endpointUploadURL,
-		APIBaseURL:    endpointAPIBaseURL,
-		Description:   endpointDescription,
-		CACertBundle:  certBundleBytes,
+		Name:             endpointName,
+		BaseURL:          endpointBaseURL,
+		UploadBaseURL:    endpointUploadURL,
+		APIBaseURL:       endpointAPIBaseURL,
+		Description:      endpointDescription,
+		CACertBundle:     certBundleBytes,
+		ToolsMetadataURL: githubToolsMetadataURL,
 	}
 	return ret, nil
 }
@@ -305,7 +324,8 @@ func formatOneEndpoint(endpoint params.ForgeEndpoint) {
 		t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
 	}
 
-	if endpoint.EndpointType == params.GiteaEndpointType {
+	switch endpoint.EndpointType {
+	case params.GiteaEndpointType:
 		metadataURL := appdefaults.GiteaRunnerReleasesURL
 		if endpoint.ToolsMetadataURL != "" {
 			metadataURL = endpoint.ToolsMetadataURL
@@ -316,6 +336,10 @@ func formatOneEndpoint(endpoint params.ForgeEndpoint) {
 		}
 		t.AppendRow([]interface{}{"Tools metadata URL", metadataURL})
 		t.AppendRow([]interface{}{"Use internal tools metadata URL", useInternal})
+	case params.GithubEndpointType:
+		if endpoint.ToolsMetadataURL != "" {
+			t.AppendRow([]interface{}{"Tools metadata URL", endpoint.ToolsMetadataURL})
+		}
 	}
 	t.AppendRow([]interface{}{"API Base URL", endpoint.APIBaseURL})
 	if len(endpoint.CACertBundle) > 0 {

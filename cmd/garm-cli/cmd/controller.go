@@ -470,6 +470,29 @@ var (
 	toolName     string
 )
 
+// elfMachineForArch and peMachineForArch map the architectures GARM supports
+// to the machine type their binaries carry, so an upload can be checked
+// against the architecture it claims. An architecture missing from a map is
+// one this client cannot verify, not one it should reject: only the server
+// decides what is accepted.
+var (
+	elfMachineForArch = map[string]elf.Machine{
+		"amd64":   elf.EM_X86_64,
+		"arm64":   elf.EM_AARCH64,
+		"arm":     elf.EM_ARM,
+		"ppc64le": elf.EM_PPC64,
+		"s390x":   elf.EM_S390,
+		"riscv64": elf.EM_RISCV,
+	}
+
+	// Windows runs on far fewer architectures than Linux does.
+	peMachineForArch = map[string]uint16{
+		"amd64": pe.IMAGE_FILE_MACHINE_AMD64,
+		"arm64": pe.IMAGE_FILE_MACHINE_ARM64,
+		"arm":   pe.IMAGE_FILE_MACHINE_ARM,
+	}
+)
+
 var controllerToolsUploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "Upload a GARM agent tool binary",
@@ -519,19 +542,13 @@ This command uploads a tool and automatically:
 				return fmt.Errorf("file is not a valid ELF executable (required for Linux): type is %v (must be ET_EXEC or ET_DYN)", elfFile.Type)
 			}
 
-			// Check architecture matches
-			var expectedMachine elf.Machine
-			var archName string
-			switch toolOSArch {
-			case "amd64":
-				expectedMachine = elf.EM_X86_64
-				archName = "x86-64"
-			case "arm64":
-				expectedMachine = elf.EM_AARCH64
-				archName = "ARM64"
-			}
-			if elfFile.Machine != expectedMachine {
-				return fmt.Errorf("file is ELF binary for %v, but %s (%s) was specified", elfFile.Machine, toolOSArch, archName)
+			// Check architecture matches. An arch with no known machine
+			// type is left to the server to accept or reject: guessing here
+			// would reject a correct binary.
+			if expectedMachine, ok := elfMachineForArch[toolOSArch]; ok {
+				if elfFile.Machine != expectedMachine {
+					return fmt.Errorf("file is ELF binary for %v, but %s (%v) was specified", elfFile.Machine, toolOSArch, expectedMachine)
+				}
 			}
 		}
 
@@ -542,19 +559,12 @@ This command uploads a tool and automatically:
 			}
 			defer peFile.Close()
 
-			// Check architecture matches
-			var expectedMachine uint16
-			var archName string
-			switch toolOSArch {
-			case "amd64":
-				expectedMachine = pe.IMAGE_FILE_MACHINE_AMD64
-				archName = "x86-64"
-			case "arm64":
-				expectedMachine = pe.IMAGE_FILE_MACHINE_ARM64
-				archName = "ARM64"
-			}
-			if peFile.Machine != expectedMachine {
-				return fmt.Errorf("file is PE executable for machine type 0x%x, but %s (%s) was specified", peFile.Machine, toolOSArch, archName)
+			// Check architecture matches. See the ELF case on why an
+			// unknown arch is not rejected here.
+			if expectedMachine, ok := peMachineForArch[toolOSArch]; ok {
+				if peFile.Machine != expectedMachine {
+					return fmt.Errorf("file is PE executable for machine type 0x%x, but %s (0x%x) was specified", peFile.Machine, toolOSArch, expectedMachine)
+				}
 			}
 		}
 
@@ -685,7 +695,7 @@ func init() {
 
 	controllerToolsUploadCmd.Flags().StringVar(&toolFilePath, "file", "", "Path to the garm-agent binary file (required)")
 	controllerToolsUploadCmd.Flags().StringVar(&toolOSType, "os", "", "Operating system: linux or windows (required)")
-	controllerToolsUploadCmd.Flags().StringVar(&toolOSArch, "arch", "", "Architecture: amd64 or arm64 (required)")
+	controllerToolsUploadCmd.Flags().StringVar(&toolOSArch, "arch", "", "Architecture of the binary, for example amd64, arm64, ppc64le, s390x or riscv64 (required)")
 	controllerToolsUploadCmd.Flags().StringVar(&toolVersion, "version", "", "Version string, e.g., v1.0.0 (required)")
 	controllerToolsUploadCmd.Flags().StringVar(&toolName, "name", "", "Custom name for the tool (optional, defaults to garm-agent-{os}-{arch})")
 
