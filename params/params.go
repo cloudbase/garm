@@ -1369,13 +1369,27 @@ func (g ForgeCredentials) CriticalRateLimitReached() (bool, time.Time) {
 	return g.rateLimitReached(0)
 }
 
-// CACertPool returns the cert pool defined by the credentials CA bundle. A
-// nil pool means no bundle is set and the system trust store applies.
+// CACertPool returns the cert pool to validate this endpoint against. A nil
+// pool means no bundle is set and the system trust store applies.
+//
+// The bundle widens the system trust store rather than replacing it. It
+// exists so that a forge serving a certificate signed by an internal CA can
+// be reached, not to pin the endpoint to that CA. Replacing the system roots
+// would also break every other host GARM reaches for this endpoint, such as
+// a public tools metadata URL.
 func (g ForgeCredentials) CACertPool() (*x509.CertPool, error) {
 	if g.CABundle == nil {
 		return nil, nil
 	}
-	roots := x509.NewCertPool()
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load system cert pool: %w", err)
+	}
+	if roots == nil {
+		// Not expected on any supported platform, but appending to a nil
+		// pool would panic.
+		roots = x509.NewCertPool()
+	}
 	if ok := roots.AppendCertsFromPEM(g.CABundle); !ok {
 		return nil, fmt.Errorf("failed to parse CA cert")
 	}
@@ -1972,6 +1986,11 @@ type GARMAgentTool struct {
 	// "upstream" means the tool is only available from the upstream
 	// cached release and has not been downloaded locally.
 	Source string `json:"source"`
+}
+
+// Platform returns the "os_type/os_arch" key this tool is indexed under.
+func (g GARMAgentTool) Platform() string {
+	return string(g.OSType) + "/" + string(g.OSArch)
 }
 
 // swagger:model GARMAgentToolsPaginatedResponse

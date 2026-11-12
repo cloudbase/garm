@@ -210,3 +210,37 @@ func TestToolsFromRelease(t *testing.T) {
 		t.Error("expected a windows/amd64 tool")
 	}
 }
+
+// When the garm-agent releases start publishing the extra architectures,
+// they have to be picked up with no change here: the asset name parser has
+// no architecture allowlist, so the release index carries whatever upstream
+// builds and the server decides what it accepts.
+func TestToolsFromReleaseCarriesExtraArches(t *testing.T) {
+	release := GitHubRelease{TagName: "v0.3.0"}
+	for _, arch := range []string{"amd64", "arm64", "arm", "ppc64le", "s390x", "riscv64"} {
+		release.Assets = append(release.Assets,
+			GitHubReleaseAsset{Name: "garm-agent-linux-" + arch, DownloadURL: "https://example.com/linux-" + arch},
+			// Checksums must not become tools.
+			GitHubReleaseAsset{Name: "garm-agent-linux-" + arch + ".sha256", DownloadURL: "https://example.com/linux-" + arch + ".sha256"},
+		)
+	}
+
+	tools := ToolsFromRelease(release)
+	if len(tools) != 6 {
+		t.Fatalf("expected 6 tools, got %d: %v", len(tools), tools)
+	}
+
+	for _, arch := range []string{"amd64", "arm64", "arm", "ppc64le", "s390x", "riscv64"} {
+		tool, ok := tools["linux/"+arch]
+		if !ok {
+			t.Errorf("missing agent tool for linux/%s", arch)
+			continue
+		}
+		if got := string(tool.OSArch); got != arch {
+			t.Errorf("linux/%s: OSArch is %q", arch, got)
+		}
+		if got := tool.Platform(); got != "linux/"+arch {
+			t.Errorf("linux/%s: Platform() is %q", arch, got)
+		}
+	}
+}

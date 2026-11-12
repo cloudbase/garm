@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -27,18 +26,10 @@ import (
 	"golang.org/x/mod/semver"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	commonUtil "github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 )
-
-var githubArchMapping = map[string]string{
-	"x86_64":  "x64",
-	"amd64":   "x64",
-	"armv7l":  "arm",
-	"aarch64": "arm64",
-	"x64":     "x64",
-	"arm":     "arm",
-	"arm64":   "arm64",
-}
 
 // Known prefixes for Gitea runner asset names. The new name (gitea-runner)
 // contains a hyphen, so we can't simply split on "-" to parse the asset name.
@@ -130,9 +121,22 @@ func (g GiteaToolsAssets) GetArch() (*string, error) {
 	if len(archParts) == 0 {
 		return nil, fmt.Errorf("unexpected asset name format")
 	}
-	arch := githubArchMapping[archParts[0]]
-	if arch == "" {
-		return nil, fmt.Errorf("could not find arch for %s", archParts[0])
+
+	// Gitea publishes one build per ARM variant, named the way goreleaser
+	// names them: GOARCH followed by GOARM, so "arm-5", "arm-6" and "arm-7".
+	// GitHub's "arm" runner is ARMv7, so that is the variant GARM treats as
+	// arm. The older ones have no GARM equivalent and are ignored.
+	rawArch := archParts[0]
+	if variant, ok := strings.CutPrefix(rawArch, "arm-"); ok {
+		if variant != "7" {
+			return nil, fmt.Errorf("unsupported ARM variant %s", rawArch)
+		}
+		rawArch = string(commonParams.Arm)
+	}
+
+	arch, err := commonUtil.ResolveToGithubArch(rawArch)
+	if err != nil {
+		return nil, fmt.Errorf("could not find arch for %s: %w", rawArch, err)
 	}
 	return &arch, nil
 }
@@ -166,7 +170,7 @@ func (g GiteaEntityTools) MinimumVersion() (GiteaEntityTool, bool) {
 	return GiteaEntityTool{}, false
 }
 
-func getReleasesFromURL(ctx context.Context, metadataURL string) (GiteaEntityTool, error) {
+func getReleasesFromURL(ctx context.Context, metadataURL string, creds params.ForgeCredentials) (GiteaEntityTool, error) {
 	if metadataURL == "" {
 		metadataURL = appdefaults.GiteaRunnerReleasesURL
 	}
@@ -175,14 +179,15 @@ func getReleasesFromURL(ctx context.Context, metadataURL string) (GiteaEntityToo
 	// admin/user of GARM after authentication. If they have admin rights to GARM, they most
 	// likely have admin rights to the machine running GARM, in which case, they can just
 	// GET the metadataURL manually from that server.
-	resp, err := http.Get(metadataURL) // nolint
+	// The forge transport, for the endpoint CA bundle and for carrying no
+	// authentication. See getRunnerToolsFromMetadataURL.
+	transport, err := creds.GetBaseTransport()
 	if err != nil {
-		return GiteaEntityTool{}, fmt.Errorf("failed to fetch URL %s: %w", metadataURL, err)
+		return GiteaEntityTool{}, fmt.Errorf("failed to get base transport: %w", err)
 	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := fetchURL(ctx, &http.Client{Transport: transport}, metadataURL)
 	if err != nil {
-		return GiteaEntityTool{}, fmt.Errorf("failed to read response from URL %s: %w", metadataURL, err)
+		return GiteaEntityTool{}, err
 	}
 
 	var tools GiteaEntityTools
@@ -203,7 +208,7 @@ func getReleasesFromURL(ctx context.Context, metadataURL string) (GiteaEntityToo
 	return latest, nil
 }
 
-func getTools(ctx context.Context, metadataURL string, useInternal bool) ([]commonParams.RunnerApplicationDownload, error) {
+func getTools(ctx context.Context, metadataURL string, useInternal bool, creds params.ForgeCredentials) ([]commonParams.RunnerApplicationDownload, error) {
 	if metadataURL == "" {
 		metadataURL = appdefaults.GiteaRunnerReleasesURL
 	}
@@ -212,7 +217,7 @@ func getTools(ctx context.Context, metadataURL string, useInternal bool) ([]comm
 	if useInternal {
 		latest = nightlyGiteaRunner
 	} else {
-		latest, err = getReleasesFromURL(ctx, metadataURL)
+		latest, err = getReleasesFromURL(ctx, metadataURL, creds)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get tools from metadata URL", "error", err)
 			return nil, fmt.Errorf("failed to get tools: %w", err)

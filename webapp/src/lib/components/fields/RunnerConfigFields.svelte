@@ -73,6 +73,10 @@
 			>
 				<option value="amd64">AMD64</option>
 				<option value="arm64">ARM64</option>
+				<option value="arm">ARM</option>
+				<option value="ppc64le">ppc64le</option>
+				<option value="s390x">s390x</option>
+				<option value="riscv64">riscv64</option>
 			</select>
 		</div>
 	</div>

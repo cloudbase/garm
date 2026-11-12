@@ -221,7 +221,7 @@ func getUpstreamToolsForGaps(objectStoreTools []params.GARMAgentTool, osType *co
 	// Build set of os_type/os_arch keys already covered by object store tools
 	covered := make(map[string]bool, len(objectStoreTools))
 	for _, tool := range objectStoreTools {
-		covered[string(tool.OSType)+"/"+string(tool.OSArch)] = true
+		covered[tool.Platform()] = true
 	}
 
 	var result []params.GARMAgentTool

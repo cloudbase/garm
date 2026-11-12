@@ -59,15 +59,18 @@ var syncHTTPClient = &http.Client{
 	},
 }
 
-// fetchURL retrieves the body of a URL, bounded by the request context.
-func fetchURL(ctx context.Context, uri string) ([]byte, error) {
+// fetchURL retrieves the body of a URL, bounded by the request context. The
+// client is a parameter because an endpoint tools metadata URL may need to
+// trust a CA the system trust store does not carry. Callers with no such
+// need pass syncHTTPClient.
+func fetchURL(ctx context.Context, client *http.Client, uri string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, indexFetchTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request for %s: %w", uri, err)
 	}
-	resp, err := syncHTTPClient.Do(req) // #nosec G704 -- the releases URL is an operator-configured controller setting
+	resp, err := client.Do(req) // #nosec G704 -- the releases URL is an operator-configured controller setting
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch URL %s: %w", uri, err)
 	}
@@ -87,7 +90,7 @@ func fetchURL(ctx context.Context, uri string) ([]byte, error) {
 // releases URL is validated when it is configured on the controller, so
 // anything else is treated as an error here.
 func fetchReleaseIndex(ctx context.Context, releasesEndpoint string) (garmUtil.GitHubReleases, error) {
-	data, err := fetchURL(ctx, releasesEndpoint)
+	data, err := fetchURL(ctx, syncHTTPClient, releasesEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +110,7 @@ func fetchReleaseByTag(ctx context.Context, releasesEndpoint, tag string) (garmU
 	if err != nil {
 		return garmUtil.GitHubRelease{}, fmt.Errorf("failed to build tag URL for %s: %w", tag, err)
 	}
-	data, err := fetchURL(ctx, tagURL)
+	data, err := fetchURL(ctx, syncHTTPClient, tagURL)
 	if err != nil {
 		return garmUtil.GitHubRelease{}, err
 	}
@@ -215,7 +218,7 @@ func (g *garmToolsSync) reconcileLatest(ctrlInfo params.ControllerInfo) error {
 		return err
 	}
 
-	latest, ok := garmUtil.LatestAgentRelease(index.Releases)
+	latest, ok := garmUtil.LatestRelease(index.Releases)
 	if !ok {
 		return fmt.Errorf("no usable garm-agent release found at %s", ctrlInfo.GARMAgentReleasesURL)
 	}
@@ -364,7 +367,7 @@ func (g *garmToolsSync) resolvePinned(index garmUtil.AgentReleaseIndex, pin stri
 		return byTag, nil
 	}
 
-	latest, ok := garmUtil.LatestAgentRelease(index.Releases)
+	latest, ok := garmUtil.LatestRelease(index.Releases)
 	if !ok {
 		return garmUtil.GitHubRelease{}, fmt.Errorf("pinned garm-agent version %q not found and no releases exist at %s", pin, index.SourceURL)
 	}
@@ -391,7 +394,7 @@ func (g *garmToolsSync) ensureToolsSynced(release garmUtil.GitHubRelease, origin
 	manual := make(map[string]bool)
 	syncedVersion := make(map[string]string)
 	for _, tool := range existing {
-		key := string(tool.OSType) + "/" + string(tool.OSArch)
+		key := tool.Platform()
 		if tool.Origin == "manual" {
 			manual[key] = true
 			continue

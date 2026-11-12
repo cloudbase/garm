@@ -176,9 +176,9 @@ func (_c *Store_BreakLockJobIsQueued_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// ControllerInfo provides a mock function with no fields
-func (_m *Store) ControllerInfo() (params.ControllerInfo, error) {
-	ret := _m.Called()
+// ControllerInfo provides a mock function with given fields: ctx
+func (_m *Store) ControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ControllerInfo")
@@ -186,17 +186,17 @@ func (_m *Store) ControllerInfo() (params.ControllerInfo, error) {
 
 	var r0 params.ControllerInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (params.ControllerInfo, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(context.Context) (params.ControllerInfo, error)); ok {
+		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func() params.ControllerInfo); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) params.ControllerInfo); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(params.ControllerInfo)
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -210,13 +210,14 @@ type Store_ControllerInfo_Call struct {
 }
 
 // ControllerInfo is a helper method to define mock.On call
-func (_e *Store_Expecter) ControllerInfo() *Store_ControllerInfo_Call {
-	return &Store_ControllerInfo_Call{Call: _e.mock.On("ControllerInfo")}
+//   - ctx context.Context
+func (_e *Store_Expecter) ControllerInfo(ctx interface{}) *Store_ControllerInfo_Call {
+	return &Store_ControllerInfo_Call{Call: _e.mock.On("ControllerInfo", ctx)}
 }
 
-func (_c *Store_ControllerInfo_Call) Run(run func()) *Store_ControllerInfo_Call {
+func (_c *Store_ControllerInfo_Call) Run(run func(ctx context.Context)) *Store_ControllerInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -226,7 +227,7 @@ func (_c *Store_ControllerInfo_Call) Return(_a0 params.ControllerInfo, _a1 error
 	return _c
 }
 
-func (_c *Store_ControllerInfo_Call) RunAndReturn(run func() (params.ControllerInfo, error)) *Store_ControllerInfo_Call {
+func (_c *Store_ControllerInfo_Call) RunAndReturn(run func(context.Context) (params.ControllerInfo, error)) *Store_ControllerInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -350,9 +351,9 @@ func (_c *Store_CreateEntityPool_Call) RunAndReturn(run func(context.Context, pa
 	return _c
 }
 
-// CreateEntityScaleSet provides a mock function with given fields: _a0, entity, param
-func (_m *Store) CreateEntityScaleSet(_a0 context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (params.ScaleSet, error) {
-	ret := _m.Called(_a0, entity, param)
+// CreateEntityScaleSet provides a mock function with given fields: ctx, entity, param
+func (_m *Store) CreateEntityScaleSet(ctx context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (params.ScaleSet, error) {
+	ret := _m.Called(ctx, entity, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateEntityScaleSet")
@@ -361,16 +362,16 @@ func (_m *Store) CreateEntityScaleSet(_a0 context.Context, entity params.ForgeEn
 	var r0 params.ScaleSet
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) (params.ScaleSet, error)); ok {
-		return rf(_a0, entity, param)
+		return rf(ctx, entity, param)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) params.ScaleSet); ok {
-		r0 = rf(_a0, entity, param)
+		r0 = rf(ctx, entity, param)
 	} else {
 		r0 = ret.Get(0).(params.ScaleSet)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) error); ok {
-		r1 = rf(_a0, entity, param)
+		r1 = rf(ctx, entity, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -384,14 +385,14 @@ type Store_CreateEntityScaleSet_Call struct {
 }
 
 // CreateEntityScaleSet is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - entity params.ForgeEntity
 //   - param params.CreateScaleSetParams
-func (_e *Store_Expecter) CreateEntityScaleSet(_a0 interface{}, entity interface{}, param interface{}) *Store_CreateEntityScaleSet_Call {
-	return &Store_CreateEntityScaleSet_Call{Call: _e.mock.On("CreateEntityScaleSet", _a0, entity, param)}
+func (_e *Store_Expecter) CreateEntityScaleSet(ctx interface{}, entity interface{}, param interface{}) *Store_CreateEntityScaleSet_Call {
+	return &Store_CreateEntityScaleSet_Call{Call: _e.mock.On("CreateEntityScaleSet", ctx, entity, param)}
 }
 
-func (_c *Store_CreateEntityScaleSet_Call) Run(run func(_a0 context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams)) *Store_CreateEntityScaleSet_Call {
+func (_c *Store_CreateEntityScaleSet_Call) Run(run func(ctx context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams)) *Store_CreateEntityScaleSet_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(params.ForgeEntity), args[2].(params.CreateScaleSetParams))
 	})
@@ -584,9 +585,9 @@ func (_c *Store_CreateGiteaCredentials_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// CreateGiteaEndpoint provides a mock function with given fields: _a0, param
-func (_m *Store) CreateGiteaEndpoint(_a0 context.Context, param params.CreateGiteaEndpointParams) (params.ForgeEndpoint, error) {
-	ret := _m.Called(_a0, param)
+// CreateGiteaEndpoint provides a mock function with given fields: ctx, param
+func (_m *Store) CreateGiteaEndpoint(ctx context.Context, param params.CreateGiteaEndpointParams) (params.ForgeEndpoint, error) {
+	ret := _m.Called(ctx, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateGiteaEndpoint")
@@ -595,16 +596,16 @@ func (_m *Store) CreateGiteaEndpoint(_a0 context.Context, param params.CreateGit
 	var r0 params.ForgeEndpoint
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGiteaEndpointParams) (params.ForgeEndpoint, error)); ok {
-		return rf(_a0, param)
+		return rf(ctx, param)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGiteaEndpointParams) params.ForgeEndpoint); ok {
-		r0 = rf(_a0, param)
+		r0 = rf(ctx, param)
 	} else {
 		r0 = ret.Get(0).(params.ForgeEndpoint)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.CreateGiteaEndpointParams) error); ok {
-		r1 = rf(_a0, param)
+		r1 = rf(ctx, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -618,13 +619,13 @@ type Store_CreateGiteaEndpoint_Call struct {
 }
 
 // CreateGiteaEndpoint is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - param params.CreateGiteaEndpointParams
-func (_e *Store_Expecter) CreateGiteaEndpoint(_a0 interface{}, param interface{}) *Store_CreateGiteaEndpoint_Call {
-	return &Store_CreateGiteaEndpoint_Call{Call: _e.mock.On("CreateGiteaEndpoint", _a0, param)}
+func (_e *Store_Expecter) CreateGiteaEndpoint(ctx interface{}, param interface{}) *Store_CreateGiteaEndpoint_Call {
+	return &Store_CreateGiteaEndpoint_Call{Call: _e.mock.On("CreateGiteaEndpoint", ctx, param)}
 }
 
-func (_c *Store_CreateGiteaEndpoint_Call) Run(run func(_a0 context.Context, param params.CreateGiteaEndpointParams)) *Store_CreateGiteaEndpoint_Call {
+func (_c *Store_CreateGiteaEndpoint_Call) Run(run func(ctx context.Context, param params.CreateGiteaEndpointParams)) *Store_CreateGiteaEndpoint_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(params.CreateGiteaEndpointParams))
 	})
@@ -1107,9 +1108,9 @@ func (_c *Store_CreateRepository_Call) RunAndReturn(run func(context.Context, st
 	return _c
 }
 
-// CreateScaleSetInstance provides a mock function with given fields: _a0, scaleSetID, param
-func (_m *Store) CreateScaleSetInstance(_a0 context.Context, scaleSetID uint, param params.CreateInstanceParams) (params.Instance, error) {
-	ret := _m.Called(_a0, scaleSetID, param)
+// CreateScaleSetInstance provides a mock function with given fields: ctx, scaleSetID, param
+func (_m *Store) CreateScaleSetInstance(ctx context.Context, scaleSetID uint, param params.CreateInstanceParams) (params.Instance, error) {
+	ret := _m.Called(ctx, scaleSetID, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateScaleSetInstance")
@@ -1118,16 +1119,16 @@ func (_m *Store) CreateScaleSetInstance(_a0 context.Context, scaleSetID uint, pa
 	var r0 params.Instance
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint, params.CreateInstanceParams) (params.Instance, error)); ok {
-		return rf(_a0, scaleSetID, param)
+		return rf(ctx, scaleSetID, param)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint, params.CreateInstanceParams) params.Instance); ok {
-		r0 = rf(_a0, scaleSetID, param)
+		r0 = rf(ctx, scaleSetID, param)
 	} else {
 		r0 = ret.Get(0).(params.Instance)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint, params.CreateInstanceParams) error); ok {
-		r1 = rf(_a0, scaleSetID, param)
+		r1 = rf(ctx, scaleSetID, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1141,14 +1142,14 @@ type Store_CreateScaleSetInstance_Call struct {
 }
 
 // CreateScaleSetInstance is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - scaleSetID uint
 //   - param params.CreateInstanceParams
-func (_e *Store_Expecter) CreateScaleSetInstance(_a0 interface{}, scaleSetID interface{}, param interface{}) *Store_CreateScaleSetInstance_Call {
-	return &Store_CreateScaleSetInstance_Call{Call: _e.mock.On("CreateScaleSetInstance", _a0, scaleSetID, param)}
+func (_e *Store_Expecter) CreateScaleSetInstance(ctx interface{}, scaleSetID interface{}, param interface{}) *Store_CreateScaleSetInstance_Call {
+	return &Store_CreateScaleSetInstance_Call{Call: _e.mock.On("CreateScaleSetInstance", ctx, scaleSetID, param)}
 }
 
-func (_c *Store_CreateScaleSetInstance_Call) Run(run func(_a0 context.Context, scaleSetID uint, param params.CreateInstanceParams)) *Store_CreateScaleSetInstance_Call {
+func (_c *Store_CreateScaleSetInstance_Call) Run(run func(ctx context.Context, scaleSetID uint, param params.CreateInstanceParams)) *Store_CreateScaleSetInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uint), args[2].(params.CreateInstanceParams))
 	})
@@ -1572,9 +1573,9 @@ func (_c *Store_DeleteGiteaCredentials_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// DeleteGiteaEndpoint provides a mock function with given fields: _a0, name
-func (_m *Store) DeleteGiteaEndpoint(_a0 context.Context, name string) error {
-	ret := _m.Called(_a0, name)
+// DeleteGiteaEndpoint provides a mock function with given fields: ctx, name
+func (_m *Store) DeleteGiteaEndpoint(ctx context.Context, name string) error {
+	ret := _m.Called(ctx, name)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteGiteaEndpoint")
@@ -1582,7 +1583,7 @@ func (_m *Store) DeleteGiteaEndpoint(_a0 context.Context, name string) error {
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = rf(_a0, name)
+		r0 = rf(ctx, name)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1596,13 +1597,13 @@ type Store_DeleteGiteaEndpoint_Call struct {
 }
 
 // DeleteGiteaEndpoint is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - name string
-func (_e *Store_Expecter) DeleteGiteaEndpoint(_a0 interface{}, name interface{}) *Store_DeleteGiteaEndpoint_Call {
-	return &Store_DeleteGiteaEndpoint_Call{Call: _e.mock.On("DeleteGiteaEndpoint", _a0, name)}
+func (_e *Store_Expecter) DeleteGiteaEndpoint(ctx interface{}, name interface{}) *Store_DeleteGiteaEndpoint_Call {
+	return &Store_DeleteGiteaEndpoint_Call{Call: _e.mock.On("DeleteGiteaEndpoint", ctx, name)}
 }
 
-func (_c *Store_DeleteGiteaEndpoint_Call) Run(run func(_a0 context.Context, name string)) *Store_DeleteGiteaEndpoint_Call {
+func (_c *Store_DeleteGiteaEndpoint_Call) Run(run func(ctx context.Context, name string)) *Store_DeleteGiteaEndpoint_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
@@ -2636,9 +2637,9 @@ func (_c *Store_GetFileObject_Call) RunAndReturn(run func(context.Context, uint)
 	return _c
 }
 
-// GetForgeEntity provides a mock function with given fields: _a0, entityType, entityID
-func (_m *Store) GetForgeEntity(_a0 context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error) {
-	ret := _m.Called(_a0, entityType, entityID)
+// GetForgeEntity provides a mock function with given fields: ctx, entityType, entityID
+func (_m *Store) GetForgeEntity(ctx context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error) {
+	ret := _m.Called(ctx, entityType, entityID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetForgeEntity")
@@ -2647,16 +2648,16 @@ func (_m *Store) GetForgeEntity(_a0 context.Context, entityType params.ForgeEnti
 	var r0 params.ForgeEntity
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) (params.ForgeEntity, error)); ok {
-		return rf(_a0, entityType, entityID)
+		return rf(ctx, entityType, entityID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) params.ForgeEntity); ok {
-		r0 = rf(_a0, entityType, entityID)
+		r0 = rf(ctx, entityType, entityID)
 	} else {
 		r0 = ret.Get(0).(params.ForgeEntity)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntityType, string) error); ok {
-		r1 = rf(_a0, entityType, entityID)
+		r1 = rf(ctx, entityType, entityID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2670,14 +2671,14 @@ type Store_GetForgeEntity_Call struct {
 }
 
 // GetForgeEntity is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - entityType params.ForgeEntityType
 //   - entityID string
-func (_e *Store_Expecter) GetForgeEntity(_a0 interface{}, entityType interface{}, entityID interface{}) *Store_GetForgeEntity_Call {
-	return &Store_GetForgeEntity_Call{Call: _e.mock.On("GetForgeEntity", _a0, entityType, entityID)}
+func (_e *Store_Expecter) GetForgeEntity(ctx interface{}, entityType interface{}, entityID interface{}) *Store_GetForgeEntity_Call {
+	return &Store_GetForgeEntity_Call{Call: _e.mock.On("GetForgeEntity", ctx, entityType, entityID)}
 }
 
-func (_c *Store_GetForgeEntity_Call) Run(run func(_a0 context.Context, entityType params.ForgeEntityType, entityID string)) *Store_GetForgeEntity_Call {
+func (_c *Store_GetForgeEntity_Call) Run(run func(ctx context.Context, entityType params.ForgeEntityType, entityID string)) *Store_GetForgeEntity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(params.ForgeEntityType), args[2].(string))
 	})
@@ -2924,9 +2925,9 @@ func (_c *Store_GetGiteaCredentialsByName_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GetGiteaEndpoint provides a mock function with given fields: _a0, name
-func (_m *Store) GetGiteaEndpoint(_a0 context.Context, name string) (params.ForgeEndpoint, error) {
-	ret := _m.Called(_a0, name)
+// GetGiteaEndpoint provides a mock function with given fields: ctx, name
+func (_m *Store) GetGiteaEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
+	ret := _m.Called(ctx, name)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGiteaEndpoint")
@@ -2935,16 +2936,16 @@ func (_m *Store) GetGiteaEndpoint(_a0 context.Context, name string) (params.Forg
 	var r0 params.ForgeEndpoint
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (params.ForgeEndpoint, error)); ok {
-		return rf(_a0, name)
+		return rf(ctx, name)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) params.ForgeEndpoint); ok {
-		r0 = rf(_a0, name)
+		r0 = rf(ctx, name)
 	} else {
 		r0 = ret.Get(0).(params.ForgeEndpoint)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(_a0, name)
+		r1 = rf(ctx, name)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2958,13 +2959,13 @@ type Store_GetGiteaEndpoint_Call struct {
 }
 
 // GetGiteaEndpoint is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - name string
-func (_e *Store_Expecter) GetGiteaEndpoint(_a0 interface{}, name interface{}) *Store_GetGiteaEndpoint_Call {
-	return &Store_GetGiteaEndpoint_Call{Call: _e.mock.On("GetGiteaEndpoint", _a0, name)}
+func (_e *Store_Expecter) GetGiteaEndpoint(ctx interface{}, name interface{}) *Store_GetGiteaEndpoint_Call {
+	return &Store_GetGiteaEndpoint_Call{Call: _e.mock.On("GetGiteaEndpoint", ctx, name)}
 }
 
-func (_c *Store_GetGiteaEndpoint_Call) Run(run func(_a0 context.Context, name string)) *Store_GetGiteaEndpoint_Call {
+func (_c *Store_GetGiteaEndpoint_Call) Run(run func(ctx context.Context, name string)) *Store_GetGiteaEndpoint_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
@@ -4001,9 +4002,9 @@ func (_c *Store_HasAdminUser_Call) RunAndReturn(run func(context.Context) bool) 
 	return _c
 }
 
-// HasEntitiesWithAgentModeEnabled provides a mock function with no fields
-func (_m *Store) HasEntitiesWithAgentModeEnabled() (bool, error) {
-	ret := _m.Called()
+// HasEntitiesWithAgentModeEnabled provides a mock function with given fields: ctx
+func (_m *Store) HasEntitiesWithAgentModeEnabled(ctx context.Context) (bool, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasEntitiesWithAgentModeEnabled")
@@ -4011,17 +4012,17 @@ func (_m *Store) HasEntitiesWithAgentModeEnabled() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (bool, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func() bool); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4035,13 +4036,14 @@ type Store_HasEntitiesWithAgentModeEnabled_Call struct {
 }
 
 // HasEntitiesWithAgentModeEnabled is a helper method to define mock.On call
-func (_e *Store_Expecter) HasEntitiesWithAgentModeEnabled() *Store_HasEntitiesWithAgentModeEnabled_Call {
-	return &Store_HasEntitiesWithAgentModeEnabled_Call{Call: _e.mock.On("HasEntitiesWithAgentModeEnabled")}
+//   - ctx context.Context
+func (_e *Store_Expecter) HasEntitiesWithAgentModeEnabled(ctx interface{}) *Store_HasEntitiesWithAgentModeEnabled_Call {
+	return &Store_HasEntitiesWithAgentModeEnabled_Call{Call: _e.mock.On("HasEntitiesWithAgentModeEnabled", ctx)}
 }
 
-func (_c *Store_HasEntitiesWithAgentModeEnabled_Call) Run(run func()) *Store_HasEntitiesWithAgentModeEnabled_Call {
+func (_c *Store_HasEntitiesWithAgentModeEnabled_Call) Run(run func(ctx context.Context)) *Store_HasEntitiesWithAgentModeEnabled_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -4051,14 +4053,14 @@ func (_c *Store_HasEntitiesWithAgentModeEnabled_Call) Return(_a0 bool, _a1 error
 	return _c
 }
 
-func (_c *Store_HasEntitiesWithAgentModeEnabled_Call) RunAndReturn(run func() (bool, error)) *Store_HasEntitiesWithAgentModeEnabled_Call {
+func (_c *Store_HasEntitiesWithAgentModeEnabled_Call) RunAndReturn(run func(context.Context) (bool, error)) *Store_HasEntitiesWithAgentModeEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// InitController provides a mock function with no fields
-func (_m *Store) InitController() (params.ControllerInfo, error) {
-	ret := _m.Called()
+// InitController provides a mock function with given fields: ctx
+func (_m *Store) InitController(ctx context.Context) (params.ControllerInfo, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for InitController")
@@ -4066,17 +4068,17 @@ func (_m *Store) InitController() (params.ControllerInfo, error) {
 
 	var r0 params.ControllerInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (params.ControllerInfo, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(context.Context) (params.ControllerInfo, error)); ok {
+		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func() params.ControllerInfo); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) params.ControllerInfo); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(params.ControllerInfo)
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4090,13 +4092,14 @@ type Store_InitController_Call struct {
 }
 
 // InitController is a helper method to define mock.On call
-func (_e *Store_Expecter) InitController() *Store_InitController_Call {
-	return &Store_InitController_Call{Call: _e.mock.On("InitController")}
+//   - ctx context.Context
+func (_e *Store_Expecter) InitController(ctx interface{}) *Store_InitController_Call {
+	return &Store_InitController_Call{Call: _e.mock.On("InitController", ctx)}
 }
 
-func (_c *Store_InitController_Call) Run(run func()) *Store_InitController_Call {
+func (_c *Store_InitController_Call) Run(run func(ctx context.Context)) *Store_InitController_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -4106,7 +4109,7 @@ func (_c *Store_InitController_Call) Return(_a0 params.ControllerInfo, _a1 error
 	return _c
 }
 
-func (_c *Store_InitController_Call) RunAndReturn(run func() (params.ControllerInfo, error)) *Store_InitController_Call {
+func (_c *Store_InitController_Call) RunAndReturn(run func(context.Context) (params.ControllerInfo, error)) *Store_InitController_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4639,9 +4642,9 @@ func (_c *Store_ListEntityPools_Call) RunAndReturn(run func(context.Context, par
 	return _c
 }
 
-// ListEntityScaleSets provides a mock function with given fields: _a0, entity
-func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
-	ret := _m.Called(_a0, entity)
+// ListEntityScaleSets provides a mock function with given fields: ctx, entity
+func (_m *Store) ListEntityScaleSets(ctx context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
+	ret := _m.Called(ctx, entity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListEntityScaleSets")
@@ -4650,10 +4653,10 @@ func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.ForgeEnt
 	var r0 []params.ScaleSet
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) ([]params.ScaleSet, error)); ok {
-		return rf(_a0, entity)
+		return rf(ctx, entity)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) []params.ScaleSet); ok {
-		r0 = rf(_a0, entity)
+		r0 = rf(ctx, entity)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.ScaleSet)
@@ -4661,7 +4664,7 @@ func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.ForgeEnt
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity) error); ok {
-		r1 = rf(_a0, entity)
+		r1 = rf(ctx, entity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4675,13 +4678,13 @@ type Store_ListEntityScaleSets_Call struct {
 }
 
 // ListEntityScaleSets is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - entity params.ForgeEntity
-func (_e *Store_Expecter) ListEntityScaleSets(_a0 interface{}, entity interface{}) *Store_ListEntityScaleSets_Call {
-	return &Store_ListEntityScaleSets_Call{Call: _e.mock.On("ListEntityScaleSets", _a0, entity)}
+func (_e *Store_Expecter) ListEntityScaleSets(ctx interface{}, entity interface{}) *Store_ListEntityScaleSets_Call {
+	return &Store_ListEntityScaleSets_Call{Call: _e.mock.On("ListEntityScaleSets", ctx, entity)}
 }
 
-func (_c *Store_ListEntityScaleSets_Call) Run(run func(_a0 context.Context, entity params.ForgeEntity)) *Store_ListEntityScaleSets_Call {
+func (_c *Store_ListEntityScaleSets_Call) Run(run func(ctx context.Context, entity params.ForgeEntity)) *Store_ListEntityScaleSets_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(params.ForgeEntity))
 	})
@@ -4873,9 +4876,9 @@ func (_c *Store_ListGiteaCredentials_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// ListGiteaEndpoints provides a mock function with given fields: _a0
-func (_m *Store) ListGiteaEndpoints(_a0 context.Context) ([]params.ForgeEndpoint, error) {
-	ret := _m.Called(_a0)
+// ListGiteaEndpoints provides a mock function with given fields: ctx
+func (_m *Store) ListGiteaEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListGiteaEndpoints")
@@ -4884,10 +4887,10 @@ func (_m *Store) ListGiteaEndpoints(_a0 context.Context) ([]params.ForgeEndpoint
 	var r0 []params.ForgeEndpoint
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context) ([]params.ForgeEndpoint, error)); ok {
-		return rf(_a0)
+		return rf(ctx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context) []params.ForgeEndpoint); ok {
-		r0 = rf(_a0)
+		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.ForgeEndpoint)
@@ -4895,7 +4898,7 @@ func (_m *Store) ListGiteaEndpoints(_a0 context.Context) ([]params.ForgeEndpoint
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(_a0)
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4909,12 +4912,12 @@ type Store_ListGiteaEndpoints_Call struct {
 }
 
 // ListGiteaEndpoints is a helper method to define mock.On call
-//   - _a0 context.Context
-func (_e *Store_Expecter) ListGiteaEndpoints(_a0 interface{}) *Store_ListGiteaEndpoints_Call {
-	return &Store_ListGiteaEndpoints_Call{Call: _e.mock.On("ListGiteaEndpoints", _a0)}
+//   - ctx context.Context
+func (_e *Store_Expecter) ListGiteaEndpoints(ctx interface{}) *Store_ListGiteaEndpoints_Call {
+	return &Store_ListGiteaEndpoints_Call{Call: _e.mock.On("ListGiteaEndpoints", ctx)}
 }
 
-func (_c *Store_ListGiteaEndpoints_Call) Run(run func(_a0 context.Context)) *Store_ListGiteaEndpoints_Call {
+func (_c *Store_ListGiteaEndpoints_Call) Run(run func(ctx context.Context)) *Store_ListGiteaEndpoints_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context))
 	})
@@ -5399,9 +5402,9 @@ func (_c *Store_ListRepositories_Call) RunAndReturn(run func(context.Context, pa
 	return _c
 }
 
-// ListScaleSetInstances provides a mock function with given fields: _a0, scalesetID, outdatedOnly
-func (_m *Store) ListScaleSetInstances(_a0 context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
-	ret := _m.Called(_a0, scalesetID, outdatedOnly)
+// ListScaleSetInstances provides a mock function with given fields: ctx, scalesetID, outdatedOnly
+func (_m *Store) ListScaleSetInstances(ctx context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
+	ret := _m.Called(ctx, scalesetID, outdatedOnly)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListScaleSetInstances")
@@ -5410,10 +5413,10 @@ func (_m *Store) ListScaleSetInstances(_a0 context.Context, scalesetID uint, out
 	var r0 []params.Instance
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) ([]params.Instance, error)); ok {
-		return rf(_a0, scalesetID, outdatedOnly)
+		return rf(ctx, scalesetID, outdatedOnly)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) []params.Instance); ok {
-		r0 = rf(_a0, scalesetID, outdatedOnly)
+		r0 = rf(ctx, scalesetID, outdatedOnly)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.Instance)
@@ -5421,7 +5424,7 @@ func (_m *Store) ListScaleSetInstances(_a0 context.Context, scalesetID uint, out
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint, bool) error); ok {
-		r1 = rf(_a0, scalesetID, outdatedOnly)
+		r1 = rf(ctx, scalesetID, outdatedOnly)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -5435,14 +5438,14 @@ type Store_ListScaleSetInstances_Call struct {
 }
 
 // ListScaleSetInstances is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - scalesetID uint
 //   - outdatedOnly bool
-func (_e *Store_Expecter) ListScaleSetInstances(_a0 interface{}, scalesetID interface{}, outdatedOnly interface{}) *Store_ListScaleSetInstances_Call {
-	return &Store_ListScaleSetInstances_Call{Call: _e.mock.On("ListScaleSetInstances", _a0, scalesetID, outdatedOnly)}
+func (_e *Store_Expecter) ListScaleSetInstances(ctx interface{}, scalesetID interface{}, outdatedOnly interface{}) *Store_ListScaleSetInstances_Call {
+	return &Store_ListScaleSetInstances_Call{Call: _e.mock.On("ListScaleSetInstances", ctx, scalesetID, outdatedOnly)}
 }
 
-func (_c *Store_ListScaleSetInstances_Call) Run(run func(_a0 context.Context, scalesetID uint, outdatedOnly bool)) *Store_ListScaleSetInstances_Call {
+func (_c *Store_ListScaleSetInstances_Call) Run(run func(ctx context.Context, scalesetID uint, outdatedOnly bool)) *Store_ListScaleSetInstances_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uint), args[2].(bool))
 	})
@@ -6052,17 +6055,17 @@ func (_c *Store_UnlockJob_Call) RunAndReturn(run func(context.Context, int64, st
 	return _c
 }
 
-// UpdateCachedGARMAgentReleases provides a mock function with given fields: index, fetchedAt
-func (_m *Store) UpdateCachedGARMAgentReleases(index []byte, fetchedAt time.Time) error {
-	ret := _m.Called(index, fetchedAt)
+// UpdateCachedGARMAgentReleases provides a mock function with given fields: ctx, index, fetchedAt
+func (_m *Store) UpdateCachedGARMAgentReleases(ctx context.Context, index []byte, fetchedAt time.Time) error {
+	ret := _m.Called(ctx, index, fetchedAt)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCachedGARMAgentReleases")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]byte, time.Time) error); ok {
-		r0 = rf(index, fetchedAt)
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, time.Time) error); ok {
+		r0 = rf(ctx, index, fetchedAt)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -6076,15 +6079,16 @@ type Store_UpdateCachedGARMAgentReleases_Call struct {
 }
 
 // UpdateCachedGARMAgentReleases is a helper method to define mock.On call
+//   - ctx context.Context
 //   - index []byte
 //   - fetchedAt time.Time
-func (_e *Store_Expecter) UpdateCachedGARMAgentReleases(index interface{}, fetchedAt interface{}) *Store_UpdateCachedGARMAgentReleases_Call {
-	return &Store_UpdateCachedGARMAgentReleases_Call{Call: _e.mock.On("UpdateCachedGARMAgentReleases", index, fetchedAt)}
+func (_e *Store_Expecter) UpdateCachedGARMAgentReleases(ctx interface{}, index interface{}, fetchedAt interface{}) *Store_UpdateCachedGARMAgentReleases_Call {
+	return &Store_UpdateCachedGARMAgentReleases_Call{Call: _e.mock.On("UpdateCachedGARMAgentReleases", ctx, index, fetchedAt)}
 }
 
-func (_c *Store_UpdateCachedGARMAgentReleases_Call) Run(run func(index []byte, fetchedAt time.Time)) *Store_UpdateCachedGARMAgentReleases_Call {
+func (_c *Store_UpdateCachedGARMAgentReleases_Call) Run(run func(ctx context.Context, index []byte, fetchedAt time.Time)) *Store_UpdateCachedGARMAgentReleases_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].([]byte), args[1].(time.Time))
+		run(args[0].(context.Context), args[1].([]byte), args[2].(time.Time))
 	})
 	return _c
 }
@@ -6094,14 +6098,14 @@ func (_c *Store_UpdateCachedGARMAgentReleases_Call) Return(_a0 error) *Store_Upd
 	return _c
 }
 
-func (_c *Store_UpdateCachedGARMAgentReleases_Call) RunAndReturn(run func([]byte, time.Time) error) *Store_UpdateCachedGARMAgentReleases_Call {
+func (_c *Store_UpdateCachedGARMAgentReleases_Call) RunAndReturn(run func(context.Context, []byte, time.Time) error) *Store_UpdateCachedGARMAgentReleases_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateController provides a mock function with given fields: info
-func (_m *Store) UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error) {
-	ret := _m.Called(info)
+// UpdateController provides a mock function with given fields: ctx, info
+func (_m *Store) UpdateController(ctx context.Context, info params.UpdateControllerParams) (params.ControllerInfo, error) {
+	ret := _m.Called(ctx, info)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateController")
@@ -6109,17 +6113,17 @@ func (_m *Store) UpdateController(info params.UpdateControllerParams) (params.Co
 
 	var r0 params.ControllerInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(params.UpdateControllerParams) (params.ControllerInfo, error)); ok {
-		return rf(info)
+	if rf, ok := ret.Get(0).(func(context.Context, params.UpdateControllerParams) (params.ControllerInfo, error)); ok {
+		return rf(ctx, info)
 	}
-	if rf, ok := ret.Get(0).(func(params.UpdateControllerParams) params.ControllerInfo); ok {
-		r0 = rf(info)
+	if rf, ok := ret.Get(0).(func(context.Context, params.UpdateControllerParams) params.ControllerInfo); ok {
+		r0 = rf(ctx, info)
 	} else {
 		r0 = ret.Get(0).(params.ControllerInfo)
 	}
 
-	if rf, ok := ret.Get(1).(func(params.UpdateControllerParams) error); ok {
-		r1 = rf(info)
+	if rf, ok := ret.Get(1).(func(context.Context, params.UpdateControllerParams) error); ok {
+		r1 = rf(ctx, info)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -6133,14 +6137,15 @@ type Store_UpdateController_Call struct {
 }
 
 // UpdateController is a helper method to define mock.On call
+//   - ctx context.Context
 //   - info params.UpdateControllerParams
-func (_e *Store_Expecter) UpdateController(info interface{}) *Store_UpdateController_Call {
-	return &Store_UpdateController_Call{Call: _e.mock.On("UpdateController", info)}
+func (_e *Store_Expecter) UpdateController(ctx interface{}, info interface{}) *Store_UpdateController_Call {
+	return &Store_UpdateController_Call{Call: _e.mock.On("UpdateController", ctx, info)}
 }
 
-func (_c *Store_UpdateController_Call) Run(run func(info params.UpdateControllerParams)) *Store_UpdateController_Call {
+func (_c *Store_UpdateController_Call) Run(run func(ctx context.Context, info params.UpdateControllerParams)) *Store_UpdateController_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(params.UpdateControllerParams))
+		run(args[0].(context.Context), args[1].(params.UpdateControllerParams))
 	})
 	return _c
 }
@@ -6150,7 +6155,7 @@ func (_c *Store_UpdateController_Call) Return(_a0 params.ControllerInfo, _a1 err
 	return _c
 }
 
-func (_c *Store_UpdateController_Call) RunAndReturn(run func(params.UpdateControllerParams) (params.ControllerInfo, error)) *Store_UpdateController_Call {
+func (_c *Store_UpdateController_Call) RunAndReturn(run func(context.Context, params.UpdateControllerParams) (params.ControllerInfo, error)) *Store_UpdateController_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6272,9 +6277,9 @@ func (_c *Store_UpdateEntityPool_Call) RunAndReturn(run func(context.Context, pa
 	return _c
 }
 
-// UpdateEntityScaleSet provides a mock function with given fields: _a0, entity, scaleSetID, param, callback
-func (_m *Store) UpdateEntityScaleSet(_a0 context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error) {
-	ret := _m.Called(_a0, entity, scaleSetID, param, callback)
+// UpdateEntityScaleSet provides a mock function with given fields: ctx, entity, scaleSetID, param, callback
+func (_m *Store) UpdateEntityScaleSet(ctx context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error) {
+	ret := _m.Called(ctx, entity, scaleSetID, param, callback)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateEntityScaleSet")
@@ -6283,16 +6288,16 @@ func (_m *Store) UpdateEntityScaleSet(_a0 context.Context, entity params.ForgeEn
 	var r0 params.ScaleSet
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error)); ok {
-		return rf(_a0, entity, scaleSetID, param, callback)
+		return rf(ctx, entity, scaleSetID, param, callback)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) params.ScaleSet); ok {
-		r0 = rf(_a0, entity, scaleSetID, param, callback)
+		r0 = rf(ctx, entity, scaleSetID, param, callback)
 	} else {
 		r0 = ret.Get(0).(params.ScaleSet)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) error); ok {
-		r1 = rf(_a0, entity, scaleSetID, param, callback)
+		r1 = rf(ctx, entity, scaleSetID, param, callback)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -6306,16 +6311,16 @@ type Store_UpdateEntityScaleSet_Call struct {
 }
 
 // UpdateEntityScaleSet is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - entity params.ForgeEntity
 //   - scaleSetID uint
 //   - param params.UpdateScaleSetParams
 //   - callback func(params.ScaleSet , params.ScaleSet) error
-func (_e *Store_Expecter) UpdateEntityScaleSet(_a0 interface{}, entity interface{}, scaleSetID interface{}, param interface{}, callback interface{}) *Store_UpdateEntityScaleSet_Call {
-	return &Store_UpdateEntityScaleSet_Call{Call: _e.mock.On("UpdateEntityScaleSet", _a0, entity, scaleSetID, param, callback)}
+func (_e *Store_Expecter) UpdateEntityScaleSet(ctx interface{}, entity interface{}, scaleSetID interface{}, param interface{}, callback interface{}) *Store_UpdateEntityScaleSet_Call {
+	return &Store_UpdateEntityScaleSet_Call{Call: _e.mock.On("UpdateEntityScaleSet", ctx, entity, scaleSetID, param, callback)}
 }
 
-func (_c *Store_UpdateEntityScaleSet_Call) Run(run func(_a0 context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(params.ScaleSet, params.ScaleSet) error)) *Store_UpdateEntityScaleSet_Call {
+func (_c *Store_UpdateEntityScaleSet_Call) Run(run func(ctx context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(params.ScaleSet, params.ScaleSet) error)) *Store_UpdateEntityScaleSet_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(params.ForgeEntity), args[2].(uint), args[3].(params.UpdateScaleSetParams), args[4].(func(params.ScaleSet, params.ScaleSet) error))
 	})
@@ -6506,9 +6511,9 @@ func (_c *Store_UpdateGiteaCredentials_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// UpdateGiteaEndpoint provides a mock function with given fields: _a0, name, param
-func (_m *Store) UpdateGiteaEndpoint(_a0 context.Context, name string, param params.UpdateGiteaEndpointParams) (params.ForgeEndpoint, error) {
-	ret := _m.Called(_a0, name, param)
+// UpdateGiteaEndpoint provides a mock function with given fields: ctx, name, param
+func (_m *Store) UpdateGiteaEndpoint(ctx context.Context, name string, param params.UpdateGiteaEndpointParams) (params.ForgeEndpoint, error) {
+	ret := _m.Called(ctx, name, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGiteaEndpoint")
@@ -6517,16 +6522,16 @@ func (_m *Store) UpdateGiteaEndpoint(_a0 context.Context, name string, param par
 	var r0 params.ForgeEndpoint
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGiteaEndpointParams) (params.ForgeEndpoint, error)); ok {
-		return rf(_a0, name, param)
+		return rf(ctx, name, param)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGiteaEndpointParams) params.ForgeEndpoint); ok {
-		r0 = rf(_a0, name, param)
+		r0 = rf(ctx, name, param)
 	} else {
 		r0 = ret.Get(0).(params.ForgeEndpoint)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateGiteaEndpointParams) error); ok {
-		r1 = rf(_a0, name, param)
+		r1 = rf(ctx, name, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -6540,14 +6545,14 @@ type Store_UpdateGiteaEndpoint_Call struct {
 }
 
 // UpdateGiteaEndpoint is a helper method to define mock.On call
-//   - _a0 context.Context
+//   - ctx context.Context
 //   - name string
 //   - param params.UpdateGiteaEndpointParams
-func (_e *Store_Expecter) UpdateGiteaEndpoint(_a0 interface{}, name interface{}, param interface{}) *Store_UpdateGiteaEndpoint_Call {
-	return &Store_UpdateGiteaEndpoint_Call{Call: _e.mock.On("UpdateGiteaEndpoint", _a0, name, param)}
+func (_e *Store_Expecter) UpdateGiteaEndpoint(ctx interface{}, name interface{}, param interface{}) *Store_UpdateGiteaEndpoint_Call {
+	return &Store_UpdateGiteaEndpoint_Call{Call: _e.mock.On("UpdateGiteaEndpoint", ctx, name, param)}
 }
 
-func (_c *Store_UpdateGiteaEndpoint_Call) Run(run func(_a0 context.Context, name string, param params.UpdateGiteaEndpointParams)) *Store_UpdateGiteaEndpoint_Call {
+func (_c *Store_UpdateGiteaEndpoint_Call) Run(run func(ctx context.Context, name string, param params.UpdateGiteaEndpointParams)) *Store_UpdateGiteaEndpoint_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(params.UpdateGiteaEndpointParams))
 	})

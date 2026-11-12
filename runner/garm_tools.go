@@ -24,18 +24,26 @@ import (
 	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	garmUtil "github.com/cloudbase/garm/util"
 )
 
-var (
-	garmAgentFileTag          = "category=garm-agent"
-	garmAgentOSTypeWindowsTag = "os_type=windows"
-	garmAgentOSTypeLinuxTag   = "os_type=linux"
-	garmAgentOSArchAMD64Tag   = "os_arch=amd64"
-	garmAgentOSArchARM64Tag   = "os_arch=arm64"
-)
+var garmAgentFileTag = "category=garm-agent"
+
+// garmAgentOSTypeTag and garmAgentOSArchTag build the tags a garm-agent file
+// object is stored and looked up under. They are derived from the values
+// rather than enumerated, so the set GARM accepts is the one in
+// supportedOSType and supportedOSArch and a new architecture needs no change
+// here.
+func garmAgentOSTypeTag(osType commonParams.OSType) string {
+	return "os_type=" + string(osType)
+}
+
+func garmAgentOSArchTag(osArch commonParams.OSArch) string {
+	return "os_arch=" + string(osArch)
+}
 
 // ListGARMAgentReleases returns the garm-agent releases recorded in the
 // cached release index, marking the version the controller is pinned to and
@@ -59,7 +67,7 @@ func (r *Runner) ListGARMAgentReleases(ctx context.Context) (params.GARMAgentRel
 		return nil, fmt.Errorf("error parsing cached release index: %w", err)
 	}
 
-	latest, _ := garmUtil.LatestAgentRelease(index.Releases)
+	latest, _ := garmUtil.LatestRelease(index.Releases)
 	ret := make(params.GARMAgentReleases, 0, len(index.Releases))
 	for _, release := range index.Releases {
 		var assets []params.GARMAgentReleaseAsset
@@ -129,31 +137,19 @@ func (r *Runner) CreateGARMTool(ctx context.Context, param params.CreateGARMTool
 		return params.FileObject{}, runnerErrors.NewBadRequestError("version is required")
 	}
 
-	// Build tags based on OS type and arch
-	var osTypeTag, osArchTag string
-	switch param.OSType {
-	case "windows":
-		osTypeTag = garmAgentOSTypeWindowsTag
-	case "linux":
-		osTypeTag = garmAgentOSTypeLinuxTag
-	default:
-		return params.FileObject{}, runnerErrors.NewBadRequestError("invalid os_type: must be 'windows' or 'linux'")
+	if !IsSupportedOSType(param.OSType) {
+		return params.FileObject{}, runnerErrors.NewBadRequestError("invalid os_type %s", param.OSType)
 	}
 
-	switch param.OSArch {
-	case "amd64":
-		osArchTag = garmAgentOSArchAMD64Tag
-	case "arm64":
-		osArchTag = garmAgentOSArchARM64Tag
-	default:
-		return params.FileObject{}, runnerErrors.NewBadRequestError("invalid os_arch: must be 'amd64' or 'arm64'")
+	if !IsSupportedArch(param.OSArch) {
+		return params.FileObject{}, runnerErrors.NewBadRequestError("invalid os_arch %s", param.OSArch)
 	}
 
 	// Build tags: category, os_type, os_arch, version, origin
 	tags := []string{
 		garmAgentFileTag,
-		osTypeTag,
-		osArchTag,
+		garmAgentOSTypeTag(param.OSType),
+		garmAgentOSArchTag(param.OSArch),
 		fmt.Sprintf("version=%s", param.Version),
 	}
 
@@ -187,7 +183,11 @@ func (r *Runner) CreateGARMTool(ctx context.Context, param params.CreateGARMTool
 
 	// Clean up old versions (keep only the newly uploaded one)
 	// Build tags to find all binaries with same OS/ARCH (excluding version)
-	cleanupTags := []string{garmAgentFileTag, osTypeTag, osArchTag}
+	cleanupTags := []string{
+		garmAgentFileTag,
+		garmAgentOSTypeTag(param.OSType),
+		garmAgentOSArchTag(param.OSArch),
+	}
 
 	// Delete all except the one we just uploaded
 	// Paginate through all results to ensure we delete everything
@@ -270,25 +270,18 @@ func (r *Runner) DeleteGarmTool(ctx context.Context, osType, osArch string) erro
 		return runnerErrors.ErrUnauthorized
 	}
 
-	// Build tags based on OS type and arch
-	tags := []string{garmAgentFileTag}
-
-	switch osType {
-	case "windows":
-		tags = append(tags, garmAgentOSTypeWindowsTag)
-	case "linux":
-		tags = append(tags, garmAgentOSTypeLinuxTag)
-	default:
-		return runnerErrors.NewBadRequestError("invalid os_type: must be 'windows' or 'linux'")
+	if !IsSupportedOSType(commonParams.OSType(osType)) {
+		return runnerErrors.NewBadRequestError("invalid os_type %s", osType)
 	}
 
-	switch osArch {
-	case "amd64":
-		tags = append(tags, garmAgentOSArchAMD64Tag)
-	case "arm64":
-		tags = append(tags, garmAgentOSArchARM64Tag)
-	default:
-		return runnerErrors.NewBadRequestError("invalid os_arch: must be 'amd64' or 'arm64'")
+	if !IsSupportedArch(commonParams.OSArch(osArch)) {
+		return runnerErrors.NewBadRequestError("invalid os_arch %s", osArch)
+	}
+
+	tags := []string{
+		garmAgentFileTag,
+		garmAgentOSTypeTag(commonParams.OSType(osType)),
+		garmAgentOSArchTag(commonParams.OSArch(osArch)),
 	}
 
 	// Delete all tools matching these tags

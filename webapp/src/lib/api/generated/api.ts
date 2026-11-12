@@ -153,7 +153,7 @@ export interface ControllerInfo {
      */
     'metadata_url'?: string;
     /**
-     * MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state before GARM will attempt to allocate a runner for it. When set to a non zero value, GARM will ignore the job until the job\'s age is greater than this value. When using the min_idle_runners feature of a pool, this gives enough time for potential idle runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding the need to potentially scale down runners later.
+     * MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state before GARM will attempt to allocate a runner for it. When set to a non zero value, GARM will ignore the job until the job\'s age is greater than this value. When using the min_idle_runners feature of a pool, this gives enough time for potential idle runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding the need to potentially scale down runners later. When set to 0, pool managers also react to queued webhooks immediately instead of on their next poll.
      * @type {number}
      * @memberof ControllerInfo
      */
@@ -514,6 +514,12 @@ export interface CreateGithubEndpointParams {
      * @memberof CreateGithubEndpointParams
      */
     'name'?: string;
+    /**
+     * ToolsMetadataURL is an optional GitHub API compatible releases URL that publishes runner binaries. The tools it publishes take precedence over the ones the endpoint API reports, for the OS/arch combos they cover. It is how runners for architectures upstream GitHub does not build are made available.
+     * @type {string}
+     * @memberof CreateGithubEndpointParams
+     */
+    'tools_metadata_url'?: string;
     /**
      * 
      * @type {string}
@@ -4165,6 +4171,12 @@ export interface UpdateGithubEndpointParams {
      * @memberof UpdateGithubEndpointParams
      */
     'description'?: string;
+    /**
+     * ToolsMetadataURL is an optional GitHub API compatible releases URL that publishes runner binaries. Set it to an empty string to go back to using only the tools the endpoint API reports.
+     * @type {string}
+     * @memberof UpdateGithubEndpointParams
+     */
+    'tools_metadata_url'?: string;
     /**
      * 
      * @type {string}
@@ -17249,7 +17261,7 @@ export const ToolsApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
-         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64, arm64, arm, ppc64le, s390x or riscv64)  X-Tool-Version: Version string
          * @summary Upload a GARM agent tool binary.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -17319,7 +17331,7 @@ export const ToolsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64, arm64, arm, ppc64le, s390x or riscv64)  X-Tool-Version: Version string
          * @summary Upload a GARM agent tool binary.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -17362,7 +17374,7 @@ export const ToolsApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.listGARMAgentReleases(options).then((request) => request(axios, basePath));
         },
         /**
-         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64, arm64, arm, ppc64le, s390x or riscv64)  X-Tool-Version: Version string
          * @summary Upload a GARM agent tool binary.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -17406,7 +17418,7 @@ export class ToolsApi extends BaseAPI {
     }
 
     /**
-     * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+     * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64, arm64, arm, ppc64le, s390x or riscv64)  X-Tool-Version: Version string
      * @summary Upload a GARM agent tool binary.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}

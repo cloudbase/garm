@@ -34,7 +34,6 @@ func init() {
 type GithubEntityTools struct {
 	updatedAt time.Time
 	expiresAt time.Time
-	err       error
 	entity    params.ForgeEntity
 	tools     []commonParams.RunnerApplicationDownload
 }
@@ -57,9 +56,6 @@ func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicatio
 				return nil, fmt.Errorf("cache expired for entity %s", entityID)
 			}
 		}
-		if cache.err != nil {
-			return nil, cache.err
-		}
 		return cache.tools, nil
 	}
 	return nil, fmt.Errorf("no cache found for entity %s", entityID)
@@ -73,7 +69,6 @@ func (g *GithubToolsCache) Set(entity params.ForgeEntity, tools []commonParams.R
 		updatedAt: time.Now(),
 		entity:    entity,
 		tools:     tools,
-		err:       nil,
 	}
 
 	if entity.Credentials.ForgeType == params.GithubEndpointType {
@@ -81,26 +76,6 @@ func (g *GithubToolsCache) Set(entity params.ForgeEntity, tools []commonParams.R
 	}
 
 	g.entities[entity.ID] = forgeTools
-}
-
-func (g *GithubToolsCache) SetToolsError(entity params.ForgeEntity, err error) {
-	g.mux.Lock()
-	defer g.mux.Unlock()
-
-	// If the entity is not in the cache, add it with the error.
-	cache, ok := g.entities[entity.ID]
-	if !ok {
-		g.entities[entity.ID] = GithubEntityTools{
-			updatedAt: time.Now(),
-			entity:    entity,
-			err:       err,
-		}
-		return
-	}
-
-	// Update the error for the existing entity.
-	cache.err = err
-	g.entities[entity.ID] = cache
 }
 
 func (g *GithubToolsCache) Delete(entityID string) {
@@ -120,8 +95,4 @@ func GetGithubToolsCache(entityID string) ([]commonParams.RunnerApplicationDownl
 
 func DeleteGithubToolsCache(entityID string) {
 	githubToolsCache.Delete(entityID)
-}
-
-func SetGithubToolsCacheError(entity params.ForgeEntity, err error) {
-	githubToolsCache.SetToolsError(entity, err)
 }

@@ -47,6 +47,10 @@
 		formData.ca_cert_bundle = '';
 		selectedCertFileName = '';
 	}
+
+	// Internal tools metadata is a Gitea-only option, and it replaces the
+	// metadata URL rather than complementing it.
+	$: toolsMetadataDisabled = selectedForgeType === 'gitea' && formData.use_internal_tools_metadata;
 </script>
 
 {#if showForgeTypeSelector}
@@ -146,34 +150,49 @@
 		/>
 		<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">If empty, Base URL will be used as API Base URL</p>
 	</div>
+{/if}
 
-	<!-- Gitea-specific tools metadata fields -->
-	<div>
-		<div class="flex items-center mb-1">
-			<label for="{idPrefix}tools-metadata-url" class="block text-sm font-medium {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}">
-				Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
-			</label>
-			<div class="ml-2">
-				<Tooltip
-					title="Tools Metadata URL"
-					content="URL where GARM checks for gitea-runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
-					position="top"
-					width="w-80"
-				/>
-			</div>
+<!-- Tools metadata URL: for Gitea this is the only tools source, for GitHub it
+     overrides what the endpoint API reports. -->
+<div>
+	<div class="flex items-center mb-1">
+		<label for="{idPrefix}tools-metadata-url" class="block text-sm font-medium {toolsMetadataDisabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}">
+			Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
+		</label>
+		<div class="ml-2">
+			<Tooltip
+				title="Tools Metadata URL"
+				content={selectedForgeType === 'github'
+					? 'A GitHub API compatible releases URL publishing runner binaries. The tools it publishes override the ones the endpoint API reports, for the OS/arch combos it covers. Use it to run architectures GitHub does not build runners for, such as ppc64le or s390x, by pointing GARM at a third party build like canonical/github-actions-runner.'
+					: 'URL where GARM checks for gitea-runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror.'}
+				position="top"
+				width="w-80"
+			/>
 		</div>
-		<input
-			type="url"
-			id="{idPrefix}tools-metadata-url"
-			bind:value={formData.tools_metadata_url}
-			disabled={formData.use_internal_tools_metadata}
-			autocomplete="off"
-			class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {formData.use_internal_tools_metadata ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
-			placeholder="https://gitea.com/api/v1/repos/gitea/runner/releases"
-		/>
-		<p class="text-xs {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">{formData.use_internal_tools_metadata ? 'Disabled when using internal tools metadata' : 'Leave empty to use default Gitea releases URL'}</p>
 	</div>
+	<input
+		type="url"
+		id="{idPrefix}tools-metadata-url"
+		bind:value={formData.tools_metadata_url}
+		disabled={toolsMetadataDisabled}
+		autocomplete="off"
+		class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {toolsMetadataDisabled ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
+		placeholder={selectedForgeType === 'github'
+			? 'https://api.github.com/repos/canonical/github-actions-runner/releases'
+			: 'https://gitea.com/api/v1/repos/gitea/runner/releases'}
+	/>
+	<p class="text-xs {toolsMetadataDisabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">
+		{#if toolsMetadataDisabled}
+			Disabled when using internal tools metadata
+		{:else if selectedForgeType === 'github'}
+			Leave empty to use only the tools the endpoint API reports
+		{:else}
+			Leave empty to use default Gitea releases URL
+		{/if}
+	</p>
+</div>
 
+{#if selectedForgeType === 'gitea'}
 	<div class="flex items-center">
 		<input
 			id="{idPrefix}use-internal-tools"

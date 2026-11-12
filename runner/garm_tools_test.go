@@ -35,22 +35,18 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 )
 
+func agentToolTags(osType commonParams.OSType, osArch commonParams.OSArch) []string {
+	return []string{
+		garmAgentFileTag,
+		garmAgentOSTypeTag(osType),
+		garmAgentOSArchTag(osArch),
+	}
+}
+
 var (
-	windowsAMD64ToolsTags = []string{
-		garmAgentFileTag,
-		garmAgentOSTypeWindowsTag,
-		garmAgentOSArchAMD64Tag,
-	}
-	windowsARM64ToolsTags = []string{
-		garmAgentFileTag,
-		garmAgentOSTypeWindowsTag,
-		garmAgentOSArchARM64Tag,
-	}
-	linuxARM64ToolsTags = []string{
-		garmAgentFileTag,
-		garmAgentOSTypeLinuxTag,
-		garmAgentOSArchARM64Tag,
-	}
+	windowsAMD64ToolsTags = agentToolTags(commonParams.Windows, commonParams.Amd64)
+	windowsARM64ToolsTags = agentToolTags(commonParams.Windows, commonParams.Arm64)
+	linuxARM64ToolsTags   = agentToolTags(commonParams.Linux, commonParams.Arm64)
 )
 
 type GARMToolsTestSuite struct {
@@ -520,4 +516,42 @@ func (s *GARMToolsTestSuite) TestListGARMAgentReleases() {
 	// Non-admin contexts are rejected.
 	_, err = s.Runner.ListGARMAgentReleases(s.UnauthorizedContext)
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
+}
+
+// Every architecture GARM can run a runner on must also be uploadable as a
+// garm-agent binary, both for manual uploads and for when the garm-agent
+// releases start publishing them.
+func (s *GARMToolsTestSuite) TestCreateGARMToolAcceptsEverySupportedArch() {
+	for _, osArch := range []commonParams.OSArch{
+		commonParams.Amd64,
+		commonParams.Arm64,
+		commonParams.Arm,
+		commonParams.Ppc64le,
+		commonParams.S390x,
+		commonParams.Riscv64,
+	} {
+		param := params.CreateGARMToolParams{
+			Name:        "garm-agent-linux-" + string(osArch),
+			Description: "agent for linux/" + string(osArch),
+			Size:        1024,
+			OSType:      commonParams.Linux,
+			OSArch:      osArch,
+			Version:     "v1.0.0",
+		}
+
+		tool, err := s.Runner.CreateGARMTool(s.AdminContext, param, bytes.NewReader([]byte("test binary content")))
+		s.Require().NoError(err, string(osArch))
+		s.Require().Contains(tool.Tags, garmAgentOSArchTag(osArch), string(osArch))
+
+		// And it can be found and removed under the same arch.
+		s.Require().NoError(s.Runner.DeleteGarmTool(s.AdminContext, string(commonParams.Linux), string(osArch)), string(osArch))
+	}
+}
+
+// An architecture GARM does not support is still refused, so a typo does not
+// quietly create a tool nothing will ever match.
+func (s *GARMToolsTestSuite) TestDeleteGarmToolRejectsUnsupportedArch() {
+	err := s.Runner.DeleteGarmTool(s.AdminContext, "linux", "sparc64")
+	s.Require().Error(err)
+	s.Contains(err.Error(), "invalid os_arch")
 }

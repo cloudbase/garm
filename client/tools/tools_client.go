@@ -172,7 +172,7 @@ X-Tool-Description: Description
 
 X-Tool-OS-Type: OS type (linux or windows)
 
-X-Tool-OS-Arch: Architecture (amd64 or arm64)
+X-Tool-OS-Arch: Architecture (amd64, arm64, arm, ppc64le, s390x or riscv64)
 
 X-Tool-Version: Version string
 */

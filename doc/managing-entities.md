@@ -6,6 +6,7 @@ GARM manages runners at three levels: **repositories**, **organizations**, and *
   - [Endpoints](#endpoints)
     - [List endpoints](#list-endpoints)
     - [Add a GHES endpoint](#add-a-ghes-endpoint)
+    - [Runner binaries for extra architectures](#runner-binaries-for-extra-architectures)
     - [Add a Gitea endpoint](#add-a-gitea-endpoint)
     - [Delete an endpoint](#delete-an-endpoint)
   - [Repositories](#repositories)
@@ -54,6 +55,56 @@ garm-cli github endpoint create \
 ```
 
 The `--ca-cert-path` is optional. Use it when your GHES uses certificates signed by an internal CA.
+
+### Runner binaries for extra architectures
+
+GitHub only publishes runner binaries for `x64`, `arm64` and `arm`. To run
+runners on another architecture you need a patched runner built by someone
+else. Point the endpoint at the releases URL that publishes it:
+
+```bash
+garm-cli github endpoint update github.com \
+  --tools-metadata-url https://api.github.com/repos/canonical/github-actions-runner/releases
+```
+
+GARM merges the two sources. It keeps calling the endpoint API, both because
+that call validates the credentials and because it is the baseline set of
+tools. On top of that it layers the binaries published at the metadata URL,
+which win for every OS and architecture combination they cover.
+
+Note that the override is per OS and architecture, not only for the
+architectures GitHub is missing. The release in the example above ships
+`linux` builds for `x64`, `arm`, `arm64`, `ppc64le` and `s390x`, so all five
+of those come from Canonical. Only the combinations it does not build, the
+`osx` and `win` ones, still come from GitHub. If you want to keep GitHub's
+own binaries for an architecture, the metadata URL must not publish it.
+
+The URL must be a GitHub API compatible `/releases` endpoint. GARM takes its
+newest stable release, falling back to a pre-release only if the list holds
+nothing else, and the assets of that release must be named the way the
+upstream runner names them: `actions-runner-{os}-{arch}-{version}.tar.gz`, or `.zip` for Windows.
+Variant packages such as `-noexternals` and `-trimmedpackages` are ignored.
+Pass an empty value to go back to using only the tools the endpoint API
+reports.
+
+GARM supports `amd64`, `arm64`, `arm`, `ppc64le`, `s390x` and `riscv64` for
+`--os-arch` on pools and scale sets. Your provider has to be able to boot an
+instance of that architecture as well.
+
+Gitea needs none of this. It publishes runner binaries for every
+architecture GARM supports except `ppc64le`, so a Gitea endpoint picks them
+up from its default tools metadata URL.
+
+If the metadata URL sits behind an internal CA, the endpoint `--ca-cert-path`
+bundle covers it. That bundle widens the system trust store rather than
+replacing it, so a public releases URL keeps working on an endpoint whose CA
+exists for a private GHES.
+
+> [!IMPORTANT]
+> GARM does not verify who built the binaries it downloads from a tools
+> metadata URL. Only point it at a source you trust to run inside your CI.
+> No credentials are sent to the metadata URL, since it need not belong to
+> the forge.
 
 ### Add a Gitea endpoint
 

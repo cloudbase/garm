@@ -161,10 +161,13 @@ func AgentVersionsMatch(a, b string) bool {
 	return strings.TrimPrefix(a, "v") == strings.TrimPrefix(b, "v")
 }
 
-// LatestAgentRelease returns the newest stable release from a release index,
+// LatestRelease returns the newest stable release from a release index,
 // falling back to the newest release when only pre-releases exist. Releases
 // are expected in the order the API returns them: newest first.
-func LatestAgentRelease(releases GitHubReleases) (GitHubRelease, bool) {
+//
+// It is used both for garm-agent releases and for the runner tools published
+// at an endpoint tools metadata URL.
+func LatestRelease(releases GitHubReleases) (GitHubRelease, bool) {
 	if len(releases) == 0 {
 		return GitHubRelease{}, false
 	}
@@ -189,19 +192,19 @@ func FindAgentRelease(releases GitHubReleases, version string) (GitHubRelease, b
 
 // ResolveAgentRelease picks the release the controller should use from a
 // release index. An empty version or "latest" resolves to the latest release
-// (see LatestAgentRelease); any other version selects the release with the
+// (see LatestRelease); any other version selects the release with the
 // matching tag. When the requested version is not present in the index, the
 // latest release is returned and found is false — callers decide whether to
 // warn or attempt a targeted fetch, but there is always a usable release as
 // long as the index is not empty.
 func ResolveAgentRelease(releases GitHubReleases, version string) (release GitHubRelease, found bool) {
 	if version == "" || version == params.GARMAgentLatestVersion {
-		return LatestAgentRelease(releases)
+		return LatestRelease(releases)
 	}
 	if release, found := FindAgentRelease(releases, version); found {
 		return release, true
 	}
-	release, _ = LatestAgentRelease(releases)
+	release, _ = LatestRelease(releases)
 	return release, false
 }
 
@@ -216,8 +219,7 @@ func ToolsFromRelease(release GitHubRelease) map[string]params.GARMAgentTool {
 			continue
 		}
 
-		key := osType + "/" + osArch
-		tools[key] = params.GARMAgentTool{
+		tool := params.GARMAgentTool{
 			Name:        asset.Name,
 			Description: fmt.Sprintf("GARM Agent %s for %s/%s", release.TagName, osType, osArch),
 			Size:        int64(asset.Size),
@@ -226,6 +228,7 @@ func ToolsFromRelease(release GitHubRelease) map[string]params.GARMAgentTool {
 			OSArch:      commonParams.OSArch(osArch),
 			DownloadURL: asset.DownloadURL,
 		}
+		tools[tool.Platform()] = tool
 	}
 	return tools
 }

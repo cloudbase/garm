@@ -31,11 +31,17 @@ var (
 		params.Windows: {},
 	}
 
-	// These are the architectures that Github supports.
+	// These are the architectures GARM can find runner tools for. Upstream
+	// GitHub only publishes x64, arm64 and arm. The rest are only available
+	// from third parties that publish patched runners, which an operator
+	// points GARM at through the endpoint tools metadata URL.
 	supportedOSArch map[params.OSArch]struct{} = map[params.OSArch]struct{}{
-		params.Amd64: {},
-		params.Arm:   {},
-		params.Arm64: {},
+		params.Amd64:   {},
+		params.Arm:     {},
+		params.Arm64:   {},
+		params.Ppc64le: {},
+		params.S390x:   {},
+		params.Riscv64: {},
 	}
 )
 

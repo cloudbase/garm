@@ -361,6 +361,12 @@ type CreateGithubEndpointParams struct {
 	BaseURL       string `json:"base_url,omitempty"`
 	// swagger:strfmt byte
 	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
+	// ToolsMetadataURL is an optional GitHub API compatible releases URL that
+	// publishes runner binaries. The tools it publishes take precedence over
+	// the ones the endpoint API reports, for the OS/arch combos they cover.
+	// It is how runners for architectures upstream GitHub does not build are
+	// made available.
+	ToolsMetadataURL string `json:"tools_metadata_url,omitempty"`
 }
 
 func (c CreateGithubEndpointParams) Validate() error {
@@ -368,11 +374,11 @@ func (c CreateGithubEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("missing api_base_url")
 	}
 
-	url, err := url.Parse(c.APIBaseURL)
-	if err != nil || url.Scheme == "" || url.Host == "" {
+	parsed, err := url.Parse(c.APIBaseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
-	switch url.Scheme {
+	switch parsed.Scheme {
 	case httpsScheme, httpScheme:
 	default:
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -382,12 +388,12 @@ func (c CreateGithubEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("missing upload_base_url")
 	}
 
-	url, err = url.Parse(c.UploadBaseURL)
-	if err != nil || url.Scheme == "" || url.Host == "" {
+	parsed, err = url.Parse(c.UploadBaseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return runnerErrors.NewBadRequestError("invalid upload_base_url")
 	}
 
-	switch url.Scheme {
+	switch parsed.Scheme {
 	case httpsScheme, httpScheme:
 	default:
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -397,15 +403,19 @@ func (c CreateGithubEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("missing base_url")
 	}
 
-	url, err = url.Parse(c.BaseURL)
-	if err != nil || url.Scheme == "" || url.Host == "" {
+	parsed, err = url.Parse(c.BaseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return runnerErrors.NewBadRequestError("invalid base_url")
 	}
 
-	switch url.Scheme {
+	switch parsed.Scheme {
 	case httpsScheme, httpScheme:
 	default:
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
+	}
+
+	if err := validateToolsMetadataURL(c.ToolsMetadataURL); err != nil {
+		return err
 	}
 
 	if c.CACertBundle != nil {
@@ -429,15 +439,44 @@ type UpdateGithubEndpointParams struct {
 	BaseURL       *string `json:"base_url,omitempty"`
 	// swagger:strfmt byte
 	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
+	// ToolsMetadataURL is an optional GitHub API compatible releases URL that
+	// publishes runner binaries. Set it to an empty string to go back to
+	// using only the tools the endpoint API reports.
+	ToolsMetadataURL *string `json:"tools_metadata_url,omitempty"`
+}
+
+// validateToolsMetadataURL checks an optional tools metadata URL. An empty
+// value means the endpoint has none configured.
+func validateToolsMetadataURL(metadataURL string) error {
+	if metadataURL == "" {
+		return nil
+	}
+
+	parsed, err := url.Parse(metadataURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
+	}
+	switch parsed.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
+	}
+	return nil
 }
 
 func (u UpdateGithubEndpointParams) Validate() error {
+	if u.ToolsMetadataURL != nil {
+		if err := validateToolsMetadataURL(*u.ToolsMetadataURL); err != nil {
+			return err
+		}
+	}
+
 	if u.APIBaseURL != nil {
-		url, err := url.Parse(*u.APIBaseURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
+		parsed, err := url.Parse(*u.APIBaseURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
 		}
-		switch url.Scheme {
+		switch parsed.Scheme {
 		case httpsScheme, httpScheme:
 		default:
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -445,11 +484,11 @@ func (u UpdateGithubEndpointParams) Validate() error {
 	}
 
 	if u.UploadBaseURL != nil {
-		url, err := url.Parse(*u.UploadBaseURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
+		parsed, err := url.Parse(*u.UploadBaseURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid upload_base_url")
 		}
-		switch url.Scheme {
+		switch parsed.Scheme {
 		case httpsScheme, httpScheme:
 		default:
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -457,11 +496,11 @@ func (u UpdateGithubEndpointParams) Validate() error {
 	}
 
 	if u.BaseURL != nil {
-		url, err := url.Parse(*u.BaseURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
+		parsed, err := url.Parse(*u.BaseURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid base_url")
 		}
-		switch url.Scheme {
+		switch parsed.Scheme {
 		case httpsScheme, httpScheme:
 		default:
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -812,11 +851,11 @@ func (c CreateGiteaEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("missing api_base_url")
 	}
 
-	url, err := url.Parse(c.APIBaseURL)
-	if err != nil || url.Scheme == "" || url.Host == "" {
+	parsed, err := url.Parse(c.APIBaseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
-	switch url.Scheme {
+	switch parsed.Scheme {
 	case httpsScheme, httpScheme:
 	default:
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -826,27 +865,19 @@ func (c CreateGiteaEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("missing base_url")
 	}
 
-	url, err = url.Parse(c.BaseURL)
-	if err != nil || url.Scheme == "" || url.Host == "" {
+	parsed, err = url.Parse(c.BaseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return runnerErrors.NewBadRequestError("invalid base_url")
 	}
 
-	switch url.Scheme {
+	switch parsed.Scheme {
 	case httpsScheme, httpScheme:
 	default:
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
-	if c.ToolsMetadataURL != "" {
-		url, err = url.Parse(c.ToolsMetadataURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
-			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
-		}
-		switch url.Scheme {
-		case httpsScheme, httpScheme:
-		default:
-			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
-		}
+	if err := validateToolsMetadataURL(c.ToolsMetadataURL); err != nil {
+		return err
 	}
 
 	if c.CACertBundle != nil {
@@ -875,11 +906,11 @@ type UpdateGiteaEndpointParams struct {
 
 func (u UpdateGiteaEndpointParams) Validate() error {
 	if u.APIBaseURL != nil {
-		url, err := url.Parse(*u.APIBaseURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
+		parsed, err := url.Parse(*u.APIBaseURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
 		}
-		switch url.Scheme {
+		switch parsed.Scheme {
 		case httpsScheme, httpScheme:
 		default:
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -887,11 +918,11 @@ func (u UpdateGiteaEndpointParams) Validate() error {
 	}
 
 	if u.BaseURL != nil {
-		url, err := url.Parse(*u.BaseURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
+		parsed, err := url.Parse(*u.BaseURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid base_url")
 		}
-		switch url.Scheme {
+		switch parsed.Scheme {
 		case httpsScheme, httpScheme:
 		default:
 			return runnerErrors.NewBadRequestError("invalid api_base_url")
@@ -908,16 +939,8 @@ func (u UpdateGiteaEndpointParams) Validate() error {
 		}
 	}
 
-	if u.ToolsMetadataURL != "" {
-		url, err := url.Parse(u.ToolsMetadataURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
-			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
-		}
-		switch url.Scheme {
-		case httpsScheme, httpScheme:
-		default:
-			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
-		}
+	if err := validateToolsMetadataURL(u.ToolsMetadataURL); err != nil {
+		return err
 	}
 
 	return nil

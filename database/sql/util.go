@@ -1244,13 +1244,19 @@ func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.Forge
 		EndpointType:  ep.EndpointType,
 		UpdatedAt:     ep.UpdatedAt,
 	}
-	if ep.EndpointType == params.GiteaEndpointType {
+	switch ep.EndpointType {
+	case params.GiteaEndpointType:
 		ret.UseInternalToolsMetadata = &ep.UseInternalToolsMetadata
 		if ep.ToolsMetadataURL == "" {
 			ret.ToolsMetadataURL = appdefaults.GiteaRunnerReleasesURL
 		} else {
 			ret.ToolsMetadataURL = ep.ToolsMetadataURL
 		}
+	case params.GithubEndpointType:
+		// GitHub has no default tools metadata URL. The tools the endpoint
+		// API reports are the baseline, and an empty value here means there
+		// is nothing overriding them.
+		ret.ToolsMetadataURL = ep.ToolsMetadataURL
 	}
 	return ret, nil
 }
