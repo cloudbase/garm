@@ -1101,8 +1101,11 @@ func (w *Worker) handleScaleUp() {
 		return
 	}
 
-	if w.targetRunners() <= w.runnerCount() {
-		slog.DebugContext(w.ctx, "target is less than or equal to current; not scaling up")
+	// Create what the target is missing in usable runners, without letting
+	// the total (including runners still being deleted) pass MaxRunners.
+	toCreate := min(w.targetRunners()-w.usableRunnerCount(), int(w.scaleSet.MaxRunners)-w.runnerCount())
+	if toCreate <= 0 {
+		slog.DebugContext(w.ctx, "target is reached or the scale set is at max runners; not scaling up")
 		return
 	}
 
@@ -1117,7 +1120,7 @@ func (w *Worker) handleScaleUp() {
 		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
 		return
 	}
-	for i := w.runnerCount(); i < w.targetRunners(); i++ {
+	for i := 0; i < toCreate; i++ {
 		newRunnerName := strings.ToLower(fmt.Sprintf("%s-%s", w.scaleSet.GetRunnerPrefix(), util.NewID()))
 		jitConfig, err := scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
 		if err != nil {
@@ -1178,7 +1181,9 @@ func (w *Worker) waitForToolsOrCancel() (hasTools, stopped bool) {
 }
 
 func (w *Worker) handleScaleDown() {
-	delta := w.runnerCount() - w.targetRunners()
+	// Runners already on their way out are not part of usableRunnerCount(),
+	// so the delta is exactly the number of idle runners to remove.
+	delta := w.usableRunnerCount() - w.targetRunners()
 	if delta <= 0 {
 		return
 	}
@@ -1187,19 +1192,7 @@ func (w *Worker) handleScaleDown() {
 		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
 		return
 	}
-	// Runners already on their way out satisfy part of the delta before any
-	// new victim is picked. Counting them during the removal loop instead
-	// would make the outcome depend on map iteration order: an idle runner
-	// could be removed while a runner already being deleted would have
-	// covered the delta.
 	removed := 0
-	for _, runner := range w.runners {
-		switch runner.Status {
-		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
-			commonParams.InstanceDeleting:
-			removed++
-		}
-	}
 
 	for _, runner := range w.runners {
 		slog.InfoContext(w.ctx, "considering runners for removal", "delta", delta, "removed", removed)
@@ -1271,7 +1264,7 @@ func (w *Worker) handleScaleDown() {
 			removed++
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
 			commonParams.InstanceDeleting:
-			// Already counted against the delta before the loop.
+			// Not part of the delta: usableRunnerCount() excludes them.
 			continue
 		case commonParams.InstanceDeleted:
 			// Provider resource is gone and the record is excluded from
@@ -1303,6 +1296,36 @@ func (w *Worker) runnerCount() int {
 	count := 0
 	for _, runner := range w.runners {
 		if runner.Status == commonParams.InstanceDeleted {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+// usableRunnerCount returns the number of runners that are running a job,
+// are waiting for one, or will be once they finish booting. Runners on
+// their way out (pending_delete, pending_force_delete, deleting, deleted),
+// runners in error and runners whose job has ended (terminated, failed)
+// still occupy provider capacity for a while, but they will never take
+// another job. Scaling decisions compare this number with the target;
+// runnerCount() only bounds the total against MaxRunners.
+//
+// Comparing the target with runnerCount() instead starves the pool on
+// providers where deletion is slow: with ephemeral runners and a steady
+// stream of jobs, the runners being deleted alone can exceed
+// MinIdleRunners + DesiredRunnerCount, so no replacement is created and
+// idle runners are removed to "make room".
+func (w *Worker) usableRunnerCount() int {
+	count := 0
+	for _, runner := range w.runners {
+		switch runner.Status {
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted, commonParams.InstanceError:
+			continue
+		}
+		switch runner.RunnerStatus {
+		case params.RunnerTerminated, params.RunnerFailed:
 			continue
 		}
 		count++
@@ -1355,17 +1378,18 @@ func (w *Worker) handleAutoScale() {
 				continue
 			}
 
-			if w.runnerCount() == w.targetRunners() {
-				lastMsgDebugLog("desired runner count reached", w.targetRunners(), w.runnerCount())
+			usable, target := w.usableRunnerCount(), w.targetRunners()
+			if usable == target {
+				lastMsgDebugLog("desired runner count reached", target, usable)
 				w.mux.Unlock()
 				continue
 			}
 
-			if w.runnerCount() < w.targetRunners() {
-				lastMsgDebugLog("scaling up", w.targetRunners(), w.runnerCount())
+			if usable < target {
+				lastMsgDebugLog("scaling up", target, usable)
 				w.handleScaleUp()
 			} else {
-				lastMsgDebugLog("attempting to scale down", w.targetRunners(), w.runnerCount())
+				lastMsgDebugLog("attempting to scale down", target, usable)
 				w.handleScaleDown()
 			}
 			w.mux.Unlock()
