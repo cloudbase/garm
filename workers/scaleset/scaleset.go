@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -56,17 +57,20 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 	if err != nil {
 		return nil, fmt.Errorf("failed to get entity from the db: %w", err)
 	}
-	return &Worker{
+	worker := &Worker{
 		ctx:            ctx,
 		controllerInfo: controllerInfo,
 		consumerID:     consumerID,
 		store:          store,
 		provider:       provider,
 		scaleSet:       scaleSet,
+		jobScaleSetID:  scaleSet.ID,
 		entity:         entity,
 		runners:        make(map[string]params.Instance),
 		pseudoPoolID:   garmUtil.ScaleSetPseudoPoolID(scalesetEntity.ID, scaleSet.ID),
-	}, nil
+	}
+	worker.scaleSetView.Store(&scaleSet)
+	return worker, nil
 }
 
 type Worker struct {
@@ -74,11 +78,17 @@ type Worker struct {
 	consumerID     string
 	controllerInfo params.ControllerInfo
 
-	provider common.Provider
-	store    dbCommon.Store
-	scaleSet params.ScaleSet
-	entity   params.ForgeEntity
-	runners  map[string]params.Instance
+	provider      common.Provider
+	readiness     common.ReadinessGate
+	readinessMu   sync.Mutex
+	jobScaleSetID uint
+	readinessNow  func() time.Time
+	healthSeen    time.Time
+	store         dbCommon.Store
+	scaleSet      params.ScaleSet
+	scaleSetView  atomic.Pointer[params.ScaleSet]
+	entity        params.ForgeEntity
+	runners       map[string]params.Instance
 
 	// pseudoPoolID is the stable pool ID reported to providers for this scale
 	// set. It is derived from immutable IDs, so it is computed once.
@@ -648,6 +658,17 @@ func (w *Worker) consolidateRunnerState(listedAt time.Time, runners []params.Run
 // DB runners with no provider instance are marked as pending_delete. Must be
 // called with w.mux held.
 func (w *Worker) consolidateProviderState() error {
+	var admission dbCommon.AdmissionStore
+	var admissionPolicy params.AdmissionConfig
+	if store, ok := w.store.(dbCommon.AdmissionStore); ok {
+		policy, enrolled, err := store.AdmissionForProvider(w.ctx, w.scaleSet.ProviderName)
+		if err != nil {
+			return fmt.Errorf("reading admission policy: %w", err)
+		}
+		if enrolled {
+			admission, admissionPolicy = store, policy
+		}
+	}
 	listParams := common.ListInstancesParams{
 		ListInstancesV011: common.ListInstancesV011Params{
 			ProviderBaseParams: w.providerBaseParams(),
@@ -656,6 +677,13 @@ func (w *Worker) consolidateProviderState() error {
 
 	providerRunners, err := w.provider.ListInstances(w.ctx, w.pseudoPoolID, listParams)
 	if err != nil {
+		if admission != nil {
+			w.readiness.Reset()
+			admissionPolicy.Ready, admissionPolicy.HealthyUntil, admissionPolicy.HealthObservedAt = false, time.Time{}, time.Now()
+			if updateErr := admission.UpdateAdmissionHealth(w.ctx, admissionPolicy); updateErr != nil {
+				return fmt.Errorf("closing admission health: %w", updateErr)
+			}
+		}
 		return fmt.Errorf("listing instances: %w", err)
 	}
 
@@ -664,13 +692,21 @@ func (w *Worker) consolidateProviderState() error {
 		providerRunnersByName[runner.Name] = runner
 	}
 
-	if !w.legacyPoolIDDrained {
+	if !w.legacyPoolIDDrained || admission != nil {
 		legacyID, err := w.legacyPseudoPoolID()
 		if err != nil {
 			return fmt.Errorf("getting legacy pseudo pool ID: %w", err)
 		}
 		legacyRunners, err := w.provider.ListInstances(w.ctx, legacyID, listParams)
 		if err != nil {
+			if admission != nil {
+				w.readiness.Reset()
+				admissionPolicy.Ready, admissionPolicy.HealthyUntil, admissionPolicy.HealthObservedAt = false, time.Time{}, time.Now()
+				if updateErr := admission.UpdateAdmissionHealth(w.ctx, admissionPolicy); updateErr != nil {
+					return fmt.Errorf("closing admission health: %w", updateErr)
+				}
+				return fmt.Errorf("legacy inventory unavailable: %w", err)
+			}
 			// it seems that some providers (like k8s) err out even during a list
 			// operation. If we got here, the ListInstances() call using the new
 			// ID, worked. So we just ignore the error, set w.legacyPoolIDDrained = true
@@ -701,6 +737,12 @@ func (w *Worker) consolidateProviderState() error {
 	dbRunnersByName := w.runnerByName()
 	for _, runner := range providerRunners {
 		if _, ok := dbRunnersByName[runner.Name]; !ok {
+			if admission != nil {
+				if err := admission.SetAdmissionDrain(w.ctx, admissionPolicy.Domain, true); err != nil {
+					return fmt.Errorf("draining admission domain: %w", err)
+				}
+				return fmt.Errorf("unaccounted provider instance %s; admission drained", runner.Name)
+			}
 			slog.InfoContext(w.ctx, "runner does not exist in database; removing from provider", "runner_name", runner.Name)
 			// There is no situation in which the runner will disappear from the provider
 			// after it was removed from the database. The provider worker will remove the
@@ -716,6 +758,10 @@ func (w *Worker) consolidateProviderState() error {
 		}
 	}
 
+	// An inventory omission alone is not authoritative proof of absence.
+	if admission != nil {
+		return nil
+	}
 	dbRunnersByName = w.runnerByName()
 	for _, runner := range dbRunnersByName {
 		switch runner.Status {
@@ -795,6 +841,7 @@ func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
 			}
 		}
 		w.scaleSet = scaleSet
+		w.scaleSetView.Store(&scaleSet)
 		w.mux.Unlock()
 	default:
 		slog.DebugContext(w.ctx, "invalid operation type; ignoring", "operation_type", event.Operation)
@@ -995,7 +1042,7 @@ func (w *Worker) scalingPausedLocked() bool {
 func (w *Worker) sessionLoopMayRun() bool {
 	w.mux.Lock()
 	defer w.mux.Unlock()
-	if !w.scaleSet.Enabled || w.forgeAuthBlockedLocked() {
+	if !w.listenerEligibleLocked() || w.forgeAuthBlockedLocked() {
 		return false
 	}
 	// While the quota is fully exhausted, session (re)creation cannot
@@ -1045,7 +1092,7 @@ Loop:
 		case <-w.listener.Wait():
 			slog.DebugContext(w.ctx, "listener is stopped; attempting to restart")
 			w.mux.Lock()
-			if !w.scaleSet.Enabled {
+			if !w.listenerEligibleLocked() {
 				if err := w.listener.Stop(); err != nil {
 					slog.ErrorContext(w.ctx, "failed to stop listener", "error", err)
 				}
@@ -1061,7 +1108,7 @@ Loop:
 				// In case the scaleset was disabled or the credentials were
 				// rejected while we were in the backoff sleep. The outer loop
 				// parks until the condition clears.
-				if !w.scaleSet.Enabled || w.forgeAuthBlockedLocked() {
+				if !w.listenerEligibleLocked() || w.forgeAuthBlockedLocked() {
 					w.mux.Unlock()
 					continue Loop
 				}
@@ -1119,7 +1166,14 @@ func (w *Worker) handleScaleUp() {
 	}
 	for i := w.runnerCount(); i < w.targetRunners(); i++ {
 		newRunnerName := strings.ToLower(fmt.Sprintf("%s-%s", w.scaleSet.GetRunnerPrefix(), util.NewID()))
-		jitConfig, err := scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
+		reservationID, jobRequestID, jobID, err := w.prepareRunnerAdmission(newRunnerName)
+		if err != nil {
+			slog.ErrorContext(w.ctx, "preparing runner admission", "error", err)
+			return
+		}
+		jitConfig, err := w.generateJITWithAdmission(reservationID, func() (params.RunnerScaleSetJitRunnerConfig, error) {
+			return scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
+		})
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error generating jit config", "error", err)
 			continue
@@ -1128,6 +1182,10 @@ func (w *Worker) handleScaleUp() {
 		decodedJit, err := jitConfig.DecodedJITConfig()
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error decoding jit config", "error", err)
+			w.releaseUnsentAdmission(reservationID)
+			if err := scaleSetCli.RemoveRunner(w.ctx, jitConfig.Runner.ID); err != nil {
+				slog.ErrorContext(w.ctx, "error deleting runner", "error", err)
+			}
 			continue
 		}
 		runnerParams := params.CreateInstanceParams{
@@ -1144,9 +1202,24 @@ func (w *Worker) handleScaleUp() {
 			AgentID:           jitConfig.Runner.ID,
 		}
 
-		dbInstance, err := w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams)
+		var dbInstance params.Instance
+		switch {
+		case jobRequestID != "":
+			admission := w.store.(dbCommon.AdmissionStore)
+			policy, _, policyErr := admission.AdmissionForProvider(w.ctx, w.scaleSet.ProviderName)
+			if policyErr != nil {
+				slog.ErrorContext(w.ctx, "reading job policy", "error", policyErr)
+				return
+			}
+			dbInstance, err = admission.CreateAdmissionJobInstance(w.ctx, policy.Domain, w.jobOwner(), jobRequestID, jobID, w.scaleSet.ID, runnerParams)
+		case reservationID != "":
+			dbInstance, err = w.store.(dbCommon.AdmissionStore).CreateAdmittedScaleSetInstance(w.ctx, reservationID, w.scaleSet.ID, runnerParams)
+		default:
+			dbInstance, err = w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams)
+		}
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error creating instance", "error", err)
+			w.releaseUnsentAdmission(reservationID)
 			if err := scaleSetCli.RemoveRunner(w.ctx, jitConfig.Runner.ID); err != nil {
 				slog.ErrorContext(w.ctx, "error deleting runner", "error", err)
 			}
@@ -1371,4 +1444,217 @@ func (w *Worker) handleAutoScale() {
 			w.mux.Unlock()
 		}
 	}
+}
+
+// checkAdmissionReadiness verifies the exact enrolled shape immediately before
+// reserving. The durable deadline is checked again when issuing a create.
+func (w *Worker) checkAdmissionReadiness(store dbCommon.AdmissionStore, policy params.AdmissionConfig) error {
+	return w.checkAdmissionReadinessFor(store, policy, w.scaleSet)
+}
+
+func (w *Worker) checkAdmissionReadinessFor(store dbCommon.AdmissionStore, policy params.AdmissionConfig, set params.ScaleSet) error {
+	w.readinessMu.Lock()
+	defer w.readinessMu.Unlock()
+	if !policy.Ready && policy.HealthObservedAt.After(w.healthSeen) {
+		w.readiness.Reset()
+	}
+	policy.HealthObservedAt = time.Now()
+	if w.readinessNow != nil {
+		policy.HealthObservedAt = w.readinessNow()
+	}
+	if set.Image != policy.Image || set.Flavor != policy.Flavor || string(set.OSArch) != policy.OSArch {
+		policy.Ready = false
+		policy.HealthyUntil = time.Time{}
+		if err := store.UpdateAdmissionHealth(w.ctx, policy); err != nil {
+			return fmt.Errorf("closing admission after shape change: %w", err)
+		}
+		return fmt.Errorf("scale set shape does not match admission enrollment")
+	}
+	probe, ok := w.provider.(common.ReadinessProvider)
+	if !ok {
+		policy.Ready = false
+		policy.HealthyUntil = time.Time{}
+		if err := store.UpdateAdmissionHealth(w.ctx, policy); err != nil {
+			return fmt.Errorf("closing unsupported admission: %w", err)
+		}
+		return fmt.Errorf("provider does not support readiness_v1")
+	}
+	req := common.ReadinessRequest{
+		ExpectedBackendIdentity: policy.BackendIdentity, Version: 1, RequestID: util.NewID(), Generation: fmt.Sprint(policy.Generation),
+		Domain: policy.Domain, Project: policy.Project, Image: policy.Image, Flavor: policy.Flavor,
+		OSArch: policy.OSArch, InstanceType: policy.InstanceType,
+		Resources: common.ReadinessResources{CPU: policy.Class.CPU, MemoryBytes: policy.Class.RAM, DiskBytes: policy.Class.Disk, VMSlots: policy.Class.VMs},
+	}
+	response, probeErr := probe.Readiness(w.ctx, req)
+	now := time.Now()
+	if w.readinessNow != nil {
+		now = w.readinessNow()
+	}
+	gateErr := w.readiness.Observe(req, response, now)
+	policy.Ready = probeErr == nil && gateErr == nil
+	if policy.Ready {
+		policy.BackendIdentity = response.BackendIdentity
+		if err := w.auditAdmissionInventory(store, policy); err != nil {
+			return fmt.Errorf("admission inventory: %w", err)
+		}
+	}
+	policy.HealthyUntil = time.Time{}
+	if policy.Ready {
+		policy.BackendIdentity = response.BackendIdentity
+		policy.HealthyUntil = response.ValidUntil
+	}
+	if err := store.UpdateAdmissionHealth(w.ctx, policy); err != nil {
+		return fmt.Errorf("recording readiness: %w", err)
+	}
+	w.healthSeen = policy.HealthObservedAt
+	if probeErr != nil {
+		return fmt.Errorf("probing readiness: %w", probeErr)
+	}
+	if gateErr != nil {
+		return gateErr
+	}
+	return nil
+}
+
+// auditAdmissionInventory checks every controller-owned guest before a domain
+// can recover health. Missing DB guests may be pending operations and remain
+// charged; only unknown provider guests cause a persistent fault drain.
+func (w *Worker) auditAdmissionInventory(store dbCommon.AdmissionStore, policy params.AdmissionConfig) error {
+	closeHealth := func(err error) error {
+		w.readiness.Reset()
+		policy.Ready, policy.HealthyUntil, policy.HealthObservedAt = false, time.Time{}, time.Now()
+		if updateErr := store.UpdateAdmissionHealth(w.ctx, policy); updateErr != nil {
+			return fmt.Errorf("%v; closing health: %w", err, updateErr)
+		}
+		return err
+	}
+	inventory, ok := w.provider.(common.AdmissionInventoryProvider)
+	if !ok {
+		return closeHealth(fmt.Errorf("provider does not support identity-bound inventory"))
+	}
+	req := common.AdmissionInventoryRequest{Version: 1, RequestID: util.NewID(), ExpectedBackendIdentity: policy.BackendIdentity, Project: policy.Project}
+	response, err := inventory.AdmissionInventory(w.ctx, req)
+	if err != nil {
+		return closeHealth(fmt.Errorf("listing admission inventory: %w", err))
+	}
+	if response.Request != req || !response.Complete || response.BackendIdentity != req.ExpectedBackendIdentity || req.ExpectedBackendIdentity == "" {
+		return closeHealth(fmt.Errorf("invalid admission inventory response"))
+	}
+	remote := response.Instances
+	sets, err := w.store.ListAllScaleSets(w.ctx)
+	if err != nil {
+		return closeHealth(err)
+	}
+	known := make(map[string]params.Instance)
+	owners := make(map[string]string)
+	for _, set := range sets {
+		if set.ProviderName != policy.Provider {
+			continue
+		}
+		instances, err := w.store.ListScaleSetInstances(w.ctx, set.ID, false)
+		if err != nil {
+			return closeHealth(err)
+		}
+		for _, instance := range instances {
+			known[instance.Name] = instance
+			owners[instance.Name] = fmt.Sprintf("scaleset:%d", set.ID)
+		}
+	}
+	for _, guest := range remote {
+		instance, exists := known[guest.Name]
+		if exists && (instance.ProviderID == "" || instance.ProviderID == guest.ProviderID) {
+			reservation, err := store.AdmissionByInstance(w.ctx, policy.Provider, guest.Name)
+			if err == nil && reservation.State != "released" && reservation.BackendIdentity == policy.BackendIdentity && policy.BackendIdentity != "" && reservation.Owner == owners[guest.Name] {
+				continue
+			}
+			if err == nil {
+				err = dbCommon.ErrAdmissionNotFound
+			}
+			if !errors.Is(err, dbCommon.ErrAdmissionNotFound) {
+				return closeHealth(fmt.Errorf("reading admission reservation: %w", err))
+			}
+		}
+		if err := store.SetAdmissionDrain(w.ctx, policy.Domain, true); err != nil {
+			return fmt.Errorf("draining unknown admission inventory: %w", err)
+		}
+		return fmt.Errorf("unaccounted provider instance %s", guest.Name)
+	}
+	return nil
+}
+
+// releaseUnsentAdmission only asks the store to release. The transaction
+// refuses if binding or sending may have occurred, including a lost commit reply.
+func (w *Worker) releaseUnsentAdmission(id string) {
+	if id == "" {
+		return
+	}
+	store, ok := w.store.(dbCommon.AdmissionStore)
+	if !ok {
+		return
+	}
+	if err := store.ReleaseUnsentAdmission(w.ctx, id); err != nil {
+		slog.WarnContext(w.ctx, "retaining uncertain admission reservation", "error", err)
+	}
+}
+
+func (w *Worker) generateJITWithAdmission(id string, generate func() (params.RunnerScaleSetJitRunnerConfig, error)) (params.RunnerScaleSetJitRunnerConfig, error) {
+	result, err := generate()
+	if err != nil {
+		w.releaseUnsentAdmission(id)
+	}
+	return result, err
+}
+
+// Disabled sets with an existing job credit continue zero-capacity polling so
+// lifecycle events are not abandoned. No credit is created while disabled.
+func (w *Worker) listenerEligibleLocked() bool {
+	if w.scaleSet.Enabled {
+		return true
+	}
+	store, policy, enabled, err := w.jobAdmissionPolicy()
+	if err != nil || !enabled {
+		return false
+	}
+	_, _, err = store.GetAdmissionCredit(w.ctx, policy.Domain, w.jobOwner())
+	return err == nil
+}
+
+func (w *Worker) prepareRunnerAdmission(name string) (reservationID, requestID, jobID string, err error) {
+	admission, ok := w.store.(dbCommon.AdmissionStore)
+	if !ok {
+		return "", "", "", nil
+	}
+	policy, enrolled, err := admission.AdmissionForProvider(w.ctx, w.scaleSet.ProviderName)
+	if err != nil || !enrolled {
+		return "", "", "", err
+	}
+	if w.scaleSet.MinIdleRunners != 0 {
+		return "", "", "", fmt.Errorf("admission does not support min idle runners")
+	}
+	if err := w.checkAdmissionReadiness(admission, policy); err != nil {
+		return "", "", "", fmt.Errorf("admission readiness unavailable: %w", err)
+	}
+	if policy.Drained && policy.RequestedActivationGeneration == policy.Generation && policy.RequestedActivationGeneration > policy.LastResumeGeneration {
+		if err := admission.ResumeAdmission(w.ctx, policy.Domain, policy.Generation); err != nil {
+			return "", "", "", err
+		}
+	}
+	owner := fmt.Sprintf("scaleset:%d", w.scaleSet.ID)
+	if policy.Protocol == jobAdmissionProtocol {
+		_, jobs, err := admission.GetAdmissionCredit(w.ctx, policy.Domain, owner)
+		if err != nil {
+			return "", "", "", err
+		}
+		for _, job := range jobs {
+			if !job.Terminal && job.State == jobStateAcquired && job.InstanceName == "" {
+				return "", job.RequestID, job.JobID, nil
+			}
+		}
+		return "", "", "", fmt.Errorf("no acquired job awaiting a runner")
+	}
+	reservation, err := admission.ReserveAdmission(w.ctx, policy.Domain, owner, name, policy.Class, policy.Generation)
+	if err != nil {
+		return "", "", "", err
+	}
+	return reservation.ID, "", "", nil
 }

@@ -60,8 +60,12 @@ type scaleSetListener struct {
 	cancelFunc    context.CancelFunc
 	lastMessageID int64
 
-	scaleSetHelper scaleSetHelper
-	messageSession *scalesets.MessageSession
+	scaleSetHelper      scaleSetHelper
+	messageSession      *scalesets.MessageSession
+	jobAdmission        bool
+	jobSessionValidated bool
+	pendingJobPollEpoch int64
+	pendingJobMessageID int64
 
 	mux        sync.Mutex
 	running    atomic.Bool
@@ -89,6 +93,14 @@ func (l *scaleSetListener) Start() error {
 	l.listenerCtx = listenCtx
 	l.cancelFunc = listenCancelFunc
 
+	if admission, ok := l.scaleSetHelper.(jobAdmissionHelper); ok {
+		jobMode, err := admission.prepareJobSession()
+		if err != nil {
+			listenCancelFunc()
+			return fmt.Errorf("preparing job admission: %w", err)
+		}
+		l.jobAdmission = jobMode
+	}
 	scaleSet := l.scaleSetHelper.GetScaleSet()
 	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
 	if err != nil {
@@ -103,6 +115,16 @@ func (l *scaleSetListener) Start() error {
 		return fmt.Errorf("creating message session: %w", err)
 	}
 	l.messageSession = session
+	l.pendingJobPollEpoch, l.pendingJobMessageID = 0, 0
+	l.jobSessionValidated = false
+	if l.jobAdmission {
+		stats, present := session.InitialStatistics()
+		if err := l.scaleSetHelper.(jobAdmissionHelper).validateJobSession(stats, present); err != nil {
+			slog.ErrorContext(l.ctx, "initial job session requires reconciliation", "error", err)
+		} else {
+			l.jobSessionValidated = true
+		}
+	}
 	l.quit = make(chan struct{})
 	l.running.Store(true)
 	l.loopExited = make(chan struct{})
@@ -206,6 +228,7 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		slog.ErrorContext(l.ctx, "getting scale set client", "error", err)
 		return
 	}
+	acquisitionFailed := false
 	if len(availableJobs) > 0 {
 		jobIDs := make([]int64, len(availableJobs))
 		for idx, job := range availableJobs {
@@ -215,16 +238,16 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 			l.listenerCtx, l.scaleSetHelper.GetScaleSet().ScaleSetID,
 			l.messageSession.MessageQueueAccessToken(), jobIDs)
 		if err != nil {
-			// don't mark message as processed. It will be requeued.
 			slog.ErrorContext(l.ctx, "acquiring jobs", "error", err)
-			return
+			acquisitionFailed = true
+		} else {
+			// HandleJobsAvailable only records jobs in the database for now. The jobs are purely
+			// informational, so an error here won't break anything.
+			if err := l.scaleSetHelper.HandleJobsAvailable(availableJobs); err != nil {
+				slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
+			}
+			slog.DebugContext(l.ctx, "acquired jobs", "job_ids", idsAcquired)
 		}
-		// HandleJobsAvailable only records jobs in the database for now. The jobs are purely
-		// informational, so an error here won't break anything.
-		if err := l.scaleSetHelper.HandleJobsAvailable(availableJobs); err != nil {
-			slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
-		}
-		slog.DebugContext(l.ctx, "acquired jobs", "job_ids", idsAcquired)
 	}
 
 	if len(assignedJobs) > 0 {
@@ -245,6 +268,11 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 			slog.ErrorContext(l.ctx, "error handling completed jobs", "error", err)
 			return
 		}
+	}
+
+	if acquisitionFailed {
+		// Leave the message unacknowledged so acquisition can be retried.
+		return
 	}
 
 	if err := l.scaleSetHelper.SetLastMessageID(msg.MessageID); err != nil {
@@ -283,8 +311,26 @@ func (l *scaleSetListener) loop() {
 			// Each poll attempt is bounded by the long poll client's own
 			// timeout, sized for the broker's ~50s hold; the context only
 			// needs to carry cancellation.
-			msg, err := l.messageSession.GetMessage(
-				l.listenerCtx, l.lastMessageID, l.scaleSetHelper.GetScaleSet().MaxRunners)
+			capacity := l.scaleSetHelper.GetScaleSet().MaxRunners
+			var epoch int64
+			if l.jobAdmission {
+				capacity = 0
+				if l.jobSessionValidated {
+					var authErr error
+					capacity, epoch, authErr = l.scaleSetHelper.(jobAdmissionHelper).authorizeJobPoll()
+					if authErr != nil {
+						slog.WarnContext(l.ctx, "job admission closed", "error", authErr)
+						capacity = 0
+					}
+				}
+			}
+			var msg params.RunnerScaleSetMessage
+			var err error
+			if l.jobAdmission {
+				msg, err = l.messageSession.GetAdmissionMessage(l.listenerCtx, l.lastMessageID, capacity)
+			} else {
+				msg, err = l.messageSession.GetMessage(l.listenerCtx, l.lastMessageID, capacity)
+			}
 			if err != nil {
 				if errors.Is(err, runnerErrors.ErrUnauthorized) {
 					if retryAfterUnauthorized {
@@ -308,15 +354,59 @@ func (l *scaleSetListener) loop() {
 				return
 			}
 			retryAfterUnauthorized = false
-			// Empty polls also prove the listener is alive; the broker holds
-			// the long poll for ~50s before returning a nil message.
-			metrics.ScaleSetListenerLastSuccess.WithLabelValues(l.scaleSetIDLabel()).SetToCurrentTime()
-			if !msg.IsNil() {
-				// Longpoll returns after 50 seconds. If no message arrives during that interval
-				// we get a nil message. We can simply ignore it and continue.
-				slog.DebugContext(l.ctx, "handling message", "message_id", msg.MessageID)
-				l.handleSessionMessage(msg)
+			l.processPolledMessage(msg, epoch)
+		}
+	}
+}
+
+func (l *scaleSetListener) processPolledMessage(msg params.RunnerScaleSetMessage, epoch int64) {
+	if l.jobAdmission && epoch != 0 && !msg.IsNil() {
+		l.pendingJobPollEpoch, l.pendingJobMessageID = epoch, msg.MessageID
+	}
+	// Empty polls also prove the listener is alive; the broker holds
+	// the long poll for ~50s before returning a nil message.
+	metrics.ScaleSetListenerLastSuccess.WithLabelValues(l.scaleSetIDLabel()).SetToCurrentTime()
+	if !msg.IsNil() {
+		slog.DebugContext(l.ctx, "handling message", "message_id", msg.MessageID)
+		if l.jobAdmission {
+			client, err := l.scaleSetHelper.GetScaleSetClient()
+			if err != nil {
+				slog.ErrorContext(l.ctx, "getting scale set client", "error", err)
+				return
 			}
+			if err := l.scaleSetHelper.(jobAdmissionHelper).handleJobAdmissionMessage(msg, client, l.messageSession.MessageQueueAccessToken()); err != nil {
+				slog.ErrorContext(l.ctx, "handling admitted jobs", "error", err)
+				return
+			}
+		} else {
+			l.handleSessionMessage(msg)
+		}
+	}
+	if l.jobAdmission && epoch == 0 && !msg.IsNil() && msg.MessageID == l.pendingJobMessageID {
+		epoch = l.pendingJobPollEpoch
+	}
+	if l.jobAdmission && epoch != 0 {
+		if err := l.scaleSetHelper.(jobAdmissionHelper).finishJobPoll(epoch); err != nil {
+			slog.ErrorContext(l.ctx, "finishing admission poll", "error", err)
+			return
+		}
+		if epoch == l.pendingJobPollEpoch {
+			l.pendingJobPollEpoch, l.pendingJobMessageID = 0, 0
+		}
+	}
+	if l.jobAdmission && !msg.IsNil() {
+		if !l.jobSessionValidated && msg.Statistics != nil {
+			if err := l.scaleSetHelper.(jobAdmissionHelper).validateJobSession(*msg.Statistics, true); err == nil {
+				l.jobSessionValidated = true
+			}
+		}
+		if err := l.scaleSetHelper.SetLastMessageID(msg.MessageID); err != nil {
+			slog.ErrorContext(l.ctx, "persisting admitted message", "error", err)
+			return
+		}
+		l.lastMessageID = msg.MessageID
+		if err := l.messageSession.DeleteMessage(l.listenerCtx, msg.MessageID); err != nil {
+			slog.ErrorContext(l.ctx, "deleting admitted message", "error", err)
 		}
 	}
 }
