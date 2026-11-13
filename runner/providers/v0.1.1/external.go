@@ -15,11 +15,13 @@
 package v011
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os/exec"
 	"strconv"
@@ -453,4 +455,114 @@ func (e *external) DisableJITConfig() bool {
 		return false
 	}
 	return e.cfg.DisableJITConfig
+}
+
+// Readiness invokes the optional experimental readiness_v1 command. Older
+// providers reject the command, which callers must treat as not ready.
+func (e *external) Readiness(ctx context.Context, req common.ReadinessRequest) (common.ReadinessResponse, error) {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return common.ReadinessResponse{}, fmt.Errorf("marshal readiness request: %w", err)
+	}
+	// A hung optional probe must never keep an admission decision open.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	env := []string{
+		"GARM_COMMAND=readiness_v1",
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
+	}
+	env = append(env, e.environmentVariables...)
+	out, err := e.execWithTimeout(ctx, "Readiness", common.ProviderBaseParams{}, data, env)
+	if err != nil {
+		return common.ReadinessResponse{}, fmt.Errorf("provider readiness: %w", err)
+	}
+	var response common.ReadinessResponse
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&response); err != nil {
+		return common.ReadinessResponse{}, fmt.Errorf("decode readiness: %w", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return common.ReadinessResponse{}, fmt.Errorf("invalid trailing readiness response")
+	}
+	return response, nil
+}
+
+// ConfirmAuthoritativeAbsence calls the optional experimental absence_v1 wire command.
+func (e *external) ConfirmAuthoritativeAbsence(ctx context.Context, req common.AbsenceRequest) (common.AbsenceResponse, error) {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return common.AbsenceResponse{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	env := []string{"GARM_COMMAND=absence_v1", fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID), fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile)}
+	env = append(env, e.environmentVariables...)
+	out, err := e.execWithTimeout(ctx, "Absence", common.ProviderBaseParams{}, data, env)
+	if err != nil {
+		return common.AbsenceResponse{}, fmt.Errorf("provider absence: %w", err)
+	}
+	var response common.AbsenceResponse
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&response); err != nil {
+		return common.AbsenceResponse{}, fmt.Errorf("decoding absence response: %w", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return common.AbsenceResponse{}, fmt.Errorf("invalid trailing absence response")
+	}
+	return response, nil
+}
+
+// DeleteAdmitted invokes a delete bound to a pinned provider identity.
+func (e *external) DeleteAdmitted(ctx context.Context, req common.AdmittedDeleteRequest) (common.AdmittedDeleteResponse, error) {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return common.AdmittedDeleteResponse{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	env := []string{"GARM_COMMAND=delete_admitted_v1", fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID), fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile)}
+	env = append(env, e.environmentVariables...)
+	out, err := e.execWithTimeout(ctx, "DeleteAdmitted", common.ProviderBaseParams{}, data, env)
+	if err != nil {
+		return common.AdmittedDeleteResponse{}, err
+	}
+	var response common.AdmittedDeleteResponse
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&response); err != nil {
+		return response, err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return response, fmt.Errorf("invalid trailing delete response")
+	}
+	return response, nil
+}
+
+// AdmissionInventory lists controller-owned instances on the pinned backend.
+func (e *external) AdmissionInventory(ctx context.Context, req common.AdmissionInventoryRequest) (common.AdmissionInventoryResponse, error) {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return common.AdmissionInventoryResponse{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	env := []string{"GARM_COMMAND=inventory_v1", fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID), fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile)}
+	env = append(env, e.environmentVariables...)
+	out, err := e.execWithTimeout(ctx, "AdmissionInventory", common.ProviderBaseParams{}, data, env)
+	if err != nil {
+		return common.AdmissionInventoryResponse{}, err
+	}
+	var response common.AdmissionInventoryResponse
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&response); err != nil {
+		return response, err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return response, fmt.Errorf("invalid trailing inventory response")
+	}
+	return response, nil
 }

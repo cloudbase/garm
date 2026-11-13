@@ -94,3 +94,83 @@ func (p *Provider) GetGithubEntity(ctx context.Context, entity params.ForgeEntit
 
 	return ghEntity, nil
 }
+
+// beginAdmittedCreate consumes the durable one-shot create authorization for
+// enrolled providers. A missing optional interface preserves legacy stores.
+func (p *Provider) beginAdmittedCreate(ctx context.Context, provider, owner, name string, shape params.AdmissionCreateShape) (params.AdmissionReservation, bool, error) {
+	store, ok := p.store.(interface {
+		BeginAdmittedCreate(context.Context, string, string, string, params.AdmissionCreateShape) (params.AdmissionReservation, bool, error)
+	})
+	if !ok {
+		return params.AdmissionReservation{}, false, nil
+	}
+	return store.BeginAdmittedCreate(ctx, provider, owner, name, shape)
+}
+
+func (p *Provider) admissionEnrolled(ctx context.Context, provider string) (bool, error) {
+	store, ok := p.store.(interface {
+		AdmissionForProvider(context.Context, string) (params.AdmissionConfig, bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	_, enrolled, err := store.AdmissionForProvider(ctx, provider)
+	return enrolled, err
+}
+
+func (p *Provider) markAdmissionPresent(ctx context.Context, provider, name string) error {
+	store, ok := p.store.(interface {
+		MarkAdmissionPresent(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("admission store cannot mark provider presence")
+	}
+	return store.MarkAdmissionPresent(ctx, provider, name)
+}
+
+func (p *Provider) beginAdmissionDelete(ctx context.Context, provider, name string) error {
+	store, ok := p.store.(interface {
+		BeginAdmissionDelete(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("admission store cannot authorize deletion")
+	}
+	return store.BeginAdmissionDelete(ctx, provider, name)
+}
+
+func (p *Provider) confirmAdmissionAbsent(ctx context.Context, provider, name string) error {
+	store, ok := p.store.(interface {
+		ConfirmAdmissionAbsentByInstance(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("admission store cannot confirm absence")
+	}
+	return store.ConfirmAdmissionAbsentByInstance(ctx, provider, name)
+}
+
+func (p *Provider) admissionPolicy(ctx context.Context, provider string) (params.AdmissionConfig, error) {
+	store, ok := p.store.(interface {
+		AdmissionForProvider(context.Context, string) (params.AdmissionConfig, bool, error)
+	})
+	if !ok {
+		return params.AdmissionConfig{}, fmt.Errorf("admission policy unavailable")
+	}
+	policy, enrolled, err := store.AdmissionForProvider(ctx, provider)
+	if err != nil {
+		return policy, err
+	}
+	if !enrolled {
+		return policy, fmt.Errorf("admission provider is not enrolled")
+	}
+	return policy, nil
+}
+
+func (p *Provider) cancelUnsentAdmission(ctx context.Context, provider, name string) (bool, error) {
+	store, ok := p.store.(interface {
+		CancelUnsentBoundAdmission(context.Context, string, string) (bool, error)
+	})
+	if !ok {
+		return false, fmt.Errorf("admission store cannot cancel an unsent allocation")
+	}
+	return store.CancelUnsentBoundAdmission(ctx, provider, name)
+}

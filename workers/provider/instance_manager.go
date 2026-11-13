@@ -15,6 +15,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -25,6 +26,7 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmErrors "github.com/cloudbase/garm/internal/errors"
@@ -300,13 +302,47 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	// smaller) still applies; the effective deadline is whichever is sooner.
 	createCtx, cancel := context.WithTimeout(i.ctx, time.Duration(i.scaleSet.RunnerTimeout())*time.Minute)
 	defer cancel()
+	admitted := false
+	if guard, ok := i.helper.(interface {
+		beginAdmittedCreate(context.Context, string, string, string, params.AdmissionCreateShape) (params.AdmissionReservation, bool, error)
+	}); ok {
+		shape := params.AdmissionCreateShape{Image: bootstrapArgs.Image, Flavor: bootstrapArgs.Flavor, OSArch: string(bootstrapArgs.OSArch), Generation: i.scaleSet.Generation}
+		var reservation params.AdmissionReservation
+		reservation, admitted, err = guard.beginAdmittedCreate(createCtx, i.scaleSet.ProviderName, fmt.Sprintf("scaleset:%d", i.scaleSet.ID), instance.Name, shape)
+		if err != nil {
+			return fmt.Errorf("authorizing provider create: %w", err)
+		}
+		if admitted {
+			bootstrapArgs.ExtraSpecs, err = withAdmissionResources(bootstrapArgs.ExtraSpecs, reservation.Vector, reservation.BackendIdentity)
+			if err != nil {
+				return fmt.Errorf("adding admission resources: %w", err)
+			}
+		}
+	}
 	providerInstance, err := i.provider.CreateInstance(createCtx, bootstrapArgs, createInstanceParams)
 	if err != nil {
-		instanceIDToDelete = instance.Name
+		if !admitted {
+			instanceIDToDelete = instance.Name
+		}
 		return fmt.Errorf("creating instance in provider: %w", err)
 	}
 
-	if providerInstance.Status == commonParams.InstanceError {
+	if admitted && providerInstance.Status != commonParams.InstanceRunning {
+		return fmt.Errorf("admitted create did not report completed running instance")
+	}
+	if admitted {
+		guard, ok := i.helper.(interface {
+			markAdmissionPresent(context.Context, string, string) error
+		})
+		if !ok {
+			return fmt.Errorf("admission presence recording unavailable")
+		}
+		if err := guard.markAdmissionPresent(createCtx, i.scaleSet.ProviderName, instance.Name); err != nil {
+			return fmt.Errorf("recording admitted instance presence: %w", err)
+		}
+	}
+
+	if providerInstance.Status == commonParams.InstanceError && !admitted {
 		instanceIDToDelete = instance.ProviderID
 		if instanceIDToDelete == "" {
 			instanceIDToDelete = instance.Name
@@ -346,31 +382,75 @@ func (i *instanceManager) getProviderBaseParams() (common.ProviderBaseParams, er
 }
 
 func (i *instanceManager) handleDeleteInstanceInProvider(instance params.Instance) error {
-	slog.InfoContext(i.ctx, "deleting instance in provider", "runner_name", instance.Name)
+	if guard, ok := i.helper.(interface {
+		admissionEnrolled(context.Context, string) (bool, error)
+	}); ok {
+		enrolled, err := guard.admissionEnrolled(i.ctx, i.scaleSet.ProviderName)
+		if err != nil {
+			return fmt.Errorf("checking admission enrollment: %w", err)
+		}
+		if enrolled {
+			return i.deleteAdmittedInstance(instance)
+		}
+	}
 	identifier := instance.ProviderID
 	if identifier == "" {
-		// provider did not return a provider ID?
-		// try with name
 		identifier = instance.Name
 	}
-
-	baseParams, err := i.getProviderBaseParams()
+	base, err := i.getProviderBaseParams()
 	if err != nil {
 		return fmt.Errorf("getting provider base params: %w", err)
 	}
-
-	slog.DebugContext(
-		i.ctx, "calling delete instance on provider",
-		"runner_name", instance.Name,
-		"provider_id", identifier)
-
-	deleteInstanceParams := common.DeleteInstanceParams{
-		DeleteInstanceV011: common.DeleteInstanceV011Params{
-			ProviderBaseParams: baseParams,
-		},
-	}
-	if err := i.provider.DeleteInstance(i.ctx, identifier, deleteInstanceParams); err != nil {
+	args := common.DeleteInstanceParams{DeleteInstanceV011: common.DeleteInstanceV011Params{ProviderBaseParams: base}}
+	if err := i.provider.DeleteInstance(i.ctx, identifier, args); err != nil {
 		return fmt.Errorf("deleting instance in provider: %w", err)
+	}
+	return nil
+}
+
+func (i *instanceManager) deleteAdmittedInstance(instance params.Instance) error {
+	policySource, ok := i.helper.(interface {
+		admissionPolicy(context.Context, string) (params.AdmissionConfig, error)
+	})
+	if !ok {
+		return fmt.Errorf("admission policy unavailable")
+	}
+	policy, err := policySource.admissionPolicy(i.ctx, i.scaleSet.ProviderName)
+	if err != nil {
+		return fmt.Errorf("reading admission policy: %w", err)
+	}
+	deleter, ok := i.provider.(common.AdmittedDeleteProvider)
+	if !ok {
+		return fmt.Errorf("provider does not support identity-bound deletion")
+	}
+	delReq := common.AdmittedDeleteRequest{Version: 1, RequestID: util.NewID(), ExpectedBackendIdentity: policy.BackendIdentity, Project: policy.Project, InstanceName: instance.Name}
+	delRes, err := deleter.DeleteAdmitted(i.ctx, delReq)
+	if err != nil {
+		return fmt.Errorf("deleting admitted instance: %w", err)
+	}
+	if delRes.Request != delReq || !delRes.Deleted || delRes.BackendIdentity != policy.BackendIdentity || policy.BackendIdentity == "" {
+		return fmt.Errorf("provider did not confirm identity-bound deletion")
+	}
+	authority, ok := i.provider.(common.AuthoritativeAbsenceProvider)
+	if !ok {
+		return fmt.Errorf("provider does not support authoritative absence confirmation")
+	}
+	req := common.AbsenceRequest{ExpectedBackendIdentity: policy.BackendIdentity, Version: 1, RequestID: util.NewID(), Generation: fmt.Sprint(policy.Generation), Domain: policy.Domain, Project: policy.Project, InstanceName: instance.Name}
+	response, err := authority.ConfirmAuthoritativeAbsence(i.ctx, req)
+	if err != nil {
+		return fmt.Errorf("confirming authoritative absence: %w", err)
+	}
+	if err := common.ValidateAbsence(req, response, time.Now()); err != nil {
+		return err
+	}
+	confirmation, ok := i.helper.(interface {
+		confirmAdmissionAbsent(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("admission absence confirmation unavailable")
+	}
+	if err := confirmation.confirmAdmissionAbsent(i.ctx, i.scaleSet.ProviderName, instance.Name); err != nil {
+		return fmt.Errorf("recording confirmed absence: %w", err)
 	}
 	return nil
 }
@@ -450,6 +530,13 @@ func (i *instanceManager) consolidateState() error {
 	case commonParams.InstanceRunning:
 		// Nothing to do. The provider finished creating the instance.
 	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete, commonParams.InstanceDeleting:
+		canceled, err := i.authorizeAdmissionDelete(instance.Name)
+		if err != nil {
+			return err
+		}
+		if canceled {
+			return nil
+		}
 		// Remove or force remove the runner. When force remove is specified, we ignore
 		// IaaS errors.
 		//
@@ -461,16 +548,12 @@ func (i *instanceManager) consolidateState() error {
 		// pending_delete requeue fails transiently) leaves the cached status
 		// at deleting with no further event to move it. Providers report a
 		// missing instance as success, so re-driving the delete is safe.
-		forced := instance.Status == commonParams.InstancePendingForceDelete
-		if !forced {
-			// invoke backoff sleep. We only do this for non forced removals,
-			// as force delete will always return, regardless of whether or not
-			// the remove operation succeeded in the provider. A user may decide
-			// to force delete a runner if GARM fails to remove it normally.
-			if canceled := i.sleepForBackOffOrCanceled(); canceled {
-				// the worker is shutting down. Return here.
-				return nil
-			}
+		forced, err := i.effectiveForceDelete(instance.Status)
+		if err != nil {
+			return err
+		}
+		if i.waitForDelete(forced) {
+			return nil
 		}
 
 		if err := i.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil, true); err != nil {
@@ -480,16 +563,8 @@ func (i *instanceManager) consolidateState() error {
 			return fmt.Errorf("setting instance status to deleting: %w", err)
 		}
 
-		if err := i.handleDeleteInstanceInProvider(instance); err != nil {
-			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", forced)
-			if !forced {
-				i.incrementBackOff()
-				if err := i.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, []byte(err.Error()), true); err != nil {
-					return fmt.Errorf("setting instance status to error: %w", err)
-				}
-
-				return fmt.Errorf("error removing instance. Will retry: %w", err)
-			}
+		if err := i.processProviderDelete(instance, forced); err != nil {
+			return err
 		}
 		if err := i.setInstanceStatus(instance.Name, commonParams.InstanceDeleted, nil, false); err != nil {
 			var te *runnerErrors.InstanceTransitionError
@@ -510,6 +585,9 @@ func (i *instanceManager) consolidateState() error {
 		}
 		return ErrInstanceDeleted
 	case commonParams.InstanceError:
+		if err := i.checkAdmissionCreateError(); err != nil {
+			return err
+		}
 		// Instance is in error state. We wait for next status or potentially retry
 		// spawning the instance with a backoff timer.
 		if err := i.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
@@ -606,4 +684,127 @@ func (i *instanceManager) loop() {
 			}
 		}
 	}
+}
+
+// withAdmissionResources copies the opaque object and reserves the admission
+// namespace for immutable values authorized by the ledger.
+func withAdmissionResources(extra json.RawMessage, vector params.AdmissionVector, backendIdentity string) (json.RawMessage, error) {
+	values := map[string]json.RawMessage{}
+	if len(extra) > 0 && string(extra) != "null" {
+		if err := json.Unmarshal(extra, &values); err != nil {
+			return nil, fmt.Errorf("invalid extra specs: %w", err)
+		}
+		if values == nil {
+			return nil, fmt.Errorf("extra specs must be an object")
+		}
+	}
+	if _, exists := values["admission_resources"]; exists {
+		return nil, fmt.Errorf("admission_resources is reserved")
+	}
+	resources := struct {
+		common.ReadinessResources
+		BackendIdentity string `json:"backend_identity"`
+	}{common.ReadinessResources{CPU: vector.CPU, MemoryBytes: vector.RAM, DiskBytes: vector.Disk, VMSlots: vector.VMs}, backendIdentity}
+	if backendIdentity == "" {
+		return nil, fmt.Errorf("admission backend identity is missing")
+	}
+	encoded, err := json.Marshal(resources)
+	if err != nil {
+		return nil, err
+	}
+	values["admission_resources"] = encoded
+	return json.Marshal(values)
+}
+
+func (i *instanceManager) authorizeAdmissionDelete(name string) (bool, error) {
+	guard, ok := i.helper.(interface {
+		admissionEnrolled(context.Context, string) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	enrolled, err := guard.admissionEnrolled(i.ctx, i.scaleSet.ProviderName)
+	if err != nil {
+		return false, fmt.Errorf("checking admission enrollment: %w", err)
+	}
+	if !enrolled {
+		return false, nil
+	}
+	cancelGuard, ok := i.helper.(interface {
+		cancelUnsentAdmission(context.Context, string, string) (bool, error)
+	})
+	if !ok {
+		return false, fmt.Errorf("admission cancellation unavailable")
+	}
+	canceled, err := cancelGuard.cancelUnsentAdmission(i.ctx, i.scaleSet.ProviderName, name)
+	if err != nil {
+		return false, fmt.Errorf("canceling unsent admission: %w", err)
+	}
+	if canceled {
+		return true, nil
+	}
+	deleteGuard, ok := i.helper.(interface {
+		beginAdmissionDelete(context.Context, string, string) error
+	})
+	if !ok {
+		return false, fmt.Errorf("admission delete authorization unavailable")
+	}
+	if err := deleteGuard.beginAdmissionDelete(i.ctx, i.scaleSet.ProviderName, name); err != nil {
+		return false, fmt.Errorf("authorizing admitted delete: %w", err)
+	}
+	return false, nil
+}
+
+func (i *instanceManager) checkAdmissionCreateError() error {
+	guard, ok := i.helper.(interface {
+		admissionEnrolled(context.Context, string) (bool, error)
+	})
+	if !ok {
+		return nil
+	}
+	enrolled, err := guard.admissionEnrolled(i.ctx, i.scaleSet.ProviderName)
+	if err != nil {
+		return fmt.Errorf("checking admission enrollment: %w", err)
+	}
+	if enrolled {
+		return fmt.Errorf("admitted create outcome requires reconciliation")
+	}
+	return nil
+}
+
+func (i *instanceManager) effectiveForceDelete(status commonParams.InstanceStatus) (bool, error) {
+	forced := status == commonParams.InstancePendingForceDelete
+	guard, ok := i.helper.(interface {
+		admissionEnrolled(context.Context, string) (bool, error)
+	})
+	if !ok {
+		return forced, nil
+	}
+	enrolled, err := guard.admissionEnrolled(i.ctx, i.scaleSet.ProviderName)
+	if err != nil {
+		return false, fmt.Errorf("checking admission enrollment: %w", err)
+	}
+	return forced && !enrolled, nil
+}
+
+func (i *instanceManager) waitForDelete(forced bool) bool {
+	if forced {
+		return false
+	}
+	return i.sleepForBackOffOrCanceled()
+}
+
+func (i *instanceManager) processProviderDelete(instance params.Instance, forced bool) error {
+	if err := i.handleDeleteInstanceInProvider(instance); err != nil {
+		slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", forced)
+		if forced {
+			return nil
+		}
+		i.incrementBackOff()
+		if updateErr := i.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, []byte(err.Error()), true); updateErr != nil {
+			return fmt.Errorf("setting instance status to error: %w", updateErr)
+		}
+		return fmt.Errorf("error removing instance. Will retry: %w", err)
+	}
+	return nil
 }
