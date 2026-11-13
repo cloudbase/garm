@@ -23,6 +23,7 @@ type AdmissionVector struct {
 
 type AdmissionConfig struct {
 	Domain                                       string
+	Protocol                                     string
 	Provider                                     string
 	BackendIdentity                              string
 	Project, Image, Flavor, OSArch, InstanceType string
@@ -40,6 +41,8 @@ type AdmissionConfig struct {
 type AdmissionReservation struct {
 	ID, Domain, Owner, RequestKey, InstanceName, State string
 	BackendIdentity                                    string
+	PollEpoch                                          int64
+	PollPending                                        bool
 	Vector                                             AdmissionVector
 }
 
@@ -47,4 +50,11 @@ type AdmissionReservation struct {
 type AdmissionCreateShape struct {
 	Image, Flavor, OSArch string
 	Generation            uint64
+}
+
+// AdmissionJob is a durable assignment tombstone and its optional VM binding.
+type AdmissionJob struct {
+	ID, Domain, Owner, RequestID, JobID, InstanceName string
+	Terminal, Absent                                  bool
+	State                                             string
 }

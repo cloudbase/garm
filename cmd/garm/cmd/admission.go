@@ -51,7 +51,7 @@ func initializeAdmission(ctx context.Context, cfg config.Admission, db dbcommon.
 	if !ok {
 		return fmt.Errorf("admission provider does not support readiness_v1")
 	}
-	policy := params.AdmissionConfig{Domain: cfg.Domain, Provider: cfg.Provider, Generation: cfg.Generation, RequestedActivationGeneration: cfg.ActivateGeneration, Project: cfg.Project, Image: cfg.Image, Flavor: cfg.Flavor, OSArch: cfg.OSArch, InstanceType: cfg.InstanceType, Capacity: admissionVector(cfg.Capacity), Class: admissionVector(cfg.Runner)}
+	policy := params.AdmissionConfig{Domain: cfg.Domain, Provider: cfg.Provider, Generation: cfg.Generation, Protocol: cfg.Protocol, RequestedActivationGeneration: cfg.ActivateGeneration, Project: cfg.Project, Image: cfg.Image, Flavor: cfg.Flavor, OSArch: cfg.OSArch, InstanceType: cfg.InstanceType, Capacity: admissionVector(cfg.Capacity), Class: admissionVector(cfg.Runner)}
 	// Invalidate any health retained from a previous process before workers start.
 	if err := store.ConfigureAdmission(ctx, policy); err != nil {
 		return fmt.Errorf("configure admission: %w", err)

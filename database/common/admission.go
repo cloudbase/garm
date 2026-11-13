@@ -23,12 +23,24 @@ import (
 
 var ErrAdmissionNotFound = errors.New("admission reservation not found")
 
+// ErrAdmissionConflict indicates contradictory or unaccounted lifecycle identity.
+var ErrAdmissionConflict = errors.New("conflicting admission lifecycle")
+
 // AdmissionStore is optional. All writers in a physical domain must participate.
 type AdmissionStore interface {
 	CreateAdmittedScaleSetInstance(context.Context, string, uint, params.CreateInstanceParams) (params.Instance, error)
 	BeginAdmittedCreate(context.Context, string, string, string, params.AdmissionCreateShape) (params.AdmissionReservation, bool, error)
 	AdmissionForProvider(context.Context, string) (params.AdmissionConfig, bool, error)
 	ConfigureAdmission(context.Context, params.AdmissionConfig) error
+	EnsureAdmissionCredit(context.Context, string, string, params.AdmissionVector, int64) (params.AdmissionReservation, error)
+	GetAdmissionCredit(context.Context, string, string) (params.AdmissionReservation, []params.AdmissionJob, error)
+	AuthorizeAdmissionPoll(context.Context, string, string, int64) (int64, error)
+	FinishAdmissionPoll(context.Context, string, string, int64) error
+	RecordAdmissionAssignment(context.Context, string, string, string, string) (params.AdmissionJob, error)
+	BeginAdmissionAcquire(context.Context, string, string, string, string) (bool, error)
+	MarkAdmissionAcquired(context.Context, string, string, string, string) error
+	CompleteAdmissionJob(context.Context, string, string, string, string) error
+	CreateAdmissionJobInstance(context.Context, string, string, string, string, uint, params.CreateInstanceParams) (params.Instance, error)
 	UpdateAdmissionHealth(context.Context, params.AdmissionConfig) error
 	SetAdmissionDrain(context.Context, string, bool) error
 	ResumeAdmission(context.Context, string, int64) error

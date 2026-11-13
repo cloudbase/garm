@@ -88,7 +88,7 @@ func TestAdmissionPostgresConcurrency(t *testing.T) {
 	require.Equal(t, policy.BackendIdentity, current.BackendIdentity)
 	// A separate enrolled provider exercises the transaction that binds a
 	// charge and inserts the scale-set instance under the domain lock.
-	set := ScaleSet{Name: "admitted", ProviderName: "provider-2", Enabled: true}
+	set := ScaleSet{Name: "admitted", ProviderName: "provider-2", Enabled: true, MaxRunners: 1}
 	require.NoError(t, db.Create(&set).Error)
 	second := params.AdmissionConfig{Domain: "domain-2", Provider: "provider-2", Generation: 1, RequestedActivationGeneration: 1, Class: class, Capacity: class}
 	require.NoError(t, s.ConfigureAdmission(ctx, second))
@@ -124,7 +124,7 @@ func TestAdmissionPostgresEnrollmentRace(t *testing.T) {
 	require.NoError(t, initSchema(db))
 	s := &sqlDatabase{conn: db, ctx: context.Background()}
 	ctx := context.Background()
-	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true}
+	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true, MaxRunners: 1}
 	require.NoError(t, db.Create(&set).Error)
 	v := params.AdmissionVector{CPU: 1, RAM: 1, Disk: 1, VMs: 1}
 	c := params.AdmissionConfig{Domain: "domain", Provider: "provider", Generation: 1, RequestedActivationGeneration: 1, Class: v, Capacity: v}
@@ -154,7 +154,7 @@ func TestAdmissionPostgresCancelVersusSend(t *testing.T) {
 	require.NoError(t, initSchema(db))
 	s := &sqlDatabase{conn: db, ctx: context.Background()}
 	ctx := context.Background()
-	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true}
+	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true, MaxRunners: 1}
 	require.NoError(t, db.Create(&set).Error)
 	v := params.AdmissionVector{CPU: 1, RAM: 1, Disk: 1, VMs: 1}
 	c := params.AdmissionConfig{Domain: "domain", Provider: "provider", Generation: 1, RequestedActivationGeneration: 1, Class: v, Capacity: v}

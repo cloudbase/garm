@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -56,17 +57,20 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 	if err != nil {
 		return nil, fmt.Errorf("failed to get entity from the db: %w", err)
 	}
-	return &Worker{
+	worker := &Worker{
 		ctx:            ctx,
 		controllerInfo: controllerInfo,
 		consumerID:     consumerID,
 		store:          store,
 		provider:       provider,
 		scaleSet:       scaleSet,
+		jobScaleSetID:  scaleSet.ID,
 		entity:         entity,
 		runners:        make(map[string]params.Instance),
 		pseudoPoolID:   garmUtil.ScaleSetPseudoPoolID(scalesetEntity.ID, scaleSet.ID),
-	}, nil
+	}
+	worker.scaleSetView.Store(&scaleSet)
+	return worker, nil
 }
 
 type Worker struct {
@@ -74,14 +78,17 @@ type Worker struct {
 	consumerID     string
 	controllerInfo params.ControllerInfo
 
-	provider     common.Provider
-	readiness    common.ReadinessGate
-	readinessNow func() time.Time
-	healthSeen   time.Time
-	store        dbCommon.Store
-	scaleSet     params.ScaleSet
-	entity       params.ForgeEntity
-	runners      map[string]params.Instance
+	provider      common.Provider
+	readiness     common.ReadinessGate
+	readinessMu   sync.Mutex
+	jobScaleSetID uint
+	readinessNow  func() time.Time
+	healthSeen    time.Time
+	store         dbCommon.Store
+	scaleSet      params.ScaleSet
+	scaleSetView  atomic.Pointer[params.ScaleSet]
+	entity        params.ForgeEntity
+	runners       map[string]params.Instance
 
 	// pseudoPoolID is the stable pool ID reported to providers for this scale
 	// set. It is derived from immutable IDs, so it is computed once.
@@ -834,6 +841,7 @@ func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
 			}
 		}
 		w.scaleSet = scaleSet
+		w.scaleSetView.Store(&scaleSet)
 		w.mux.Unlock()
 	default:
 		slog.DebugContext(w.ctx, "invalid operation type; ignoring", "operation_type", event.Operation)
@@ -1034,7 +1042,7 @@ func (w *Worker) scalingPausedLocked() bool {
 func (w *Worker) sessionLoopMayRun() bool {
 	w.mux.Lock()
 	defer w.mux.Unlock()
-	if !w.scaleSet.Enabled || w.forgeAuthBlockedLocked() {
+	if !w.listenerEligibleLocked() || w.forgeAuthBlockedLocked() {
 		return false
 	}
 	// While the quota is fully exhausted, session (re)creation cannot
@@ -1084,7 +1092,7 @@ Loop:
 		case <-w.listener.Wait():
 			slog.DebugContext(w.ctx, "listener is stopped; attempting to restart")
 			w.mux.Lock()
-			if !w.scaleSet.Enabled {
+			if !w.listenerEligibleLocked() {
 				if err := w.listener.Stop(); err != nil {
 					slog.ErrorContext(w.ctx, "failed to stop listener", "error", err)
 				}
@@ -1100,7 +1108,7 @@ Loop:
 				// In case the scaleset was disabled or the credentials were
 				// rejected while we were in the backoff sleep. The outer loop
 				// parks until the condition clears.
-				if !w.scaleSet.Enabled || w.forgeAuthBlockedLocked() {
+				if !w.listenerEligibleLocked() || w.forgeAuthBlockedLocked() {
 					w.mux.Unlock()
 					continue Loop
 				}
@@ -1158,36 +1166,10 @@ func (w *Worker) handleScaleUp() {
 	}
 	for i := w.runnerCount(); i < w.targetRunners(); i++ {
 		newRunnerName := strings.ToLower(fmt.Sprintf("%s-%s", w.scaleSet.GetRunnerPrefix(), util.NewID()))
-		var reservationID string
-		if admission, ok := w.store.(dbCommon.AdmissionStore); ok {
-			policy, enrolled, err := admission.AdmissionForProvider(w.ctx, w.scaleSet.ProviderName)
-			if err != nil {
-				slog.ErrorContext(w.ctx, "reading admission policy", "error", err)
-				return
-			}
-			if enrolled {
-				if w.scaleSet.MinIdleRunners != 0 {
-					slog.ErrorContext(w.ctx, "admission does not support min idle runners")
-					return
-				}
-				if err := w.checkAdmissionReadiness(admission, policy); err != nil {
-					slog.ErrorContext(w.ctx, "admission readiness unavailable", "error", err)
-					return
-				}
-				if policy.Drained && policy.RequestedActivationGeneration == policy.Generation && policy.RequestedActivationGeneration > policy.LastResumeGeneration {
-					if err := admission.ResumeAdmission(w.ctx, policy.Domain, policy.Generation); err != nil {
-						slog.ErrorContext(w.ctx, "resuming admission", "error", err)
-						return
-					}
-				}
-				owner := fmt.Sprintf("scaleset:%d", w.scaleSet.ID)
-				reservation, err := admission.ReserveAdmission(w.ctx, policy.Domain, owner, newRunnerName, policy.Class, policy.Generation)
-				if err != nil {
-					slog.ErrorContext(w.ctx, "reserving admission capacity", "error", err)
-					return
-				}
-				reservationID = reservation.ID
-			}
+		reservationID, jobRequestID, jobID, err := w.prepareRunnerAdmission(newRunnerName)
+		if err != nil {
+			slog.ErrorContext(w.ctx, "preparing runner admission", "error", err)
+			return
 		}
 		jitConfig, err := w.generateJITWithAdmission(reservationID, func() (params.RunnerScaleSetJitRunnerConfig, error) {
 			return scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
@@ -1221,9 +1203,18 @@ func (w *Worker) handleScaleUp() {
 		}
 
 		var dbInstance params.Instance
-		if reservationID != "" {
+		switch {
+		case jobRequestID != "":
+			admission := w.store.(dbCommon.AdmissionStore)
+			policy, _, policyErr := admission.AdmissionForProvider(w.ctx, w.scaleSet.ProviderName)
+			if policyErr != nil {
+				slog.ErrorContext(w.ctx, "reading job policy", "error", policyErr)
+				return
+			}
+			dbInstance, err = admission.CreateAdmissionJobInstance(w.ctx, policy.Domain, w.jobOwner(), jobRequestID, jobID, w.scaleSet.ID, runnerParams)
+		case reservationID != "":
 			dbInstance, err = w.store.(dbCommon.AdmissionStore).CreateAdmittedScaleSetInstance(w.ctx, reservationID, w.scaleSet.ID, runnerParams)
-		} else {
+		default:
 			dbInstance, err = w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams)
 		}
 		if err != nil {
@@ -1458,6 +1449,12 @@ func (w *Worker) handleAutoScale() {
 // checkAdmissionReadiness verifies the exact enrolled shape immediately before
 // reserving. The durable deadline is checked again when issuing a create.
 func (w *Worker) checkAdmissionReadiness(store dbCommon.AdmissionStore, policy params.AdmissionConfig) error {
+	return w.checkAdmissionReadinessFor(store, policy, w.scaleSet)
+}
+
+func (w *Worker) checkAdmissionReadinessFor(store dbCommon.AdmissionStore, policy params.AdmissionConfig, set params.ScaleSet) error {
+	w.readinessMu.Lock()
+	defer w.readinessMu.Unlock()
 	if !policy.Ready && policy.HealthObservedAt.After(w.healthSeen) {
 		w.readiness.Reset()
 	}
@@ -1465,7 +1462,7 @@ func (w *Worker) checkAdmissionReadiness(store dbCommon.AdmissionStore, policy p
 	if w.readinessNow != nil {
 		policy.HealthObservedAt = w.readinessNow()
 	}
-	if w.scaleSet.Image != policy.Image || w.scaleSet.Flavor != policy.Flavor || string(w.scaleSet.OSArch) != policy.OSArch {
+	if set.Image != policy.Image || set.Flavor != policy.Flavor || string(set.OSArch) != policy.OSArch {
 		policy.Ready = false
 		policy.HealthyUntil = time.Time{}
 		if err := store.UpdateAdmissionHealth(w.ctx, policy); err != nil {
@@ -1606,4 +1603,58 @@ func (w *Worker) generateJITWithAdmission(id string, generate func() (params.Run
 		w.releaseUnsentAdmission(id)
 	}
 	return result, err
+}
+
+// Disabled sets with an existing job credit continue zero-capacity polling so
+// lifecycle events are not abandoned. No credit is created while disabled.
+func (w *Worker) listenerEligibleLocked() bool {
+	if w.scaleSet.Enabled {
+		return true
+	}
+	store, policy, enabled, err := w.jobAdmissionPolicy()
+	if err != nil || !enabled {
+		return false
+	}
+	_, _, err = store.GetAdmissionCredit(w.ctx, policy.Domain, w.jobOwner())
+	return err == nil
+}
+
+func (w *Worker) prepareRunnerAdmission(name string) (reservationID, requestID, jobID string, err error) {
+	admission, ok := w.store.(dbCommon.AdmissionStore)
+	if !ok {
+		return "", "", "", nil
+	}
+	policy, enrolled, err := admission.AdmissionForProvider(w.ctx, w.scaleSet.ProviderName)
+	if err != nil || !enrolled {
+		return "", "", "", err
+	}
+	if w.scaleSet.MinIdleRunners != 0 {
+		return "", "", "", fmt.Errorf("admission does not support min idle runners")
+	}
+	if err := w.checkAdmissionReadiness(admission, policy); err != nil {
+		return "", "", "", fmt.Errorf("admission readiness unavailable: %w", err)
+	}
+	if policy.Drained && policy.RequestedActivationGeneration == policy.Generation && policy.RequestedActivationGeneration > policy.LastResumeGeneration {
+		if err := admission.ResumeAdmission(w.ctx, policy.Domain, policy.Generation); err != nil {
+			return "", "", "", err
+		}
+	}
+	owner := fmt.Sprintf("scaleset:%d", w.scaleSet.ID)
+	if policy.Protocol == jobAdmissionProtocol {
+		_, jobs, err := admission.GetAdmissionCredit(w.ctx, policy.Domain, owner)
+		if err != nil {
+			return "", "", "", err
+		}
+		for _, job := range jobs {
+			if !job.Terminal && job.State == jobStateAcquired && job.InstanceName == "" {
+				return "", job.RequestID, job.JobID, nil
+			}
+		}
+		return "", "", "", fmt.Errorf("no acquired job awaiting a runner")
+	}
+	reservation, err := admission.ReserveAdmission(w.ctx, policy.Domain, owner, name, policy.Class, policy.Generation)
+	if err != nil {
+		return "", "", "", err
+	}
+	return reservation.ID, "", "", nil
 }

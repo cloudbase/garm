@@ -93,7 +93,11 @@ func (s *sqlDatabase) AdmissionForProvider(ctx context.Context, provider string)
 	if err != nil {
 		return params.AdmissionConfig{}, false, err
 	}
-	return params.AdmissionConfig{Domain: d.Domain, Provider: d.Provider, BackendIdentity: d.BackendIdentity, RequestedActivationGeneration: d.RequestedActivationGeneration, Project: d.Project, Image: d.Image, Flavor: d.Flavor, OSArch: d.OSArch, InstanceType: d.InstanceType, Capacity: capacity(d), Class: params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}, Generation: d.Generation, LastResumeGeneration: d.LastResumeGeneration, Drained: d.Drained, HealthyUntil: d.HealthyUntil, HealthObservedAt: d.HealthObservedAt, Ready: d.Ready}, true, nil
+	var protocol migrations.AdmissionDomain0013
+	if err := s.conn.WithContext(ctx).First(&protocol, "domain = ?", d.Domain).Error; err != nil {
+		return params.AdmissionConfig{}, false, err
+	}
+	return params.AdmissionConfig{Protocol: protocol.Protocol, Domain: d.Domain, Provider: d.Provider, BackendIdentity: d.BackendIdentity, RequestedActivationGeneration: d.RequestedActivationGeneration, Project: d.Project, Image: d.Image, Flavor: d.Flavor, OSArch: d.OSArch, InstanceType: d.InstanceType, Capacity: capacity(d), Class: params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}, Generation: d.Generation, LastResumeGeneration: d.LastResumeGeneration, Drained: d.Drained, HealthyUntil: d.HealthyUntil, HealthObservedAt: d.HealthObservedAt, Ready: d.Ready}, true, nil
 }
 
 func validateAdmissionConfig(c params.AdmissionConfig) error {
@@ -126,21 +130,17 @@ func configureAdmission(tx *gorm.DB, c params.AdmissionConfig) error {
 	} else if err != nil {
 		return err
 	}
+	if err := configureAdmissionProtocol(tx, d, c); err != nil {
+		return err
+	}
 	if err := auditAdmissionInstances(tx, c.Domain, c.Provider); err != nil {
 		return err
 	}
 	if d.Provider != c.Provider {
 		return errors.New("admission domain provider cannot change")
 	}
-	identityChanged := d.Project != c.Project || d.Image != c.Image || d.Flavor != c.Flavor || d.OSArch != c.OSArch || d.InstanceType != c.InstanceType || (params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}) != c.Class
-	if d.Generation > 0 && identityChanged {
-		var held int64
-		if err := tx.Model(&admissionReservation{}).Where("domain = ? AND state <> ?", c.Domain, admissionReleased).Count(&held).Error; err != nil {
-			return err
-		}
-		if held != 0 {
-			return errors.New("cannot change admission identity while reservations are held")
-		}
+	if err := checkAdmissionIdentityChange(tx, d, c); err != nil {
+		return err
 	}
 	if d.Generation > 0 && c.Generation == d.Generation && (d.Project != c.Project || d.Image != c.Image || d.Flavor != c.Flavor || d.OSArch != c.OSArch || d.InstanceType != c.InstanceType || (params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}) != c.Class) {
 		return errors.New("admission identity changes require a new generation")
@@ -157,6 +157,43 @@ func configureAdmission(tx *gorm.DB, c params.AdmissionConfig) error {
 	}
 	v := c.Capacity
 	return tx.Model(&d).Updates(map[string]interface{}{"requested_activation_generation": c.RequestedActivationGeneration, "project": c.Project, "image": c.Image, "flavor": c.Flavor, "os_arch": c.OSArch, "instance_type": c.InstanceType, "class_cpu": c.Class.CPU, "class_ram": c.Class.RAM, "class_disk": c.Class.Disk, "class_vms": c.Class.VMs, "class_jobs": c.Class.Jobs, "cpu": v.CPU, "ram": v.RAM, "disk": v.Disk, "vms": v.VMs, "jobs": v.Jobs, "generation": c.Generation, "healthy_until": time.Time{}, "ready": false}).Error
+}
+
+func checkAdmissionIdentityChange(tx *gorm.DB, d admissionDomain, c params.AdmissionConfig) error {
+	identityChanged := d.Project != c.Project || d.Image != c.Image || d.Flavor != c.Flavor || d.OSArch != c.OSArch || d.InstanceType != c.InstanceType || (params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}) != c.Class
+	if d.Generation > 0 && identityChanged {
+		var held int64
+		if err := tx.Model(&admissionReservation{}).Where("domain = ? AND state <> ?", c.Domain, admissionReleased).Count(&held).Error; err != nil {
+			return err
+		}
+		if held != 0 {
+			return errors.New("cannot change admission identity while reservations are held")
+		}
+	}
+	return nil
+}
+
+func configureAdmissionProtocol(tx *gorm.DB, d admissionDomain, c params.AdmissionConfig) error {
+	var protocol migrations.AdmissionDomain0013
+	if err := tx.First(&protocol, "domain = ?", c.Domain).Error; err != nil {
+		return err
+	}
+	if protocol.Protocol != c.Protocol {
+		var credits int64
+		if err := tx.Model(&migrations.AdmissionCredit0013{}).Where("domain = ?", c.Domain).Count(&credits).Error; err != nil {
+			return err
+		}
+		if credits != 0 {
+			return errors.New("cannot change protocol with durable credits")
+		}
+		if d.Generation > 0 && c.Generation <= d.Generation {
+			return errors.New("protocol change requires a new generation")
+		}
+		if err := tx.Model(&protocol).Update("protocol", c.Protocol).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateAdmissionHealth records only the latest probe for the exact configured identity.
@@ -271,61 +308,63 @@ func (s *sqlDatabase) ReserveAdmission(ctx context.Context, domain, owner, key s
 	if domain == "" || owner == "" || key == "" || !validVector(v) {
 		return out, errors.New("invalid admission reservation")
 	}
-	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		d, err := lockDomain(tx, domain)
-		if err != nil {
-			return err
-		}
-		var existing admissionReservation
-		err = tx.Where("domain = ? AND owner = ? AND request_key = ?", domain, owner, key).First(&existing).Error
-		if err == nil {
-			if existing.State == admissionReleased {
-				return errors.New("reservation has already been released")
-			}
-			if vector(existing) != v {
-				return errors.New("reservation key reused with different vector")
-			}
-			out = result(existing)
-			return nil
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		if d.Drained || !d.Ready || d.BackendIdentity == "" || d.Generation != generation || !d.HealthyUntil.After(time.Now()) {
-			return errors.New("admission unavailable or health stale")
-		}
-		var rows []admissionReservation
-		if err := tx.Where("domain = ? AND state <> ?", domain, admissionReleased).Find(&rows).Error; err != nil {
-			return err
-		}
-		var used params.AdmissionVector
-		for _, r := range rows {
-			x := vector(r)
-			if !fits(used.CPU, x.CPU, math.MaxInt64) || !fits(used.RAM, x.RAM, math.MaxInt64) || !fits(used.Disk, x.Disk, math.MaxInt64) || !fits(used.VMs, x.VMs, math.MaxInt64) || !fits(used.Jobs, x.Jobs, math.MaxInt64) {
-				return errors.New("admission accounting overflow")
-			}
-			used.CPU += x.CPU
-			used.RAM += x.RAM
-			used.Disk += x.Disk
-			used.VMs += x.VMs
-			used.Jobs += x.Jobs
-		}
-		budget := capacity(d)
-		if !fits(used.CPU, v.CPU, budget.CPU) || !fits(used.RAM, v.RAM, budget.RAM) || !fits(used.Disk, v.Disk, budget.Disk) || !fits(used.VMs, v.VMs, budget.VMs) || !fits(used.Jobs, v.Jobs, budget.Jobs) {
-			return errors.New("admission capacity exhausted")
-		}
-		id, err := uuid.NewRandom()
-		if err != nil {
-			return err
-		}
-		r := admissionReservation{ID: id.String(), Domain: domain, Owner: owner, RequestKey: key, State: admissionReserved, Generation: generation, BackendIdentity: d.BackendIdentity, CPU: v.CPU, RAM: v.RAM, Disk: v.Disk, VMs: v.VMs, Jobs: v.Jobs}
-		if err := tx.Create(&r).Error; err != nil {
-			return err
-		}
-		out = result(r)
-		return nil
-	})
+	err := s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return reserveAdmission(tx, domain, owner, key, v, generation, &out) })
 	return out, err
+}
+
+func reserveAdmission(tx *gorm.DB, domain, owner, key string, v params.AdmissionVector, generation int64, out *params.AdmissionReservation) error {
+	d, err := lockDomain(tx, domain)
+	if err != nil {
+		return err
+	}
+	var existing admissionReservation
+	err = tx.Where("domain = ? AND owner = ? AND request_key = ?", domain, owner, key).First(&existing).Error
+	if err == nil {
+		if existing.State == admissionReleased {
+			return errors.New("reservation has already been released")
+		}
+		if vector(existing) != v {
+			return errors.New("reservation key reused with different vector")
+		}
+		*out = result(existing)
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	if d.Drained || !d.Ready || d.BackendIdentity == "" || d.Generation != generation || !d.HealthyUntil.After(time.Now()) {
+		return errors.New("admission unavailable or health stale")
+	}
+	var rows []admissionReservation
+	if err := tx.Where("domain = ? AND state <> ?", domain, admissionReleased).Find(&rows).Error; err != nil {
+		return err
+	}
+	var used params.AdmissionVector
+	for _, r := range rows {
+		x := vector(r)
+		if !fits(used.CPU, x.CPU, math.MaxInt64) || !fits(used.RAM, x.RAM, math.MaxInt64) || !fits(used.Disk, x.Disk, math.MaxInt64) || !fits(used.VMs, x.VMs, math.MaxInt64) || !fits(used.Jobs, x.Jobs, math.MaxInt64) {
+			return errors.New("admission accounting overflow")
+		}
+		used.CPU += x.CPU
+		used.RAM += x.RAM
+		used.Disk += x.Disk
+		used.VMs += x.VMs
+		used.Jobs += x.Jobs
+	}
+	budget := capacity(d)
+	if !fits(used.CPU, v.CPU, budget.CPU) || !fits(used.RAM, v.RAM, budget.RAM) || !fits(used.Disk, v.Disk, budget.Disk) || !fits(used.VMs, v.VMs, budget.VMs) || !fits(used.Jobs, v.Jobs, budget.Jobs) {
+		return errors.New("admission capacity exhausted")
+	}
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return err
+	}
+	r := admissionReservation{ID: id.String(), Domain: domain, Owner: owner, RequestKey: key, State: admissionReserved, Generation: generation, BackendIdentity: d.BackendIdentity, CPU: v.CPU, RAM: v.RAM, Disk: v.Disk, VMs: v.VMs, Jobs: v.Jobs}
+	if err := tx.Create(&r).Error; err != nil {
+		return err
+	}
+	*out = result(r)
+	return nil
 }
 
 // admissionChange locks the domain first so state changes serialize with reservations and drain.
@@ -351,6 +390,13 @@ func (s *sqlDatabase) BindAdmission(ctx context.Context, id, name string) error 
 		return errors.New("empty instance name")
 	}
 	return s.admissionChange(ctx, id, func(tx *gorm.DB, _ *admissionDomain, r *admissionReservation) error {
+		var creditCount int64
+		if err := tx.Model(&admissionCredit{}).Where("reservation_id = ?", r.ID).Count(&creditCount).Error; err != nil {
+			return err
+		}
+		if creditCount != 0 {
+			return errors.New("job credit requires a job-bound instance")
+		}
 		if r.InstanceName != nil && *r.InstanceName == name && r.State != admissionReleased {
 			return nil
 		}
@@ -378,6 +424,13 @@ func (s *sqlDatabase) MarkAdmissionSending(ctx context.Context, id string) error
 
 func (s *sqlDatabase) ReleaseUnsentAdmission(ctx context.Context, id string) error {
 	return s.admissionChange(ctx, id, func(tx *gorm.DB, _ *admissionDomain, r *admissionReservation) error {
+		var credits int64
+		if err := tx.Model(&admissionCredit{}).Where("reservation_id = ?", r.ID).Count(&credits).Error; err != nil {
+			return err
+		}
+		if credits > 0 {
+			return errors.New("durable credit cannot be released")
+		}
 		if r.State == admissionReleased {
 			return nil
 		}
@@ -390,7 +443,7 @@ func (s *sqlDatabase) ReleaseUnsentAdmission(ctx context.Context, id string) err
 
 // releaseBoundAdmission removes the charged instance and its reservation in one
 // transaction. Repeated calls after a committed removal are idempotent.
-func (s *sqlDatabase) releaseBoundAdmission(ctx context.Context, id string, cancelUnsent bool) (bool, error) {
+func (s *sqlDatabase) releaseBoundAdmission(ctx context.Context, id string, cancelUnsent bool, expectedName string) (bool, error) {
 	var notification *params.Instance
 	released := false
 	err := s.admissionChange(ctx, id, func(tx *gorm.DB, _ *admissionDomain, r *admissionReservation) error {
@@ -401,6 +454,19 @@ func (s *sqlDatabase) releaseBoundAdmission(ctx context.Context, id string, canc
 		if r.InstanceName == nil {
 			return errors.New("reservation is not bound")
 		}
+		if expectedName != "" && *r.InstanceName != expectedName {
+			return errors.New("reservation instance changed")
+		}
+		if expectedName == "" {
+			var credits int64
+			if err := tx.Model(&admissionCredit{}).Where("reservation_id = ?", r.ID).Count(&credits).Error; err != nil {
+				return err
+			}
+			if credits > 0 {
+				return errors.New("credit cleanup requires the bound instance identity")
+			}
+		}
+
 		if cancelUnsent {
 			if r.State != admissionReserved {
 				return nil
@@ -442,7 +508,7 @@ func (s *sqlDatabase) releaseBoundAdmission(ctx context.Context, id string, canc
 			}
 			notification = &payload
 		}
-		if err := tx.Model(r).Update("state", admissionReleased).Error; err != nil {
+		if err := releaseAdmissionCharge(tx, r); err != nil {
 			return err
 		}
 		released = true
@@ -459,19 +525,45 @@ func (s *sqlDatabase) releaseBoundAdmission(ctx context.Context, id string, canc
 	return released, nil
 }
 
+func releaseAdmissionCharge(tx *gorm.DB, r *admissionReservation) error {
+	var credit admissionCredit
+	creditErr := tx.Where("reservation_id = ?", r.ID).First(&credit).Error
+	if creditErr == nil {
+		var job admissionJob
+		if err := tx.Where("domain = ? AND owner = ? AND instance_name = ?", r.Domain, r.Owner, *r.InstanceName).First(&job).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&job).Update("absent", true).Error; err != nil {
+			return err
+		}
+		job.Absent = true
+		if err := parkCreditIfDone(tx, credit, job); err != nil {
+			return err
+		}
+	} else if !errors.Is(creditErr, gorm.ErrRecordNotFound) {
+		return creditErr
+	} else if err := tx.Model(r).Update("state", admissionReleased).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // ConfirmAdmissionAbsent requires authoritative absence after a completed delete.
 func (s *sqlDatabase) ConfirmAdmissionAbsent(ctx context.Context, id string) error {
-	_, err := s.releaseBoundAdmission(ctx, id, false)
+	_, err := s.releaseBoundAdmission(ctx, id, false, "")
 	return err
 }
 
 // CancelUnsentBoundAdmission atomically retires a bound create never sent to a provider.
 func (s *sqlDatabase) CancelUnsentBoundAdmission(ctx context.Context, provider, name string) (bool, error) {
 	r, err := s.AdmissionByInstance(ctx, provider, name)
+	if errors.Is(err, common.ErrAdmissionNotFound) {
+		return s.jobInstanceAlreadyAbsent(ctx, provider, name)
+	}
 	if err != nil {
 		return false, err
 	}
-	return s.releaseBoundAdmission(ctx, r.ID, true)
+	return s.releaseBoundAdmission(ctx, r.ID, true, name)
 }
 
 // BeginAdmittedCreate marks the provider operation uncertain before it is sent.
@@ -499,6 +591,10 @@ func (s *sqlDatabase) BeginAdmittedCreate(ctx context.Context, provider, owner, 
 		if err := tx.Where("domain = ? AND owner = ? AND instance_name = ?", d.Domain, owner, runnerName).First(&r).Error; err != nil {
 			return err
 		}
+		isCredit, err := checkJobCreditSendBudget(tx, d, r.ID)
+		if err != nil {
+			return err
+		}
 		var instance Instance
 		if err := tx.Where("name = ?", runnerName).First(&instance).Error; err != nil {
 			return err
@@ -510,22 +606,19 @@ func (s *sqlDatabase) BeginAdmittedCreate(ctx context.Context, provider, owner, 
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&scaleSet, *instance.ScaleSetFkID).Error; err != nil {
 			return err
 		}
-		if shape.Generation != scaleSet.Generation || shape.Image != scaleSet.Image || shape.Flavor != scaleSet.Flavor || shape.OSArch != string(scaleSet.OSArch) {
-			return errors.New("provider create snapshot is stale")
-		}
-		if !scaleSet.Enabled || scaleSet.ProviderName != provider || scaleSet.MinIdleRunners != 0 || scaleSet.Image != d.Image || scaleSet.Flavor != d.Flavor || string(scaleSet.OSArch) != d.OSArch {
-			return errors.New("instance does not match enrolled provider")
+		if err := checkProviderCreateShape(shape, scaleSet, d, provider); err != nil {
+			return err
 		}
 		if r.State != admissionReserved {
 			return errors.New("provider create already sent or reservation released")
 		}
-		if d.Drained || !d.Ready || d.BackendIdentity == "" || d.BackendIdentity != r.BackendIdentity || d.Generation != r.Generation || !d.HealthyUntil.After(time.Now()) {
+		if d.Drained || !d.Ready || d.BackendIdentity == "" || d.BackendIdentity != r.BackendIdentity || (d.Generation != r.Generation && !isCredit) || !d.HealthyUntil.After(time.Now()) {
 			return errors.New("admission unavailable or health stale")
 		}
 		if vector(r) != (params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}) {
 			return errors.New("reservation class changed")
 		}
-		if err := tx.Model(&r).Update("state", admissionSending).Error; err != nil {
+		if err := tx.Model(&r).Updates(map[string]interface{}{"state": admissionSending, "generation": d.Generation}).Error; err != nil {
 			return err
 		}
 		r.State = admissionSending
@@ -533,6 +626,30 @@ func (s *sqlDatabase) BeginAdmittedCreate(ctx context.Context, provider, owner, 
 		return nil
 	})
 	return authorized, enrolled, err
+}
+
+func checkProviderCreateShape(shape params.AdmissionCreateShape, scaleSet ScaleSet, d admissionDomain, provider string) error {
+	if shape.Generation != scaleSet.Generation || shape.Image != scaleSet.Image || shape.Flavor != scaleSet.Flavor || shape.OSArch != string(scaleSet.OSArch) {
+		return errors.New("provider create snapshot is stale")
+	}
+	if !scaleSet.Enabled || scaleSet.MaxRunners < 1 || scaleSet.ProviderName != provider || scaleSet.MinIdleRunners != 0 || scaleSet.Image != d.Image || scaleSet.Flavor != d.Flavor || string(scaleSet.OSArch) != d.OSArch {
+		return errors.New("instance does not match enrolled provider")
+	}
+	return nil
+}
+
+func checkJobCreditSendBudget(tx *gorm.DB, d admissionDomain, id string) (bool, error) {
+	var count int64
+	if err := tx.Model(&admissionCredit{}).Where("reservation_id = ?", id).Count(&count).Error; err != nil {
+		return false, err
+	}
+	if count > 0 {
+		if err := checkAdmissionHeldBudget(tx, d); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 // AdmissionByInstance resolves the durable charge even after the instance row
@@ -590,8 +707,19 @@ func (s *sqlDatabase) BeginAdmissionDelete(ctx context.Context, provider, name s
 // GetInstance response explicitly establishing absence, with no in-flight create.
 func (s *sqlDatabase) ConfirmAdmissionAbsentByInstance(ctx context.Context, provider, name string) error {
 	r, err := s.AdmissionByInstance(ctx, provider, name)
+	if errors.Is(err, common.ErrAdmissionNotFound) {
+		absent, lookupErr := s.jobInstanceAlreadyAbsent(ctx, provider, name)
+		if lookupErr != nil {
+			return lookupErr
+		}
+		if absent {
+			return nil
+		}
+		return common.ErrAdmissionNotFound
+	}
 	if err != nil {
 		return err
 	}
-	return s.ConfirmAdmissionAbsent(ctx, r.ID)
+	_, err = s.releaseBoundAdmission(ctx, r.ID, false, name)
+	return err
 }

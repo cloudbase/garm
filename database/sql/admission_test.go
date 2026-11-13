@@ -31,6 +31,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/sql/migrations"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -46,7 +47,7 @@ func TestAdmissionSQLiteDurabilityAndConcurrency(t *testing.T) {
 		return &sqlDatabase{conn: db}
 	}
 	a, b := open(), open()
-	require.NoError(t, a.conn.AutoMigrate(&admissionDomain{}, &admissionReservation{}, &Pool{}, &ScaleSet{}, &Instance{}))
+	require.NoError(t, a.conn.AutoMigrate(&admissionDomain{}, &admissionReservation{}, &migrations.AdmissionDomain0013{}, &admissionCredit{}, &admissionJob{}, &Pool{}, &ScaleSet{}, &Instance{}))
 	ctx := context.Background()
 	c := params.AdmissionConfig{Domain: "host", Provider: "synthetic", Class: params.AdmissionVector{CPU: 1, RAM: 1, Disk: 1, VMs: 1}, Capacity: params.AdmissionVector{CPU: 10, RAM: 10, Disk: 10, VMs: 10, Jobs: 10}, Generation: 1, RequestedActivationGeneration: 1, HealthyUntil: time.Now().Add(time.Hour), Ready: true}
 	require.NoError(t, a.ConfigureAdmission(ctx, c))
@@ -129,7 +130,7 @@ func TestAdmissionGuardsInstanceCreation(t *testing.T) {
 	t.Cleanup(func() { _ = raw.Close() })
 	s := &sqlDatabase{conn: db, ctx: context.Background()}
 	ctx := context.Background()
-	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true}
+	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true, MaxRunners: 1}
 	require.NoError(t, db.Create(&set).Error)
 	class := params.AdmissionVector{CPU: 1, RAM: 1, Disk: 1, VMs: 1}
 	cfg := params.AdmissionConfig{Domain: "domain", Provider: "provider", Class: class, Capacity: class, Generation: 1, RequestedActivationGeneration: 1, Ready: true, HealthyUntil: time.Now().Add(time.Hour)}
@@ -276,7 +277,7 @@ func TestAdmissionAtomicBoundReleaseAndCancellation(t *testing.T) {
 	t.Cleanup(func() { _ = raw.Close() })
 	s := &sqlDatabase{conn: db, ctx: context.Background()}
 	ctx := context.Background()
-	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true}
+	set := ScaleSet{Name: "synthetic", ProviderName: "provider", Enabled: true, MaxRunners: 1}
 	require.NoError(t, db.Create(&set).Error)
 	v := params.AdmissionVector{CPU: 1, RAM: 1, Disk: 1, VMs: 1}
 	c := params.AdmissionConfig{Domain: "domain", Provider: "provider", Generation: 1, RequestedActivationGeneration: 1, Class: v, Capacity: params.AdmissionVector{CPU: 4, RAM: 4, Disk: 4, VMs: 4}}

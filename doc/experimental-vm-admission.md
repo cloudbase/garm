@@ -1,5 +1,9 @@
 # Experimental VM resource admission
 
+A separate [experimental job admission mode](experimental-job-admission.md)
+adds a durable pre-session capacity escrow. The configuration below describes
+the VM-only mode.
+
 This experimental mode accounts for VM creation on one enrolled provider. It
 does **not** gate GitHub job assignment or `AcquireJobs`, establish failover,
 or guarantee that a job can start. The configured `jobs` units are charged per

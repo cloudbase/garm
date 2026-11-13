@@ -25,6 +25,7 @@ type Admission struct {
 	Protocol                 string             `toml:"protocol" json:"protocol"`
 	ExclusiveController      bool               `toml:"exclusive_controller" json:"exclusive_controller"`
 	HostCapabilityApproved   bool               `toml:"host_capability_approved" json:"host_capability_approved"`
+	FreshScaleSetConfirmed   bool               `toml:"fresh_scale_set_confirmed" json:"fresh_scale_set_confirmed"`
 	ExternalEnvelopeReserved bool               `toml:"external_envelope_reserved" json:"external_envelope_reserved"`
 	Capacity                 AdmissionResources `toml:"capacity" json:"capacity"`
 	Runner                   AdmissionResources `toml:"runner" json:"runner"`
@@ -52,8 +53,11 @@ func (a Admission) Validate() error {
 	if a.ActivateGeneration != 0 && a.ActivateGeneration != a.Generation {
 		return fmt.Errorf("activate_generation must equal the configured generation")
 	}
-	if a.Protocol != "vm-only-experimental" {
+	if a.Protocol != "vm-only-experimental" && a.Protocol != "job-capacity-experimental" {
 		return fmt.Errorf("unsupported admission protocol %q; automatic assignment and legacy acquisition are not yet verified", a.Protocol)
+	}
+	if a.Protocol == "job-capacity-experimental" && !a.FreshScaleSetConfirmed {
+		return fmt.Errorf("job capacity requires explicit confirmation that each scale set is fresh and has no prior unaccounted assignments")
 	}
 	if !a.ExclusiveController || !a.HostCapabilityApproved || !a.ExternalEnvelopeReserved {
 		return fmt.Errorf("admission requires exclusive controller, host capability approval, and a reserved external workload envelope")

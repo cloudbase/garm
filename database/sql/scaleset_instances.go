@@ -74,6 +74,13 @@ func (s *sqlDatabase) CreateAdmittedScaleSetInstance(ctx context.Context, reserv
 		if err := tx.First(&r, "id = ?", reservationID).Error; err != nil {
 			return err
 		}
+		var creditCount int64
+		if err := tx.Model(&admissionCredit{}).Where("reservation_id = ?", r.ID).Count(&creditCount).Error; err != nil {
+			return err
+		}
+		if creditCount != 0 {
+			return errors.New("job credit requires a job-bound instance")
+		}
 		if d.Drained || !d.Ready || d.BackendIdentity == "" || d.BackendIdentity != r.BackendIdentity || d.Generation != r.Generation || !d.HealthyUntil.After(time.Now()) {
 			return fmt.Errorf("admission unavailable or health stale")
 		}

@@ -28,3 +28,13 @@ type scaleSetHelper interface {
 	HandleJobsStarted(jobs []params.ScaleSetJobMessage) error
 	HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error
 }
+
+// jobAdmissionHelper is an optional listener extension; legacy listeners keep
+// their existing behavior when this interface reports mode=false.
+type jobAdmissionHelper interface {
+	prepareJobSession() (bool, error)
+	validateJobSession(params.RunnerScaleSetStatistic, bool) error
+	authorizeJobPoll() (uint, int64, error)
+	finishJobPoll(int64) error
+	handleJobAdmissionMessage(params.RunnerScaleSetMessage, *scalesets.ScaleSetClient, string) error
+}
