@@ -206,6 +206,7 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		slog.ErrorContext(l.ctx, "getting scale set client", "error", err)
 		return
 	}
+	acquisitionFailed := false
 	if len(availableJobs) > 0 {
 		jobIDs := make([]int64, len(availableJobs))
 		for idx, job := range availableJobs {
@@ -215,16 +216,16 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 			l.listenerCtx, l.scaleSetHelper.GetScaleSet().ScaleSetID,
 			l.messageSession.MessageQueueAccessToken(), jobIDs)
 		if err != nil {
-			// don't mark message as processed. It will be requeued.
 			slog.ErrorContext(l.ctx, "acquiring jobs", "error", err)
-			return
+			acquisitionFailed = true
+		} else {
+			// HandleJobsAvailable only records jobs in the database for now. The jobs are purely
+			// informational, so an error here won't break anything.
+			if err := l.scaleSetHelper.HandleJobsAvailable(availableJobs); err != nil {
+				slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
+			}
+			slog.DebugContext(l.ctx, "acquired jobs", "job_ids", idsAcquired)
 		}
-		// HandleJobsAvailable only records jobs in the database for now. The jobs are purely
-		// informational, so an error here won't break anything.
-		if err := l.scaleSetHelper.HandleJobsAvailable(availableJobs); err != nil {
-			slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
-		}
-		slog.DebugContext(l.ctx, "acquired jobs", "job_ids", idsAcquired)
 	}
 
 	if len(assignedJobs) > 0 {
@@ -245,6 +246,11 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 			slog.ErrorContext(l.ctx, "error handling completed jobs", "error", err)
 			return
 		}
+	}
+
+	if acquisitionFailed {
+		// Leave the message unacknowledged so acquisition can be retried.
+		return
 	}
 
 	if err := l.scaleSetHelper.SetLastMessageID(msg.MessageID); err != nil {
