@@ -154,7 +154,9 @@ func (h *jobListenerFixture) prepareJobSession() (bool, error) {
 	h.prepared.Store(true)
 	return true, nil
 }
+
 func (*jobListenerFixture) validateJobSession(params.RunnerScaleSetStatistic, bool) error { return nil }
+
 func (h *jobListenerFixture) authorizeJobPoll() (uint, int64, error) {
 	if h.polls.Add(1) == 1 {
 		return 1, 1, nil

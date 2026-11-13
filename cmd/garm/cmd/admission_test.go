@@ -30,7 +30,9 @@ func (s *bootstrapDB) ConfigureAdmission(_ context.Context, p params.AdmissionCo
 	s.policy = p
 	return nil
 }
+
 func (*bootstrapDB) UpdateAdmissionHealth(context.Context, params.AdmissionConfig) error { return nil }
+
 func (s *bootstrapDB) SetAdmissionDrain(_ context.Context, _ string, d bool) error {
 	s.drained = d
 	return nil

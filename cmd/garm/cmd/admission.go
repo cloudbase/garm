@@ -119,16 +119,16 @@ func initializeAdmission(ctx context.Context, cfg config.Admission, db dbcommon.
 func auditAdmissionBootstrap(ctx context.Context, cfg config.Admission, db dbcommon.Store, store dbcommon.AdmissionStore, provider common.Provider, policy params.AdmissionConfig) (bool, error) {
 	pools, err := db.ListAllPools(ctx)
 	if err != nil {
-		return true, (err)
+		return true, err
 	}
 	for _, pool := range pools {
 		if pool.ProviderName == cfg.Provider {
-			return true, (fmt.Errorf("admission does not support pools on enrolled provider"))
+			return true, fmt.Errorf("admission does not support pools on enrolled provider")
 		}
 	}
 	sets, err := db.ListAllScaleSets(ctx)
 	if err != nil {
-		return true, (err)
+		return true, err
 	}
 	known := make(map[string]params.Instance)
 	for _, set := range sets {
@@ -136,15 +136,15 @@ func auditAdmissionBootstrap(ctx context.Context, cfg config.Admission, db dbcom
 			continue
 		}
 		if set.MinIdleRunners != 0 || set.Image != cfg.Image || set.Flavor != cfg.Flavor || string(set.OSArch) != cfg.OSArch {
-			return true, (fmt.Errorf("scale set %d has unsupported admission shape", set.ID))
+			return true, fmt.Errorf("scale set %d has unsupported admission shape", set.ID)
 		}
 		instances, err := db.ListScaleSetInstances(ctx, set.ID, false)
 		if err != nil {
-			return true, (err)
+			return true, err
 		}
 		for _, instance := range instances {
 			if _, exists := known[instance.Name]; exists {
-				return true, (fmt.Errorf("duplicate instance name in admission inventory"))
+				return true, fmt.Errorf("duplicate instance name in admission inventory")
 			}
 			reservation, err := store.AdmissionByInstance(ctx, cfg.Provider, instance.Name)
 			if err != nil && !errors.Is(err, dbcommon.ErrAdmissionNotFound) {
@@ -163,7 +163,7 @@ func auditAdmissionBootstrap(ctx context.Context, cfg config.Admission, db dbcom
 	for _, guest := range remote {
 		instance, ok := known[guest.Name]
 		if !ok || (instance.ProviderID != "" && guest.ProviderID != instance.ProviderID) {
-			return true, (fmt.Errorf("unaccounted provider instance %s", guest.Name))
+			return true, fmt.Errorf("unaccounted provider instance %s", guest.Name)
 		}
 		delete(known, guest.Name)
 	}

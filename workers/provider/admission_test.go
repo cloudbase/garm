@@ -72,6 +72,7 @@ type cancellationHelper struct {
 }
 
 func (*cancellationHelper) admissionEnrolled(context.Context, string) (bool, error) { return true, nil }
+
 func (h *cancellationHelper) cancelUnsentAdmission(context.Context, string, string) (bool, error) {
 	return h.canceled, nil
 }
