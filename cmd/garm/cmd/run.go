@@ -190,6 +190,10 @@ func initInfrastructure(ctx context.Context, cfg *config.Config, hub *websocket.
 		return nil, fmt.Errorf("loading providers: %w", err)
 	}
 
+	if err := initializeAdmission(ctx, cfg.Admission, db, loadedProviders); err != nil {
+		return nil, fmt.Errorf("initializing admission: %w", err)
+	}
+
 	// Provider worker must start first — its watcher consumer must be
 	// registered before entity/scaleset workers create instances.
 	providerWorker, err := provider.NewWorker(ctx, db, loadedProviders, instanceTokenGetter)

@@ -47,6 +47,14 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		if err != nil {
 			return fmt.Errorf("error fetching pool: %w", err)
 		}
+		if err := providerLock(tx, pool.ProviderName); err != nil {
+			return err
+		}
+		if _, err := admissionForProvider(tx, pool.ProviderName); err == nil {
+			return fmt.Errorf("traditional pools are unsupported for enrolled admission providers")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
 		var cnt int64
 		q := tx.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
 		if q.Error != nil {
