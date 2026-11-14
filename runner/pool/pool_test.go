@@ -228,6 +228,82 @@ func (s *PoolStressTestSuite) TestHandleWorkflowJobFullLifecycle() {
 	s.Len(completedJobs, 1, "exactly 1 completed job should exist in DB")
 }
 
+func (s *PoolStressTestSuite) TestCompletedJobWithoutRunnerName() {
+	labels := []string{"self-hosted", "linux", "x64"}
+	startedAt := time.Date(2026, time.November, 1, 8, 25, 50, 0, time.UTC)
+	otherRepo, err := s.store.CreateRepository(s.adminCtx, "other-owner", "other-repo", s.entity.Credentials, "other-secret", params.PoolBalancerTypeRoundRobin, false)
+	s.Require().NoError(err)
+	otherRepoID := mustParseUUID(otherRepo.ID)
+	tests := []struct {
+		name   string
+		change func(*params.Job)
+	}{
+		{name: "matching assignment"},
+		{name: "different run", change: func(j *params.Job) { j.RunID++ }},
+		{name: "different repository", change: func(j *params.Job) { j.RepositoryName = "other-repo" }},
+		{name: "different entity", change: func(j *params.Job) { j.RepoID = &otherRepoID }},
+		{name: "different attempt start", change: func(j *params.Job) { j.StartedAt = j.StartedAt.Add(time.Second) }},
+		{name: "missing attempt start", change: func(j *params.Job) { j.StartedAt = time.Time{} }},
+		{name: "different runner ID", change: func(j *params.Job) { j.GithubRunnerID++ }},
+		{name: "missing runner ID", change: func(j *params.Job) { j.GithubRunnerID = 0 }},
+	}
+
+	for i, tt := range tests {
+		s.Run(tt.name, func() {
+			jobID := int64(70000 + i)
+			runnerName := fmt.Sprintf("completed-runner-%d", i)
+			_, err := s.store.CreateInstance(s.adminCtx, s.pool.ID, params.CreateInstanceParams{
+				Name: runnerName, Status: commonParams.InstanceRunning, RunnerStatus: params.RunnerActive,
+			})
+			s.Require().NoError(err)
+
+			inProgress := s.makeWorkflowJob(jobID, "in_progress", "in_progress", runnerName, labels)
+			inProgress.WorkflowJob.StartedAt = startedAt
+			inProgress.WorkflowJob.RunnerID = int64(100 + i)
+			recorded, err := s.mgr.paramsWorkflowJobToParamsJob(inProgress)
+			s.Require().NoError(err)
+			if tt.change != nil {
+				tt.change(&recorded)
+			}
+			_, err = s.store.CreateOrUpdateJob(s.adminCtx, recorded)
+			s.Require().NoError(err)
+
+			completed := inProgress
+			completed.Action = "completed"
+			completed.WorkflowJob.Status = "completed"
+			completed.WorkflowJob.RunnerName = ""
+			completed.WorkflowJob.CompletedAt = startedAt.Add(time.Minute)
+			err = s.mgr.HandleWorkflowJob(completed)
+			if tt.change == nil {
+				s.Require().NoError(err)
+				s.Require().NoError(s.mgr.HandleWorkflowJob(completed))
+			} else {
+				s.Require().Error(err)
+			}
+
+			instance, err := s.store.GetInstance(s.adminCtx, runnerName)
+			s.Require().NoError(err)
+			job, err := s.store.GetJobByID(s.adminCtx, jobID)
+			s.Require().NoError(err)
+			s.Equal(runnerName, job.RunnerName)
+			if tt.change == nil {
+				s.Equal(params.RunnerTerminated, instance.RunnerStatus)
+				s.Equal(commonParams.InstancePendingDelete, instance.Status)
+				s.Equal("completed", job.Action)
+				s.Equal(inProgress.WorkflowJob.RunnerID, job.GithubRunnerID)
+				s.Require().NotNil(job.PoolID)
+				s.Equal(s.pool.ID, job.PoolID.String())
+			} else {
+				s.Equal(params.RunnerActive, instance.RunnerStatus)
+				s.Equal(commonParams.InstanceRunning, instance.Status)
+				s.Equal("in_progress", job.Action)
+				s.Equal(recorded.RunID, job.RunID)
+				s.True(recorded.StartedAt.Equal(job.StartedAt))
+			}
+		})
+	}
+}
+
 // TestConcurrentQueuedJobs sends N queued webhooks concurrently with different job IDs
 // and verifies all are persisted without panics.
 func (s *PoolStressTestSuite) TestConcurrentQueuedJobs() {
