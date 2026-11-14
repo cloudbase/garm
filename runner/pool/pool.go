@@ -368,6 +368,11 @@ func (r *basePoolManager) handleCompletedJob(ctx context.Context, jobParams para
 			return nil
 		}
 		var te *runnerErrors.InstanceTransitionError
+		if errors.As(err, &te) && te.From == commonParams.InstanceCreating {
+			// The create call will schedule deletion after saving the provider ID.
+			r.recordLifecycleEvent(pool, metrics.OutcomeJobCompleted)
+			return nil
+		}
 		if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
 			// Another code path already moved the instance into the deletion
 			// lane; the runner is being removed, which is what we wanted.
@@ -1279,8 +1284,19 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	}
 
 	updateInstanceArgs := r.updateArgsFromProviderInstance(providerInstance)
-	if _, err := r.store.UpdateInstance(r.ctx, instance.Name, updateInstanceArgs); err != nil {
+	updatedInstance, err := r.store.UpdateInstance(r.ctx, instance.Name, updateInstanceArgs)
+	if err != nil {
 		return fmt.Errorf("error updating instance: %w", err)
+	}
+	if updatedInstance.RunnerStatus == params.RunnerTerminated {
+		// A job can finish before CreateInstance returns.
+		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil, false); err != nil {
+			var te *runnerErrors.InstanceTransitionError
+			if errors.Is(err, runnerErrors.ErrNotFound) || (errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From)) {
+				return nil
+			}
+			return fmt.Errorf("addInstanceToProvider: failed to schedule completed runner deletion: %w", err)
+		}
 	}
 	return nil
 }
