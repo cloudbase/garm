@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -83,16 +82,16 @@ func runnerToolsFromRelease(ctx context.Context, release garmUtil.GitHubRelease)
 // does not publish. Third parties such as Canonical build patched runners
 // and publish them as releases of their own fork.
 func getRunnerToolsFromMetadataURL(ctx context.Context, metadataURL string, creds params.ForgeCredentials) ([]commonParams.RunnerApplicationDownload, error) {
-	// The forge transport trusts the endpoint CA bundle on top of the system
-	// trust store, and carries no authentication. Both matter here: the URL
-	// is operator supplied and need not belong to the forge, so the forge
-	// token must not be sent to it.
-	transport, err := creds.GetBaseTransport()
+	// Authenticated when the URL is served by the forge itself, which is the
+	// common case on github.com and keeps the fetch off the anonymous rate
+	// limit. Unauthenticated otherwise, since an operator supplied URL need
+	// not belong to the forge.
+	client, err := creds.HTTPClientForURL(ctx, metadataURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get base transport: %w", err)
+		return nil, fmt.Errorf("failed to get http client: %w", err)
 	}
 
-	data, err := fetchURL(ctx, &http.Client{Transport: transport}, metadataURL)
+	data, err := fetchURL(ctx, client, metadataURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch release list: %w", err)
 	}

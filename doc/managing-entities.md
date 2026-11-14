@@ -100,11 +100,24 @@ bundle covers it. That bundle widens the system trust store rather than
 replacing it, so a public releases URL keeps working on an endpoint whose CA
 exists for a private GHES.
 
+A metadata URL served by the forge itself is fetched with the credentials of
+the entity, which is what the example above does. Anonymous calls to the
+GitHub API are rate limited per IP and are easy to exhaust, so point the URL
+at the forge where you can. Published releases of a public repository are
+readable by any token, including a GitHub App installation token for an app
+that is not installed on that repository. Only a private repository needs
+the credentials to actually reach it, which for a GitHub App means the
+installation must have been granted access to it.
+
+A metadata URL on any other host is fetched without credentials. This is the
+right choice for a releases page you host yourself, which usually needs no
+token.
+
 > [!IMPORTANT]
 > GARM does not verify who built the binaries it downloads from a tools
 > metadata URL. Only point it at a source you trust to run inside your CI.
-> No credentials are sent to the metadata URL, since it need not belong to
-> the forge.
+> Credentials are only sent to a URL served by the forge they belong to,
+> never to a third party host.
 
 ### Add a Gitea endpoint
 

@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 	"time"
 
@@ -179,13 +178,13 @@ func getReleasesFromURL(ctx context.Context, metadataURL string, creds params.Fo
 	// admin/user of GARM after authentication. If they have admin rights to GARM, they most
 	// likely have admin rights to the machine running GARM, in which case, they can just
 	// GET the metadataURL manually from that server.
-	// The forge transport, for the endpoint CA bundle and for carrying no
-	// authentication. See getRunnerToolsFromMetadataURL.
-	transport, err := creds.GetBaseTransport()
+	// Authenticated only when the URL is served by the forge itself. See
+	// getRunnerToolsFromMetadataURL.
+	client, err := creds.HTTPClientForURL(ctx, metadataURL)
 	if err != nil {
-		return GiteaEntityTool{}, fmt.Errorf("failed to get base transport: %w", err)
+		return GiteaEntityTool{}, fmt.Errorf("failed to get http client: %w", err)
 	}
-	data, err := fetchURL(ctx, &http.Client{Transport: transport}, metadataURL)
+	data, err := fetchURL(ctx, client, metadataURL)
 	if err != nil {
 		return GiteaEntityTool{}, err
 	}
