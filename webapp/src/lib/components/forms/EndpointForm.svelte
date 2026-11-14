@@ -163,7 +163,7 @@
 			<Tooltip
 				title="Tools Metadata URL"
 				content={selectedForgeType === 'github'
-					? 'A GitHub API compatible releases URL publishing runner binaries. The tools it publishes override the ones the endpoint API reports, for the OS/arch combos it covers. Use it to run architectures GitHub does not build runners for, such as ppc64le or s390x, by pointing GARM at a third party build like canonical/github-actions-runner.'
+					? 'A GitHub API compatible releases URL publishing runner binaries. The tools it publishes override the ones the endpoint API reports, for the OS/arch combos it covers. Use it to run architectures GitHub does not build runners for, such as ppc64le or s390x, by pointing GARM at a third party build like canonical/github-actions-runner. A URL served by the forge itself is fetched with this endpoint credentials, so it is not subject to the anonymous rate limit. Any other host is fetched anonymously.'
 					: 'URL where GARM checks for gitea-runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror.'}
 				position="top"
 				width="w-80"

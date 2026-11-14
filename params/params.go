@@ -1440,6 +1440,70 @@ func (g ForgeCredentials) GetBaseTransport() (*http.Transport, error) {
 	}, nil
 }
 
+// urlOrigin returns the scheme and host of rawURL, lowercased and with a
+// default port dropped so that "https://example.com" and
+// "https://example.com:443" compare equal. It returns the empty string when
+// the URL has no usable origin.
+func urlOrigin(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" {
+		return ""
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(parsed.Hostname())
+	port := parsed.Port()
+	if (scheme == "https" && port == "443") || (scheme == "http" && port == "80") {
+		port = ""
+	}
+	if port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	return scheme + "://" + host
+}
+
+// ServesURL reports whether rawURL is served by the forge these credentials
+// authenticate against. The scheme and host must match one of the forge
+// URLs, so a plain HTTP look-alike of an HTTPS forge is not a match.
+func (g ForgeCredentials) ServesURL(rawURL string) bool {
+	origin := urlOrigin(rawURL)
+	if origin == "" {
+		return false
+	}
+
+	for _, base := range []string{g.APIBaseURL, g.UploadBaseURL, g.BaseURL} {
+		if forgeOrigin := urlOrigin(base); forgeOrigin != "" && forgeOrigin == origin {
+			return true
+		}
+	}
+	return false
+}
+
+// HTTPClientForURL returns the client to use when fetching rawURL on behalf
+// of these credentials.
+//
+// A URL the forge itself serves gets the authenticated client, so the call
+// counts against the quota of the token instead of the much smaller
+// anonymous rate limit. Anything else gets an unauthenticated client, since
+// an operator supplied URL need not belong to the forge and the forge token
+// must not be sent to a third party. Either way the endpoint CA bundle is
+// trusted on top of the system trust store.
+func (g ForgeCredentials) HTTPClientForURL(ctx context.Context, rawURL string) (*http.Client, error) {
+	if g.ServesURL(rawURL) {
+		cli, err := g.GetHTTPClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting authenticated client: %w", err)
+		}
+		return cli, nil
+	}
+
+	transport, err := g.GetBaseTransport()
+	if err != nil {
+		return nil, fmt.Errorf("getting base transport: %w", err)
+	}
+	return &http.Client{Transport: transport}, nil
+}
+
 func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
 	httpTransport, err := g.GetBaseTransport()
 	if err != nil {
