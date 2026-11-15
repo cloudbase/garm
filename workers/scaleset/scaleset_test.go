@@ -222,3 +222,32 @@ func TestReconcileDeletedRunnerCreatesOneReplacement(t *testing.T) {
 	assert.Len(t, w.runners, 1)
 	assert.Equal(t, commonParams.InstancePendingCreate, w.runners["replacement"].Status)
 }
+
+func TestMarkScaleSetCreated(t *testing.T) {
+	store := storeMocks.NewStore(t)
+	entity := params.ForgeEntity{ID: "repo-id", EntityType: params.ForgeEntityTypeRepository}
+	store.EXPECT().
+		UpdateEntityScaleSet(
+			mock.Anything,
+			entity,
+			uint(4),
+			mock.MatchedBy(func(update params.UpdateScaleSetParams) bool {
+				return update.State != nil && *update.State == params.ScaleSetCreated
+			}),
+			mock.Anything,
+		).
+		Return(params.ScaleSet{ID: 4, RepoID: entity.ID, State: params.ScaleSetCreated}, nil)
+
+	w := &Worker{
+		ctx:   context.Background(),
+		store: store,
+		scaleSet: params.ScaleSet{
+			ID:     4,
+			RepoID: entity.ID,
+			State:  params.ScaleSetPendingCreate,
+		},
+	}
+
+	assert.NoError(t, w.markScaleSetCreated())
+	assert.Equal(t, params.ScaleSetCreated, w.scaleSet.State)
+}
