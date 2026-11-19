@@ -311,6 +311,38 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 	return nil
 }
 
+func (r *basePoolManager) restoreCompletedJobRunner(ctx context.Context, job *params.Job) error {
+	if job.Action != string(params.JobStatusCompleted) || job.RunnerName != "" {
+		return nil
+	}
+
+	recorded, err := r.store.GetJobByID(ctx, job.WorkflowJobID)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("restoreCompletedJobRunner: failed to get recorded job: %w", err)
+	}
+	if recorded.RunnerName == "" {
+		return nil
+	}
+
+	// Runner ID and start time distinguish attempts; run_attempt is not persisted.
+	if !recorded.BelongsTo(r.entity) ||
+		recorded.WorkflowJobID != job.WorkflowJobID ||
+		job.RunID == 0 || recorded.RunID != job.RunID ||
+		!strings.EqualFold(recorded.RepositoryOwner, job.RepositoryOwner) ||
+		!strings.EqualFold(recorded.RepositoryName, job.RepositoryName) ||
+		job.GithubRunnerID == 0 || recorded.GithubRunnerID != job.GithubRunnerID ||
+		job.StartedAt.IsZero() || !recorded.StartedAt.Equal(job.StartedAt) ||
+		(recorded.Action != string(params.JobStatusInProgress) && recorded.Action != string(params.JobStatusCompleted)) {
+		return runnerErrors.NewBadRequestError("completed job does not match its recorded runner assignment")
+	}
+
+	job.RunnerName = recorded.RunnerName
+	return nil
+}
+
 // handleCompletedJob processes a completed job webhook
 func (r *basePoolManager) handleCompletedJob(ctx context.Context, jobParams params.Job) error {
 	// Ignore jobs without a runner
@@ -471,6 +503,10 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to convert job to params", "error", err)
 		return fmt.Errorf("error converting job to params: %w", err)
+	}
+
+	if err := r.restoreCompletedJobRunner(ctx, &jobParams); err != nil {
+		return err
 	}
 
 	// For in_progress/completed jobs, look up the runner that services the
