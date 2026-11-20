@@ -1265,6 +1265,13 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	// whichever is sooner.
 	createCtx, cancel := context.WithTimeout(r.ctx, time.Duration(pool.RunnerTimeout())*time.Minute)
 	defer cancel()
+	if guard, ok := r.store.(interface {
+		BeginAdmittedCreate(context.Context, string, string, string, params.AdmissionCreateShape) (params.AdmissionReservation, bool, error)
+	}); ok {
+		if _, _, err := guard.BeginAdmittedCreate(createCtx, pool.ProviderName, "pool:"+pool.ID, instance.Name, params.AdmissionCreateShape{}); err != nil {
+			return fmt.Errorf("authorizing provider create: %w", err)
+		}
+	}
 	providerInstance, err := provider.CreateInstance(createCtx, bootstrapArgs, createInstanceParams)
 	if err != nil {
 		instanceIDToDelete = instance.Name

@@ -38,9 +38,10 @@ import (
 const maxCapacityHeader = "X-ScaleSetMaxCapacity"
 
 type MessageSession struct {
-	ssCli   *ScaleSetClient
-	session *params.RunnerScaleSetSession
-	ctx     context.Context
+	initialAdmissionStatsComplete bool
+	ssCli                         *ScaleSetClient
+	session                       *params.RunnerScaleSetSession
+	ctx                           context.Context
 
 	done    chan struct{}
 	closed  bool
@@ -166,7 +167,16 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 	return nil
 }
 
-func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (_ params.RunnerScaleSetMessage, err error) {
+func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (params.RunnerScaleSetMessage, error) {
+	return m.getMessage(ctx, lastMessageID, maxCapacity, false)
+}
+
+// GetAdmissionMessage treats non-success HTTP responses as uncertain polls.
+func (m *MessageSession) GetAdmissionMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (params.RunnerScaleSetMessage, error) {
+	return m.getMessage(ctx, lastMessageID, maxCapacity, true)
+}
+
+func (m *MessageSession) getMessage(ctx context.Context, lastMessageID int64, maxCapacity uint, strict bool) (_ params.RunnerScaleSetMessage, err error) {
 	m.ssCli.recordOperation("GetMessage")
 	defer func() {
 		if err != nil {
@@ -208,6 +218,9 @@ func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, ma
 		return params.RunnerScaleSetMessage{}, nil
 	}
 
+	if strict && resp.StatusCode != http.StatusOK {
+		return params.RunnerScaleSetMessage{}, fmt.Errorf("unexpected message poll HTTP status %d", resp.StatusCode)
+	}
 	var message params.RunnerScaleSetMessage
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -215,6 +228,9 @@ func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, ma
 	}
 	if err := json.Unmarshal(data, &message); err != nil {
 		return params.RunnerScaleSetMessage{}, fmt.Errorf("failed to decode response: %w", err)
+	}
+	if strict && !validAdmissionMessage(data, message) {
+		return params.RunnerScaleSetMessage{}, fmt.Errorf("invalid admission message envelope")
 	}
 	return message, nil
 }
@@ -281,20 +297,29 @@ func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSe
 	}
 	defer resp.Body.Close()
 
-	var createdSession params.RunnerScaleSetSession
-	if err := json.NewDecoder(resp.Body).Decode(&createdSession); err != nil {
+	var raw json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
+	var createdSession params.RunnerScaleSetSession
+	if err := json.Unmarshal(raw, &createdSession); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	var envelope struct {
+		Statistics json.RawMessage `json:"statistics"`
+	}
+	_ = json.Unmarshal(raw, &envelope)
 
 	msgSessionCtx := garmUtil.WithSlogContext(
 		ctx,
 		slog.Any("session_id", createdSession.SessionID.String()))
 	sess := &MessageSession{
-		ssCli:   s,
-		session: &createdSession,
-		ctx:     msgSessionCtx,
-		done:    make(chan struct{}),
-		closed:  false,
+		ssCli:                         s,
+		session:                       &createdSession,
+		ctx:                           msgSessionCtx,
+		done:                          make(chan struct{}),
+		initialAdmissionStatsComplete: admissionStatisticsComplete(envelope.Statistics),
+		closed:                        false,
 	}
 	go sess.loop()
 
@@ -327,4 +352,46 @@ func (s *ScaleSetClient) DeleteMessageSession(ctx context.Context, session *Mess
 	}
 	defer resp.Body.Close()
 	return nil
+}
+
+// InitialStatistics returns a copy of the session's initial broker statistics.
+// Missing statistics are distinct from a known empty scale set.
+func (m *MessageSession) InitialStatistics() (params.RunnerScaleSetStatistic, bool) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	if m.session == nil || m.session.Statistics == nil || !m.initialAdmissionStatsComplete {
+		return params.RunnerScaleSetStatistic{}, false
+	}
+	return *m.session.Statistics, true
+}
+
+// admissionStatisticsComplete distinguishes explicit zero counters from omitted
+// or null fields. Other listener modes retain their existing decoding behavior.
+func admissionStatisticsComplete(raw json.RawMessage) bool {
+	var fields map[string]json.RawMessage
+	if len(raw) == 0 || json.Unmarshal(raw, &fields) != nil || fields == nil {
+		return false
+	}
+	for _, key := range []string{"totalAcquiredJobs", "totalAssignedJobs", "totalRunningJobs", "totalRegisteredRunners", "totalBusyRunners", "totalIdleRunners"} {
+		value, ok := fields[key]
+		if !ok || string(value) == "null" {
+			return false
+		}
+		var n int
+		if json.Unmarshal(value, &n) != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func validAdmissionMessage(raw []byte, message params.RunnerScaleSetMessage) bool {
+	var envelope struct {
+		MessageID  *int64          `json:"messageId"`
+		Statistics json.RawMessage `json:"statistics"`
+	}
+	if json.Unmarshal(raw, &envelope) != nil || envelope.MessageID == nil || *envelope.MessageID < 0 {
+		return false
+	}
+	return message.MessageType != "" && message.Statistics != nil && message.Body != "" && admissionStatisticsComplete(envelope.Statistics)
 }
