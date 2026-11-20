@@ -452,6 +452,8 @@ func initSchema(tx *gorm.DB) error {
 		&WorkflowJob{},
 		&ScaleSet{},
 		&ScaleSetJob{},
+		&migrations.AdmissionDomain0012{},
+		&migrations.AdmissionReservation0012{},
 	); err != nil {
 		return fmt.Errorf("error running auto migrate: %w", err)
 	}

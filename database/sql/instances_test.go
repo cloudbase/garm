@@ -388,6 +388,10 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 		WithArgs(pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "max_runners"}).AddRow(pool.ID, 4))
 	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `admission_domains` WHERE provider = ? ORDER BY `admission_domains`.`domain` LIMIT ?")).
+		WithArgs("", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"domain"}))
+	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `instances` WHERE pool_id = ? AND `instances`.`deleted_at` IS NULL")).
 		WithArgs(pool.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))

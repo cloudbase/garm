@@ -16,7 +16,9 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -25,16 +27,85 @@ import (
 )
 
 func (s *sqlDatabase) CreateScaleSetInstance(ctx context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {
-	scaleSet, err := s.getScaleSetByID(s.conn.WithContext(ctx), scaleSetID)
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		scaleSet, err := s.getScaleSetByID(tx, scaleSetID)
+		if err != nil {
+			return err
+		}
+		if err := providerLock(tx, scaleSet.ProviderName); err != nil {
+			return err
+		}
+		if _, err := admissionForProvider(tx, scaleSet.ProviderName); err == nil {
+			return fmt.Errorf("enrolled provider requires an admission reservation")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		instance, err = s.createScaleSetInstance(tx, scaleSetID, param)
+		return err
+	})
+	if err == nil {
+		s.sendNotify(common.InstanceEntityType, common.CreateOperation, instance)
+	}
+	return instance, err
+}
+
+// CreateAdmittedScaleSetInstance binds and inserts the instance in one transaction.
+func (s *sqlDatabase) CreateAdmittedScaleSetInstance(ctx context.Context, reservationID string, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {
+	if param.Name == "" {
+		return params.Instance{}, fmt.Errorf("empty instance name")
+	}
+	err = s.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		scaleSet, err := s.getScaleSetByID(tx, scaleSetID)
+		if err != nil {
+			return err
+		}
+		if err := providerLock(tx, scaleSet.ProviderName); err != nil {
+			return err
+		}
+		d, err := admissionForProvider(tx, scaleSet.ProviderName)
+		if err != nil {
+			return err
+		}
+		d, err = lockDomain(tx, d.Domain)
+		if err != nil {
+			return err
+		}
+		var r admissionReservation
+		if err := tx.First(&r, "id = ?", reservationID).Error; err != nil {
+			return err
+		}
+		if d.Drained || !d.Ready || d.BackendIdentity == "" || d.BackendIdentity != r.BackendIdentity || d.Generation != r.Generation || !d.HealthyUntil.After(time.Now()) {
+			return fmt.Errorf("admission unavailable or health stale")
+		}
+		if scaleSet.Image != d.Image || scaleSet.Flavor != d.Flavor || string(scaleSet.OSArch) != d.OSArch {
+			return fmt.Errorf("scale set identity differs from admission health")
+		}
+		if !scaleSet.Enabled || scaleSet.MinIdleRunners != 0 || r.Domain != d.Domain || r.Owner != fmt.Sprintf("scaleset:%d", scaleSetID) || vector(r) != (params.AdmissionVector{CPU: d.ClassCPU, RAM: d.ClassRAM, Disk: d.ClassDisk, VMs: d.ClassVMs, Jobs: d.ClassJobs}) {
+			return fmt.Errorf("reservation does not match enrolled scale set")
+		}
+		if r.State != admissionReserved && r.State != admissionSending {
+			return fmt.Errorf("reservation cannot be bound")
+		}
+		if r.InstanceName != nil && *r.InstanceName != param.Name {
+			return fmt.Errorf("reservation already bound")
+		}
+		if err := tx.Model(&r).Update("instance_name", param.Name).Error; err != nil {
+			return err
+		}
+		instance, err = s.createScaleSetInstance(tx, scaleSetID, param)
+		return err
+	})
+	if err == nil {
+		s.sendNotify(common.InstanceEntityType, common.CreateOperation, instance)
+	}
+	return instance, err
+}
+
+func (s *sqlDatabase) createScaleSetInstance(tx *gorm.DB, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {
+	scaleSet, err := s.getScaleSetByID(tx, scaleSetID)
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
-
-	defer func() {
-		if err == nil {
-			s.sendNotify(common.InstanceEntityType, common.CreateOperation, instance)
-		}
-	}()
 
 	var secret []byte
 	if len(param.JitConfiguration) > 0 {
@@ -63,7 +134,7 @@ func (s *sqlDatabase) CreateScaleSetInstance(ctx context.Context, scaleSetID uin
 		JitConfiguration:  secret,
 		AgentID:           param.AgentID,
 	}
-	q := s.conn.WithContext(ctx).Omit("ScaleSet").Create(&newInstance)
+	q := tx.Omit("ScaleSet").Create(&newInstance)
 	if q.Error != nil {
 		return params.Instance{}, fmt.Errorf("error creating instance: %w", q.Error)
 	}
