@@ -30,6 +30,7 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 )
@@ -230,8 +231,8 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		}
 
 		runnerStatus := InstanceRunnerStatus(ctx)
-		if runnerStatus != params.RunnerInstalling && runnerStatus != params.RunnerPending {
-			// Instances that have finished installing can no longer authenticate to the API
+		if garmErrors.RunnerIsTerminal(runnerStatus) {
+			// Instances whose runner has terminated or failed can no longer authenticate to the API
 			invalidAuthResponse(ctx, w)
 			return
 		}
