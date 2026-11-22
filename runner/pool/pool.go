@@ -134,6 +134,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		clientUpdateCh: make(chan struct{}, 1),
 		consumeJobsCh:  make(chan struct{}, 1),
 		addPendingCh:   make(chan struct{}, 1),
+		ensureIdleCh:   make(chan struct{}, 1),
 		wg:             wg,
 		backoff:        backoff,
 		consumer:       consumer,
@@ -167,10 +168,11 @@ type basePoolManager struct {
 	// entity state when it runs, so triggers coalesce.
 	clientUpdateCh chan struct{}
 
-	// consumeJobsCh and addPendingCh wake their loops ahead of the next
-	// tick. Capacity 1; wakeups coalesce.
+	// consumeJobsCh, addPendingCh and ensureIdleCh wake their loops ahead of
+	// the next tick. Capacity 1; wakeups coalesce.
 	consumeJobsCh chan struct{}
 	addPendingCh  chan struct{}
+	ensureIdleCh  chan struct{}
 
 	managerIsRunning   bool
 	managerErrorReason string
@@ -1534,6 +1536,9 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 			return fmt.Errorf("failed to add new instance for pool %s: %w", pool.ID, err)
 		}
 	}
+	if required > 0 {
+		wakeLoop(r.addPendingCh)
+	}
 	return nil
 }
 
@@ -1840,6 +1845,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 			slog.InfoContext(
 				r.ctx, "instance was successfully removed",
 				"runner_name", instance.Name)
+			wakeLoop(r.ensureIdleCh)
 			return nil
 		}(instance) //nolint
 	}
@@ -2031,7 +2037,7 @@ func (r *basePoolManager) Start() error {
 		// always run the delete pending instances routine. This way we can still remove existing runners, even if the pool is not running.
 		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", true, tierCritical, nil)
 		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false, tierNormal, r.addPendingCh)
-		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false, tierNormal, nil)
+		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false, tierNormal, r.ensureIdleCh)
 		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false, tierNormal, nil)
 		// updateTools reads the tools cache; it makes no forge API calls and is
 		// also the path that re-enables the manager after an unauthorized error.
