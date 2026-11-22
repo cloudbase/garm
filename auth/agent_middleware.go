@@ -177,9 +177,10 @@ func (amw *agentMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// instance must be running. Anything else is either still creating or in the process
-		// of being deleted and shouldn't be trying to authenticate.
-		if instanceParams.Status != commonParams.InstanceRunning {
+		// The instance can boot before the provider returns from CreateInstance, so
+		// accept creating as the instance middleware does. Anything else is not yet
+		// created or is being deleted and shouldn't be trying to authenticate.
+		if instanceParams.Status != commonParams.InstanceRunning && instanceParams.Status != commonParams.InstanceCreating {
 			slog.InfoContext(ctx, "invalid instance status", "status", instanceParams.Status)
 			invalidAuthResponse(ctx, w)
 			return
