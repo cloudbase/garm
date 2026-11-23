@@ -200,15 +200,27 @@ else
 	fi
 
 	sudo systemctl daemon-reload || fail "failed to reload systemd"
+
+	set +e
+	AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)
+	if [ $? -ne 0 ];then
+		fail "failed to get agent ID"
+	fi
+	set -e
+
+	systemInfo $AGENT_ID
+	success "runner successfully installed" $AGENT_ID
 	sudo systemctl enable --now $SVC_NAME
 fi
 
-set +e
-AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)
-if [ $? -ne 0 ];then
-	fail "failed to get agent ID"
-fi
-set -e
+if [ "$AGENT_MODE" == "true" ]; then
+	set +e
+	AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)
+	if [ $? -ne 0 ];then
+		fail "failed to get agent ID"
+	fi
+	set -e
 
-systemInfo $AGENT_ID
-success "runner successfully installed" $AGENT_ID
+	systemInfo $AGENT_ID
+	success "runner successfully installed" $AGENT_ID
+fi
