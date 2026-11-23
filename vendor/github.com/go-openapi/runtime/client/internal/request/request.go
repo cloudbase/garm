@@ -117,6 +117,10 @@ type Request struct {
 	timeout  time.Duration
 	buf      *bytes.Buffer
 
+	// credentials records the headers and query parameters set by the auth
+	// writer. See [Request.recordCredentials].
+	credentials CredentialNames
+
 	getBody func(r *Request) []byte
 }
 
@@ -435,7 +439,9 @@ func (r *Request) buildBufferedRequest(ctx context.Context, mediaType, basePath 
 	}
 
 	if auth != nil {
-		if err := auth.AuthenticateRequest(r, registry); err != nil {
+		if err := r.recordCredentials(func() error {
+			return auth.AuthenticateRequest(r, registry)
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -497,7 +503,9 @@ func (r *Request) assembleRequest(ctx context.Context, basePath string, body io.
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, r.method, urlPath, body)
+	// The credential names ride in the request context, so that the redirect
+	// policy of the client can withhold them from a redirect to another host.
+	req, err := http.NewRequestWithContext(WithCredentialNames(ctx, r.credentials), r.method, urlPath, body)
 	if err != nil {
 		return nil, err
 	}
@@ -605,7 +613,9 @@ func (r *Request) applyAuthWithBodyCopy(auth runtime.ClientAuthInfoWriter, body 
 		return getRequestBuffer(r)
 	}
 
-	authErr := auth.AuthenticateRequest(r, registry)
+	authErr := r.recordCredentials(func() error {
+		return auth.AuthenticateRequest(r, registry)
+	})
 
 	// On error we return body alongside the error so the caller's
 	// cleanup defer (in buildStreamingRequest) can close the

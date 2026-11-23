@@ -646,10 +646,14 @@ func (p *Pool[T]) CreateResource(ctx context.Context) error {
 	res.value = value
 	res.status = resourceStatusIdle
 
-	// If closed while constructing resource then destroy it and return an error
-	if p.closed {
+	// If closed or reset while constructing resource then destroy it
+	if p.closed || res.poolResetCount != p.resetCount {
+		p.allResources.remove(res)
 		go p.destructResourceValue(res.value)
-		return ErrClosedPool
+		if p.closed {
+			return ErrClosedPool
+		}
+		return nil
 	}
 
 	p.idleResources.Push(res)
