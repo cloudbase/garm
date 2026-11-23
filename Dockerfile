@@ -45,7 +45,8 @@ RUN set -ex; \
       cloudbase/garm-provider-gcp \
       flatcar/garm-provider-linode \
       mercedes-benz/garm-provider-k8s \
-      nexthop-ai/garm-provider-cloudstack; \
+      nexthop-ai/garm-provider-cloudstack \
+      devoplus/garm-provider-vultr; \
     do \
         export PROVIDER_NAME="$(basename $repo)"; \
         export PROVIDER_SUBDIR=""; \
@@ -86,6 +87,7 @@ COPY --from=builder /opt/garm/providers.d/garm-provider-gcp /opt/garm/providers.
 
 COPY --from=builder /opt/garm/providers.d/garm-provider-k8s /opt/garm/providers.d/garm-provider-k8s
 COPY --from=builder /opt/garm/providers.d/garm-provider-cloudstack /opt/garm/providers.d/garm-provider-cloudstack
+COPY --from=builder /opt/garm/providers.d/garm-provider-vultr /opt/garm/providers.d/garm-provider-vultr
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENTRYPOINT ["/bin/garm", "--config", "/etc/garm/config.toml"]
