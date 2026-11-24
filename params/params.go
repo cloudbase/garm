@@ -308,6 +308,12 @@ var RunnerStatusTransitions = map[RunnerStatus][]RunnerStatus{
 	RunnerActive: {
 		RunnerTerminated,
 		RunnerActive,
+		// A runner can die mid-job, or we can miss the forge's "job
+		// completed" message (broker errors), leaving it active here while
+		// the forge reports it offline. Refusing this transition would hide
+		// it from the scale set offline reaper and pin its max_runners slot
+		// forever.
+		RunnerOffline,
 	},
 	RunnerFailed: {
 		RunnerTerminated,
