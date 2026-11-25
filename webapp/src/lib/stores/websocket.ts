@@ -10,6 +10,7 @@ export type EntityType =
 	| 'user'
 	| 'instance'
 	| 'job'
+	| 'scaleset_job'
 	| 'controller'
 	| 'github_credentials'
 	| 'gitea_credentials'

@@ -78,6 +78,7 @@ docs/Repository.md
 docs/RestoreTemplateRequest.md
 docs/RunnerApplicationDownload.md
 docs/RunnerPrefix.md
+docs/RunnerScaleSetStatistic.md
 docs/ScaleSet.md
 docs/ScaleSetJob.md
 docs/ScaleSetJobsPaginatedResponse.md

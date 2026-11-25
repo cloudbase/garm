@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Instance } from '$lib/api/generated/api.js';
+	import { buildJobsByRunner, scaleSetJobEventPayload, type QueueJob as Job } from '$lib/utils/jobs.js';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import ShellTerminal from '$lib/components/ShellTerminal.svelte';
@@ -12,10 +13,32 @@
 	import { EntityCell, StatusCell, ActionsCell, GenericCell, InstancePoolCell } from '$lib/components/cells';
 
 	let instances: Instance[] = [];
+	let jobs: Job[] = [];
 	let loading = true;
 	let error = '';
 	let statusFilter = '';
 	let unsubscribeWebsocket: (() => void) | null = null;
+	let unsubscribeJobsWebsocket: (() => void) | null = null;
+
+	$: jobsByRunner = buildJobsByRunner(jobs);
+
+	async function loadJobs() {
+		try {
+			jobs = await garmApi.listJobs();
+		} catch {
+			// The job column is best-effort; the rest of the table is unaffected.
+		}
+	}
+
+	function handleJobEvent(event: WebSocketEvent) {
+		const job = event.payload as Job;
+		if (event.operation === 'delete') {
+			const jobID = (event.payload as any).id ?? event.payload;
+			jobs = jobs.filter((j) => j.id !== jobID);
+		} else {
+			jobs = [...jobs.filter((j) => j.id !== job.id), job];
+		}
+	}
 
 	// Current time for heartbeat staleness check - updates every second
 	let currentTime = Date.now();
@@ -113,12 +136,12 @@
 	}
 
 	// DataTable configuration
-	const columns = [
+	$: columns = [
 		{ 
 			key: 'name', 
 			title: 'Name',
 			cellComponent: EntityCell,
-			cellProps: { entityType: 'instance', showId: true }
+			cellProps: { entityType: 'instance', showId: true, jobsByRunner }
 		},
 		{ 
 			key: 'pool_scale_set', 
@@ -262,6 +285,7 @@
 	onMount(() => {
 		// Initial load
 		loadInstances();
+		loadJobs();
 
 		// Subscribe to real-time instance events - correct entity type is 'instance'
 		unsubscribeWebsocket = websocketStore.subscribeToEntity(
@@ -270,6 +294,27 @@
 			handleInstanceEvent
 		);
 
+		// Webhook jobs and scale set jobs are separate entities, each with its
+		// own event stream.
+		const unsubscribeWebhookJobs = websocketStore.subscribeToEntity(
+			'job',
+			['create', 'update', 'delete'],
+			handleJobEvent
+		);
+		const unsubscribeScaleSetJobs = websocketStore.subscribeToEntity(
+			'scaleset_job',
+			['create', 'update', 'delete'],
+			(event) =>
+				handleJobEvent({
+					...event,
+					payload: scaleSetJobEventPayload(event.operation, event.payload)
+				})
+		);
+		unsubscribeJobsWebsocket = () => {
+			unsubscribeWebhookJobs();
+			unsubscribeScaleSetJobs();
+		};
+
 		// Update current time every second for heartbeat staleness check
 		heartbeatCheckInterval = setInterval(() => {
 			currentTime = Date.now();
@@ -277,10 +322,14 @@
 	});
 
 	onDestroy(() => {
-		// Clean up websocket subscription
+		// Clean up websocket subscriptions
 		if (unsubscribeWebsocket) {
 			unsubscribeWebsocket();
 			unsubscribeWebsocket = null;
+		}
+		if (unsubscribeJobsWebsocket) {
+			unsubscribeJobsWebsocket();
+			unsubscribeJobsWebsocket = null;
 		}
 
 		// Clean up heartbeat check interval
