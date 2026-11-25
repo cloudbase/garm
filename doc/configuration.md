@@ -67,7 +67,8 @@ go tool pprof http://127.0.0.1:9997/debug/pprof/profile?seconds=120
 
 > [!IMPORTANT]
 > The profiling command will block for the duration of the profile (e.g. 120 seconds). Most reverse proxies timeout after ~60 seconds, so always profile by connecting directly to GARM on localhost. It's advisable to exclude the debug server URLs from your reverse proxy entirely.
-> **Deprecated:** `callback_url`, `metadata_url`, `log_file`, `enable_log_streamer` -- these are now managed via `garm-cli controller update` or the `[logging]` section.
+> **Deprecated:** `callback_url`, `metadata_url`, `log_file`,  -- these are now managed via `garm-cli controller update`.
+> `enable_log_streamer` -- has moved to the `[logging]` section.
 
 ## [logging]
 
