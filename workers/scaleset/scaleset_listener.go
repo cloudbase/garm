@@ -103,6 +103,14 @@ func (l *scaleSetListener) Start() error {
 		return fmt.Errorf("creating message session: %w", err)
 	}
 	l.messageSession = session
+	// The session response carries GitHub's statistics for the scale set.
+	// Persist them now so a scale set that has not seen a message since
+	// GARM started (or ever) still reports GitHub's view of its queue.
+	if stats := session.Statistics(); stats != nil {
+		if err := l.scaleSetHelper.SetRunnerStatistics(*stats); err != nil {
+			slog.ErrorContext(l.ctx, "setting initial runner statistics", "error", err)
+		}
+	}
 	l.quit = make(chan struct{})
 	l.running.Store(true)
 	l.loopExited = make(chan struct{})
@@ -161,6 +169,17 @@ func (l *scaleSetListener) scaleSetIDLabel() string {
 func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage) {
 	l.mux.Lock()
 	defer l.mux.Unlock()
+
+	// Statistics ride on the envelope of every message, whatever its type,
+	// and they are GitHub's own accounting: TotalAvailableJobs is the real
+	// queue depth, not capped by the capacity we advertise when long
+	// polling. Persist them before the type filter and the early returns
+	// below so the scale set always carries GitHub's latest view.
+	if msg.Statistics != nil {
+		if err := l.scaleSetHelper.SetRunnerStatistics(*msg.Statistics); err != nil {
+			slog.ErrorContext(l.ctx, "setting runner statistics", "error", err)
+		}
+	}
 
 	if params.ScaleSetMessageType(msg.MessageType) != params.MessageTypeRunnerScaleSetJobMessages {
 		slog.DebugContext(l.ctx, "message is not a job message, ignoring")
@@ -251,10 +270,6 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		slog.ErrorContext(l.ctx, "setting last message ID", "error", err)
 	} else {
 		l.lastMessageID = msg.MessageID
-	}
-
-	if err := l.scaleSetHelper.SetDesiredRunnerCount(msg.Statistics.TotalAssignedJobs); err != nil {
-		slog.ErrorContext(l.ctx, "setting desired runner count", "error", err)
 	}
 
 	if err := l.messageSession.DeleteMessage(l.listenerCtx, msg.MessageID); err != nil {

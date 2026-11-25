@@ -183,7 +183,7 @@ func TestScaleSetWritesOnlyTheScaleSetRow(t *testing.T) {
 
 	// The listener writes both of these on every message batch.
 	require.NoError(t, store.SetScaleSetLastMessageID(adminCtx, scaleSet.ID, 42))
-	require.NoError(t, store.SetScaleSetDesiredRunnerCount(adminCtx, scaleSet.ID, 3))
+	require.NoError(t, store.SetScaleSetRunnerStatistics(adminCtx, scaleSet.ID, params.RunnerScaleSetStatistic{TotalAssignedJobs: 3}))
 
 	require.Empty(t, rec.writes("instances"),
 		"checkpointing a scale set must not write runner rows, that is the other half of the deadlock")
