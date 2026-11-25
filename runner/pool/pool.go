@@ -313,36 +313,44 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 	return nil
 }
 
-func (r *basePoolManager) restoreCompletedJobRunner(ctx context.Context, job *params.Job) error {
+// restoreCompletedJobRunner fills in the runner name on a completion the forge
+// sent without one, taking it from the runner we recorded when the job started.
+// Gitea does this once an ephemeral runner has deregistered.
+//
+// It reports whether the completion may be recorded. A completion we cannot
+// attribute must not be, because recording it overwrites the runner ID and the
+// entity on the job, which is the evidence the next delivery is checked
+// against.
+func (r *basePoolManager) restoreCompletedJobRunner(ctx context.Context, job *params.Job) (bool, error) {
 	if job.Action != string(params.JobStatusCompleted) || job.RunnerName != "" {
-		return nil
+		return true, nil
 	}
 
 	recorded, err := r.store.GetJobByID(ctx, job.WorkflowJobID)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return nil
+			return true, nil
 		}
-		return fmt.Errorf("restoreCompletedJobRunner: failed to get recorded job: %w", err)
+		return false, fmt.Errorf("failed to get recorded job: %w", err)
 	}
 	if recorded.RunnerName == "" {
-		return nil
+		return true, nil
 	}
 
-	// Runner ID and start time distinguish attempts; run_attempt is not persisted.
+	// The job was looked up by its own ID, so the entity check is what tells us
+	// it is ours. The runner ID tells the attempts of a job apart.
 	if !recorded.BelongsTo(r.entity) ||
-		recorded.WorkflowJobID != job.WorkflowJobID ||
-		job.RunID == 0 || recorded.RunID != job.RunID ||
-		!strings.EqualFold(recorded.RepositoryOwner, job.RepositoryOwner) ||
-		!strings.EqualFold(recorded.RepositoryName, job.RepositoryName) ||
-		job.GithubRunnerID == 0 || recorded.GithubRunnerID != job.GithubRunnerID ||
-		job.StartedAt.IsZero() || !recorded.StartedAt.Equal(job.StartedAt) ||
-		(recorded.Action != string(params.JobStatusInProgress) && recorded.Action != string(params.JobStatusCompleted)) {
-		return runnerErrors.NewBadRequestError("completed job does not match its recorded runner assignment")
+		job.GithubRunnerID == 0 || recorded.GithubRunnerID != job.GithubRunnerID {
+		slog.WarnContext(ctx, "completed job does not match its recorded runner assignment; ignoring",
+			"workflow_job_id", job.WorkflowJobID,
+			"entity_id", r.entity.ID,
+			"event_runner_id", job.GithubRunnerID,
+			"recorded_runner_id", recorded.GithubRunnerID)
+		return false, nil
 	}
 
 	job.RunnerName = recorded.RunnerName
-	return nil
+	return true, nil
 }
 
 // handleCompletedJob processes a completed job webhook
@@ -507,8 +515,12 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		return fmt.Errorf("error converting job to params: %w", err)
 	}
 
-	if err := r.restoreCompletedJobRunner(ctx, &jobParams); err != nil {
-		return err
+	canRecord, err := r.restoreCompletedJobRunner(ctx, &jobParams)
+	if err != nil {
+		return fmt.Errorf("error restoring completed job runner: %w", err)
+	}
+	if !canRecord {
+		return nil
 	}
 
 	// For in_progress/completed jobs, look up the runner that services the
