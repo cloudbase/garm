@@ -235,17 +235,28 @@ func (s *PoolStressTestSuite) TestCompletedJobWithoutRunnerName() {
 	s.Require().NoError(err)
 	otherRepoID := mustParseUUID(otherRepo.ID)
 	tests := []struct {
-		name   string
-		change func(*params.Job)
+		name string
+		// recorded mutates the job GARM recorded when the runner picked the
+		// job up. incoming mutates the completion event the forge sends.
+		recorded func(*params.Job)
+		incoming func(*params.WorkflowJob)
+		// ignored is set for the cases where GARM cannot tell which runner ran
+		// the job. The completion is then ignored rather than failed, and the
+		// runner is left for the reaper.
+		ignored bool
 	}{
 		{name: "matching assignment"},
-		{name: "different run", change: func(j *params.Job) { j.RunID++ }},
-		{name: "different repository", change: func(j *params.Job) { j.RepositoryName = "other-repo" }},
-		{name: "different entity", change: func(j *params.Job) { j.RepoID = &otherRepoID }},
-		{name: "different attempt start", change: func(j *params.Job) { j.StartedAt = j.StartedAt.Add(time.Second) }},
-		{name: "missing attempt start", change: func(j *params.Job) { j.StartedAt = time.Time{} }},
-		{name: "different runner ID", change: func(j *params.Job) { j.GithubRunnerID++ }},
-		{name: "missing runner ID", change: func(j *params.Job) { j.GithubRunnerID = 0 }},
+		// The job is looked up by its own ID and the entity owns it, so the
+		// rest of the recorded job is informational and may drift.
+		{name: "different run", recorded: func(j *params.Job) { j.RunID++ }},
+		{name: "different repository", recorded: func(j *params.Job) { j.RepositoryName = "other-repo" }},
+		{name: "different attempt start", recorded: func(j *params.Job) { j.StartedAt = j.StartedAt.Add(time.Second) }},
+		{name: "missing attempt start", recorded: func(j *params.Job) { j.StartedAt = time.Time{} }},
+		// Ownership and runner identity still have to hold.
+		{name: "different entity", recorded: func(j *params.Job) { j.RepoID = &otherRepoID }, ignored: true},
+		{name: "different runner ID", recorded: func(j *params.Job) { j.GithubRunnerID++ }, ignored: true},
+		{name: "recorded runner ID missing", recorded: func(j *params.Job) { j.GithubRunnerID = 0 }, ignored: true},
+		{name: "event runner ID missing", incoming: func(wj *params.WorkflowJob) { wj.WorkflowJob.RunnerID = 0 }, ignored: true},
 	}
 
 	for i, tt := range tests {
@@ -262,8 +273,8 @@ func (s *PoolStressTestSuite) TestCompletedJobWithoutRunnerName() {
 			inProgress.WorkflowJob.RunnerID = int64(100 + i)
 			recorded, err := s.mgr.paramsWorkflowJobToParamsJob(inProgress)
 			s.Require().NoError(err)
-			if tt.change != nil {
-				tt.change(&recorded)
+			if tt.recorded != nil {
+				tt.recorded(&recorded)
 			}
 			_, err = s.store.CreateOrUpdateJob(s.adminCtx, recorded)
 			s.Require().NoError(err)
@@ -273,32 +284,33 @@ func (s *PoolStressTestSuite) TestCompletedJobWithoutRunnerName() {
 			completed.WorkflowJob.Status = "completed"
 			completed.WorkflowJob.RunnerName = ""
 			completed.WorkflowJob.CompletedAt = startedAt.Add(time.Minute)
-			err = s.mgr.HandleWorkflowJob(completed)
-			if tt.change == nil {
-				s.Require().NoError(err)
-				s.Require().NoError(s.mgr.HandleWorkflowJob(completed))
-			} else {
-				s.Require().Error(err)
+			if tt.incoming != nil {
+				tt.incoming(&completed)
 			}
+			// A completion GARM cannot attribute is ignored, not failed, so the
+			// webhook succeeds either way. Replaying it must stay a no-op.
+			s.Require().NoError(s.mgr.HandleWorkflowJob(completed))
+			s.Require().NoError(s.mgr.HandleWorkflowJob(completed))
 
 			instance, err := s.store.GetInstance(s.adminCtx, runnerName)
 			s.Require().NoError(err)
 			job, err := s.store.GetJobByID(s.adminCtx, jobID)
 			s.Require().NoError(err)
+			// An empty runner name on the event never clears the recorded one.
 			s.Equal(runnerName, job.RunnerName)
-			if tt.change == nil {
+			if tt.ignored {
+				// An unattributable completion is not recorded either, so a
+				// redelivery is judged against the same evidence as the first.
+				s.Equal("in_progress", job.Action)
+				s.Equal(params.RunnerActive, instance.RunnerStatus)
+				s.Equal(commonParams.InstanceRunning, instance.Status)
+			} else {
+				s.Equal("completed", job.Action)
 				s.Equal(params.RunnerTerminated, instance.RunnerStatus)
 				s.Equal(commonParams.InstancePendingDelete, instance.Status)
-				s.Equal("completed", job.Action)
 				s.Equal(inProgress.WorkflowJob.RunnerID, job.GithubRunnerID)
 				s.Require().NotNil(job.PoolID)
 				s.Equal(s.pool.ID, job.PoolID.String())
-			} else {
-				s.Equal(params.RunnerActive, instance.RunnerStatus)
-				s.Equal(commonParams.InstanceRunning, instance.Status)
-				s.Equal("in_progress", job.Action)
-				s.Equal(recorded.RunID, job.RunID)
-				s.True(recorded.StartedAt.Equal(job.StartedAt))
 			}
 		})
 	}
