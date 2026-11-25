@@ -184,11 +184,23 @@ getRunnerFile "system/service-name" ""$RUN_HOME"/.service" || fail "failed to ge
 sed -i 's/$/\.service/' "$RUN_HOME"/.service
 SVC_NAME=$(cat "$RUN_HOME"/.service)
 
+function sendSystemInfo() {
+	set +e
+	AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)
+	if [ $? -ne 0 ];then
+		fail "failed to get agent ID"
+	fi
+	set -e
+
+	systemInfo $AGENT_ID
+	success "runner successfully installed" $AGENT_ID
+}
+
 AGENT_ID=""
 sendStatus "starting service"
 if [ "$AGENT_MODE" == "true" ]; then
 	sendStatus "Enabling garm-agent service"
-	sudo systemctl enable --now garm-agent
+	SVC_NAME="garm-agent"
 else
 	sendStatus "generating systemd unit file"
 	getRunnerFile "systemd/unit-file?runAsUser={{ .RunnerUsername }}" "$SVC_NAME" || fail "failed to get service file"
@@ -200,27 +212,7 @@ else
 	fi
 
 	sudo systemctl daemon-reload || fail "failed to reload systemd"
-
-	set +e
-	AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)
-	if [ $? -ne 0 ];then
-		fail "failed to get agent ID"
-	fi
-	set -e
-
-	systemInfo $AGENT_ID
-	success "runner successfully installed" $AGENT_ID
-	sudo systemctl enable --now $SVC_NAME
 fi
 
-if [ "$AGENT_MODE" == "true" ]; then
-	set +e
-	AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)
-	if [ $? -ne 0 ];then
-		fail "failed to get agent ID"
-	fi
-	set -e
-
-	systemInfo $AGENT_ID
-	success "runner successfully installed" $AGENT_ID
-fi
+sendSystemInfo
+sudo systemctl enable --now $SVC_NAME

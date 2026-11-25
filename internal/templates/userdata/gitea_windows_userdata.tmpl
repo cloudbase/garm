@@ -481,7 +481,6 @@ no_proxy = "{{ .NoProxy }}"
 	} catch {
 		Invoke-GarmFailure -CallbackURL $CallbackURL -Message "failed to set up garm agent $_"
 	}
-	Start-Service garm-agent
 }
 
 function Install-NSSM {
@@ -516,7 +515,6 @@ function Install-NSSM {
 	if ($env:HTTPS_PROXY) { $proxyEnv += "HTTPS_PROXY=$env:HTTPS_PROXY" }
 	if ($env:NO_PROXY) { $proxyEnv += "NO_PROXY=$env:NO_PROXY" }
 	if ($proxyEnv.Count -gt 0) { & $nssm set GiteaRunner AppEnvironmentExtra $proxyEnv }
-	& $nssm start GiteaRunner
 }
 
 function Install-Runner() {
@@ -602,13 +600,16 @@ function Install-Runner() {
 		}
 		$agentInfoFile = Join-Path $runnerDir ".runner"
 		$agentInfo = ConvertFrom-Json (gc -raw $agentInfoFile)
-		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
 		if ((Get-IsAgentMode)) {
 			Install-GarmAgent -pscreds $pscreds -runnerExecutable $runnerExecutable
+			$SVC_NAME = "garm-agent"
 		} else {
 			Install-NSSM -username $userName -password $userPasswd -runnerDir $runnerDir
+			$SVC_NAME = "GiteaRunner"
 		}
+		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
 		Invoke-GarmSuccess -CallbackURL $CallbackURL -Message "runner successfully installed" -AgentID $agentInfo.id
+		Start-Service $SVC_NAME
 	} catch {
 		Invoke-GarmFailure -CallbackURL $CallbackURL -Message $_
 	}

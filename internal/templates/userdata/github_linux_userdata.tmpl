@@ -264,6 +264,20 @@ if [ -e "/sys/fs/selinux" ];then
 	sudo chcon -R -h user_u:object_r:bin_t:s0 /home/runner/ || fail "failed to change selinux context"
 fi
 
+function sendSystemInfo() {
+{{- if not .UseJITConfig }}
+	set +e
+	AGENT_ID=$(grep "agentId" "$RUN_HOME"/.runner |  tr -d -c 0-9)
+	if [ $? -ne 0 ];then
+		fail "failed to get agent ID"
+	fi
+	set -e
+
+{{- end}}
+	systemInfo $AGENT_ID
+	success "runner successfully installed" $AGENT_ID
+}
+
 AGENT_ID=""
 {{- if .UseJITConfig }}
 if [ -f "$RUN_HOME/env.sh" ];then
@@ -271,25 +285,17 @@ if [ -f "$RUN_HOME/env.sh" ];then
 	source env.sh
 	popd
 fi
-if [ "$AGENT_MODE" != "true" ]; then
-	sudo systemctl start $SVC_NAME || fail "failed to start service"
-fi
-{{- else}}
-if [ "$AGENT_MODE" != "true" ]; then
-	sendStatus "starting service"
-	sudo ./svc.sh start || fail "failed to start service"
-fi
-
-set +e
-AGENT_ID=$(grep "agentId" "$RUN_HOME"/.runner |  tr -d -c 0-9)
-if [ $? -ne 0 ];then
-	fail "failed to get agent ID"
-fi
-set -e
 {{- end}}
-systemInfo $AGENT_ID
+
+sendStatus "starting service"
+sendSystemInfo
+
 if [ "$AGENT_MODE" == "true" ]; then
-  sendStatus "Starting garm-agent service"
-  sudo systemctl enable --now garm-agent || sendStatus "failed to start garm-agent"
+	sudo systemctl enable --now garm-agent
+else
+{{- if .UseJITConfig }}
+	sudo systemctl start $SVC_NAME
+{{- else}}
+	sudo ./svc.sh start
+{{- end}}
 fi
-success "runner successfully installed" $AGENT_ID
