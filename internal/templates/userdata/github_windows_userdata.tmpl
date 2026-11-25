@@ -477,7 +477,6 @@ no_proxy = "{{ .NoProxy }}"
 	} catch {
 		Invoke-GarmFailure -CallbackURL $CallbackURL -Message "failed to set up garm agent $_"
 	}
-	Start-Service garm-agent
 }
 
 function Install-Runner() {
@@ -593,12 +592,13 @@ no_proxy={{ .NoProxy }}
 		$SVC_NAME=(gc -raw $serviceNameFile)
 		if (!(Get-IsAgentMode)) {
 			New-Service -Name "$SVC_NAME" -BinaryPathName "C:\actions-runner\bin\RunnerService.exe" -DisplayName "$SVC_NAME" -Description "GitHub Actions Runner ($SVC_NAME)" -StartupType Automatic -Credential $pscreds
-			Start-Service "$SVC_NAME"
 		} else {
 			Install-GarmAgent $pscreds
+			$SVC_NAME = "garm-agent"
 		}
 		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
 		Update-GarmStatus -Message "runner successfully installed" -CallbackURL $CallbackURL -Status "idle" | Out-Null
+		Start-Service "$SVC_NAME"
 
 		{{- else }}
 		$GithubRegistrationToken = Start-ExecuteWithRetry -ScriptBlock {
@@ -628,11 +628,14 @@ no_proxy={{ .NoProxy }}
 		}
 		$agentInfoFile = Join-Path $runnerDir ".runner"
 		$agentInfo = ConvertFrom-Json (gc -raw $agentInfoFile)
-		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
 		if ((Get-IsAgentMode)) {
 			Install-GarmAgent $pscreds
 		}
+		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
 		Invoke-GarmSuccess -CallbackURL $CallbackURL -Message "runner successfully installed" -AgentID $agentInfo.agentId
+		if ((Get-IsAgentMode)) {
+			Start-Service garm-agent
+		}
 		{{- end }}
 	} catch {
 		Invoke-GarmFailure -CallbackURL $CallbackURL -Message $_
