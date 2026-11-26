@@ -595,6 +595,17 @@ func (s *InstancesTestSuite) TestUpdateInstance() {
 	s.Require().Equal(s.Fixtures.UpdateInstanceParams.CreateAttempt, instance.CreateAttempt)
 }
 
+// An active runner the forge reports offline must be recordable as such,
+// otherwise the scale set offline reaper never sees it and it leaks.
+func (s *InstancesTestSuite) TestUpdateInstanceActiveRunnerCanGoOffline() {
+	name := s.Fixtures.Instances[0].Name
+	for _, status := range []params.RunnerStatus{params.RunnerActive, params.RunnerOffline, params.RunnerActive} {
+		instance, err := s.Store.UpdateInstance(s.adminCtx, name, params.UpdateInstanceParams{RunnerStatus: status})
+		s.Require().Nil(err)
+		s.Require().Equal(status, instance.RunnerStatus)
+	}
+}
+
 func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 	instance := s.Fixtures.Instances[0]
 
