@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,7 +48,11 @@ func NewReader(ctx context.Context, baseURL, pth, token string, handler MessageH
 	if parsedURL.Scheme == "https" {
 		wsScheme = "wss"
 	}
-	u := url.URL{Scheme: wsScheme, Host: parsedURL.Host, Path: pth}
+	u := url.URL{
+		Scheme: wsScheme,
+		Host:   parsedURL.Host,
+		Path:   strings.TrimSuffix(parsedURL.Path, "/") + "/" + strings.TrimPrefix(pth, "/"),
+	}
 	header := http.Header{}
 	header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 

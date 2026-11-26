@@ -94,6 +94,7 @@ var (
 	githubOSTypeMap map[string]string = map[string]string{
 		"linux":   "linux",
 		"windows": "win",
+		"darwin":  "osx",
 	}
 
 	//
@@ -198,10 +199,9 @@ func OSToOSType(os string) (params.OSType, error) {
 }
 
 func GetTools(osType params.OSType, osArch params.OSArch, tools []params.RunnerApplicationDownload) (params.RunnerApplicationDownload, error) {
-	// Validate image OS. Linux only for now.
+	// Validate the runner OS.
 	switch osType {
-	case params.Linux:
-	case params.Windows:
+	case params.Linux, params.Windows, params.Darwin:
 	default:
 		return params.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
 	}
