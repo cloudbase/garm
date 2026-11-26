@@ -738,94 +738,18 @@ func (r *basePoolManager) updateTools() error {
 	return nil
 }
 
-// cleanupOrphanedProviderRunners compares runners in github with local runners and removes
-// any local runners that are not present in Github. Runners that are "idle" in our
-// provider, but do not exist in github, will be removed. This can happen if the
-// garm was offline while a job was executed by a github action. When this
-// happens, github will remove the ephemeral worker and send a webhook our way.
-// If we were offline and did not process the webhook, the instance will linger.
-// We need to remove it from the provider and database.
-func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []forgeRunner) error {
-	dbInstances, err := r.store.ListEntityInstances(r.ctx, r.entity)
-	if err != nil {
-		return fmt.Errorf("error fetching instances from db: %w", err)
-	}
-
-	runnerNames := map[string]bool{}
-	for _, run := range runners {
-		if !isManagedRunner(labelsFromRunner(run), r.controllerInfo.ControllerID.String()) {
-			slog.DebugContext(
-				r.ctx, "runner is not managed by a pool we manage",
-				"runner_name", run.Name)
-			continue
-		}
-		runnerNames[run.Name] = true
-	}
-
-	for _, instance := range dbInstances {
-		if instance.ScaleSetID != 0 {
-			// ignore scale set instances.
-			continue
-		}
-
-		lockAcquired := locking.TryLock(instance.Name, r.consumerID)
-		if !lockAcquired {
-			slog.DebugContext(
-				r.ctx, "failed to acquire lock for instance",
-				"runner_name", instance.Name)
-			continue
-		}
-		defer locking.Unlock(instance.Name, false)
-
-		switch instance.Status {
-		case commonParams.InstancePendingCreate,
-			commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
-			// this instance is in the process of being created or is awaiting deletion.
-			// Instances in pending_create did not get a chance to register themselves in,
-			// github so we let them be for now.
-			continue
-		}
-		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
-		if err != nil {
-			return fmt.Errorf("error fetching instance pool info: %w", err)
-		}
-
-		switch instance.RunnerStatus {
-		case params.RunnerPending, params.RunnerInstalling:
-			if time.Since(instance.CreatedAt).Minutes() < float64(pool.RunnerTimeout()) {
-				// runner is still installing. We give it a chance to finish.
-				slog.DebugContext(
-					r.ctx, "runner is still installing, give it a chance to finish",
-					"runner_name", instance.Name)
-				continue
-			}
-		}
-
-		if ok := runnerNames[instance.Name]; !ok {
-			// Set pending_delete on DB field. Allow consolidate() to remove it.
-			// We set force to true here. If we're recovering after a restart, the instance lock
-			// we attempt to acquire above, will succed. If it does and we get here, we need to
-			// bypass status transition safeguards.
-			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
-				slog.With(slog.Any("error", err)).ErrorContext(
-					r.ctx, "failed to update runner",
-					"runner_name", instance.Name)
-				return fmt.Errorf("error updating runner: %w", err)
-			}
-		}
-	}
-	return nil
-}
-
-// reapTimedOutRunners will mark as pending_delete any runner that has a status
-// of "running" in the provider, but that has not registered with Github, and has
-// received no new updates in the configured timeout interval.
-func (r *basePoolManager) reapTimedOutRunners(runners []forgeRunner) error {
-	dbInstances, err := r.store.ListEntityInstances(r.ctx, r.entity)
-	if err != nil {
-		return fmt.Errorf("error fetching instances from db: %w", err)
-	}
-
+// cleanupOrphanedProviderRunners marks for deletion any instance whose runner is
+// gone from the forge, and any instance that went a full pool timeout without an
+// update while missing or offline on the forge.
+//
+// The database snapshot must be taken before the forge is listed. A runner that
+// is idle or active in the snapshot had already registered, so if the later
+// forge list lacks it, the forge really did remove it. Listing the forge first
+// leaves a window in which a runner that registers in between is wrongly reaped.
+//
+// Each row is read again under its lock before anything is written. It may have
+// moved on while the forge was being listed.
+func (r *basePoolManager) cleanupOrphanedProviderRunners(dbInstances []params.Instance, runners []forgeRunner) error {
 	runnersByName := map[string]forgeRunner{}
 	for _, run := range runners {
 		if !isManagedRunner(labelsFromRunner(run), r.controllerInfo.ControllerID.String()) {
@@ -843,9 +767,15 @@ func (r *basePoolManager) reapTimedOutRunners(runners []forgeRunner) error {
 			continue
 		}
 
-		slog.DebugContext(
-			r.ctx, "attempting to lock instance",
-			"runner_name", instance.Name)
+		switch instance.Status {
+		case commonParams.InstancePendingCreate,
+			commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
+			// Instances in pending_create did not get a chance to register themselves in
+			// github so we let them be for now. Instances awaiting deletion belong to
+			// consolidate.
+			continue
+		}
+
 		lockAcquired := locking.TryLock(instance.Name, r.consumerID)
 		if !lockAcquired {
 			slog.DebugContext(
@@ -855,31 +785,83 @@ func (r *basePoolManager) reapTimedOutRunners(runners []forgeRunner) error {
 		}
 		defer locking.Unlock(instance.Name, false)
 
+		current, err := r.store.GetInstance(r.ctx, instance.Name)
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				continue
+			}
+			return fmt.Errorf("error fetching instance: %w", err)
+		}
+		switch current.Status {
+		case commonParams.InstancePendingCreate, commonParams.InstancePendingDelete,
+			commonParams.InstancePendingForceDelete, commonParams.InstanceDeleting:
+			// Moved on since the snapshot. Nothing for us to do.
+			continue
+		}
+
 		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
 		if err != nil {
 			return fmt.Errorf("error fetching instance pool info: %w", err)
 		}
-		if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
-			continue
-		}
+		timeout := float64(pool.RunnerTimeout())
 
-		// There are 3 cases (currently) where we consider a runner as timed out:
-		//   * The runner never joined github within the pool timeout
-		//   * The runner managed to join github, but the setup process failed later and the runner
-		//     never started on the instance.
-		//   * A JIT config was created, but the runner never joined github.
-		if runner, ok := runnersByName[instance.Name]; !ok || runner.Status == "offline" {
+		runner, onForge := runnersByName[instance.Name]
+		if time.Since(current.UpdatedAt).Minutes() >= timeout && (!onForge || runner.Status == "offline") {
+			// There are 3 cases (currently) where we consider a runner as timed out:
+			//   * The runner never joined github within the pool timeout
+			//   * The runner managed to join github, but the setup process failed later and the runner
+			//     never started on the instance.
+			//   * A JIT config was created, but the runner never joined github.
 			slog.InfoContext(
 				r.ctx, "reaping timed-out/failed runner",
 				"runner_name", instance.Name)
-			if err := r.DeleteRunner(instance, false, false); err != nil {
+			if err := r.DeleteRunner(current, false, false); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to update runner status",
 					"runner_name", instance.Name)
 				return fmt.Errorf("error updating runner: %w", err)
 			}
 			r.recordLifecycleEvent(pool, metrics.OutcomeBootstrapTimeout)
+			continue
 		}
+
+		if onForge {
+			continue
+		}
+
+		if current.RunnerStatus == params.RunnerActive && instance.RunnerStatus != params.RunnerActive {
+			// Took a job after the snapshot. Leave it be.
+			continue
+		}
+
+		// Judged on the snapshot, which is the state the forge list can be
+		// compared with.
+		switch instance.RunnerStatus {
+		case params.RunnerPending, params.RunnerInstalling:
+			if time.Since(instance.CreatedAt).Minutes() < timeout {
+				// runner is still installing. We give it a chance to finish.
+				slog.DebugContext(
+					r.ctx, "runner is still installing, give it a chance to finish",
+					"runner_name", instance.Name)
+				continue
+			}
+		}
+
+		// Set pending_delete on DB field. Allow consolidate() to remove it.
+		// We set force to true here. If we're recovering after a restart, the instance lock
+		// we attempt to acquire above, will succed. If it does and we get here, we need to
+		// bypass status transition safeguards.
+		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				// Removed after the snapshot was taken. Nothing left to do.
+				continue
+			}
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner",
+				"runner_name", instance.Name)
+			return fmt.Errorf("error updating runner: %w", err)
+		}
+		r.recordLifecycleEvent(pool, metrics.OutcomeOrphaned)
 	}
 	return nil
 }
@@ -1985,30 +1967,28 @@ func (r *basePoolManager) Wait() error {
 	return nil
 }
 
-func (r *basePoolManager) runnerCleanup() (err error) {
+func (r *basePoolManager) runnerCleanup() error {
 	slog.DebugContext(
 		r.ctx, "running runner cleanup")
+	// The database is listed before the forge on purpose. See
+	// cleanupOrphanedProviderRunners.
+	dbInstances, err := r.store.ListEntityInstances(r.ctx, r.entity)
+	if err != nil {
+		return fmt.Errorf("failed to fetch instances from db: %w", err)
+	}
+
 	runners, err := r.GetGithubRunners()
 	if err != nil {
 		return fmt.Errorf("failed to fetch github runners: %w", err)
 	}
 
-	if err := r.reapTimedOutRunners(runners); err != nil {
-		return fmt.Errorf("failed to reap timed out runners: %w", err)
-	}
-
-	if err := r.cleanupOrphanedRunners(runners); err != nil {
-		return fmt.Errorf("failed to cleanup orphaned runners: %w", err)
-	}
-
-	return nil
-}
-
-func (r *basePoolManager) cleanupOrphanedRunners(runners []forgeRunner) error {
-	if err := r.cleanupOrphanedProviderRunners(runners); err != nil {
+	if err := r.cleanupOrphanedProviderRunners(dbInstances, runners); err != nil {
 		return fmt.Errorf("error cleaning orphaned instances: %w", err)
 	}
 
+	// This one looks each runner up in the database as it goes, which must
+	// happen after the forge list. A JIT runner exists on the forge before
+	// its database row does.
 	if err := r.cleanupOrphanedGithubRunners(runners); err != nil {
 		return fmt.Errorf("error cleaning orphaned github runners: %w", err)
 	}
