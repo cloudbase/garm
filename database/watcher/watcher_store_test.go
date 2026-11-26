@@ -582,7 +582,7 @@ func (s *WatcherStoreTestSuite) TestScaleSetWatcher() {
 		s.T().Fatal("expected payload not received")
 	}
 
-	err = s.store.SetScaleSetDesiredRunnerCount(s.ctx, updatedScaleSet.ID, 5)
+	err = s.store.SetScaleSetRunnerStatistics(s.ctx, updatedScaleSet.ID, params.RunnerScaleSetStatistic{TotalAssignedJobs: 5})
 	s.Require().NoError(err)
 
 	select {
@@ -600,11 +600,18 @@ func (s *WatcherStoreTestSuite) TestScaleSetWatcher() {
 
 	select {
 	case event := <-consumer.Watch():
-		// We updated last message ID and desired runner count above.
+		// We updated last message ID and runner statistics above.
 		updatedScaleSet.DesiredRunnerCount = 5
 		updatedScaleSet.LastMessageID = 99
 		payloadFromEvent, ok := event.Payload.(params.ScaleSet)
 		s.Require().True(ok)
+		// The store stamps the statistics with the time it received them.
+		s.Require().NotNil(payloadFromEvent.Statistics)
+		s.Require().False(payloadFromEvent.Statistics.UpdatedAt.IsZero())
+		updatedScaleSet.Statistics = &params.RunnerScaleSetStatistic{
+			TotalAssignedJobs: 5,
+			UpdatedAt:         payloadFromEvent.Statistics.UpdatedAt,
+		}
 		updatedScaleSet.UpdatedAt = payloadFromEvent.UpdatedAt
 		updatedScaleSet.CreatedAt = payloadFromEvent.CreatedAt
 		updatedScaleSet.Endpoint = params.ForgeEndpoint{}

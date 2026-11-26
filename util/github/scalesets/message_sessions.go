@@ -166,6 +166,16 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 	return nil
 }
 
+// Statistics returns the scale set statistics GitHub attached to the
+// session creation response, or nil if it sent none. It lets the listener
+// publish GitHub's view of the queue before the first message arrives.
+func (m *MessageSession) Statistics() *params.RunnerScaleSetStatistic {
+	if m == nil || m.session == nil {
+		return nil
+	}
+	return m.session.Statistics
+}
+
 func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (_ params.RunnerScaleSetMessage, err error) {
 	m.ssCli.recordOperation("GetMessage")
 	defer func() {

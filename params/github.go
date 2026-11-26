@@ -246,6 +246,10 @@ type RunnerScaleSetStatistic struct {
 	TotalRegisteredRunners int `json:"totalRegisteredRunners"`
 	TotalBusyRunners       int `json:"totalBusyRunners"`
 	TotalIdleRunners       int `json:"totalIdleRunners"`
+	// UpdatedAt is when GARM received this statistic from GitHub. It is set
+	// by GARM, not GitHub, and lets API consumers tell a live number from a
+	// stale one.
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 type RunnerScaleSet struct {

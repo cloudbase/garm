@@ -719,7 +719,10 @@ type ScaleSet struct {
 	Enabled            bool                `json:"enabled,omitempty"`
 	Instances          []Instance          `json:"instances,omitempty"`
 	DesiredRunnerCount int                 `json:"desired_runner_count,omitempty"`
-	EnableShell        bool                `json:"enable_shell"`
+	// Statistics is the last runner scale set statistic received from GitHub
+	// on the message session (busy/idle/assigned counts as GitHub sees them).
+	Statistics  *RunnerScaleSetStatistic `json:"statistics,omitempty"`
+	EnableShell bool                     `json:"enable_shell"`
 
 	// Generation holds the numeric generation of the scaleset. This number
 	// will be incremented, every time certain settings of the scaleset, which

@@ -3231,6 +3231,61 @@ export interface RunnerPrefix {
 /**
  * 
  * @export
+ * @interface RunnerScaleSetStatistic
+ */
+export interface RunnerScaleSetStatistic {
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalAcquiredJobs'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalAssignedJobs'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalAvailableJobs'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalBusyRunners'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalIdleRunners'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalRegisteredRunners'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'totalRunningJobs'?: number;
+    /**
+     * UpdatedAt is when GARM received this statistic from GitHub. It is set by GARM, not GitHub, and lets API consumers tell a live number from a stale one.
+     * @type {string}
+     * @memberof RunnerScaleSetStatistic
+     */
+    'updated_at'?: string;
+}
+/**
+ * 
+ * @export
  * @interface ScaleSet
  */
 export interface ScaleSet {
@@ -3426,6 +3481,12 @@ export interface ScaleSet {
      * @memberof ScaleSet
      */
     'state'?: string;
+    /**
+     * 
+     * @type {RunnerScaleSetStatistic}
+     * @memberof ScaleSet
+     */
+    'statistics'?: RunnerScaleSetStatistic;
     /**
      * 
      * @type {Array<StatusMessage>}
