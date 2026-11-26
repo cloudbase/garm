@@ -84,6 +84,7 @@ func NewConfig(cfgFile string) (*Config, error) {
 }
 
 type Config struct {
+	Admission Admission  `toml:"admission,omitempty" json:"admission,omitempty"`
 	Default   Default    `toml:"default" json:"default"`
 	APIServer APIServer  `toml:"apiserver,omitempty" json:"apiserver,omitempty"`
 	Metrics   Metrics    `toml:"metrics,omitempty" json:"metrics,omitempty"`
@@ -96,6 +97,9 @@ type Config struct {
 
 // Validate validates the config
 func (c *Config) Validate() error {
+	if err := c.Admission.Validate(); err != nil {
+		return fmt.Errorf("error validating admission config: %w", err)
+	}
 	if err := c.APIServer.Validate(); err != nil {
 		return fmt.Errorf("error validating apiserver config: %w", err)
 	}
@@ -134,6 +138,9 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if err := c.validateAdmissionProvider(); err != nil {
+		return err
+	}
 	return nil
 }
 
