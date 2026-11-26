@@ -188,6 +188,30 @@ func (w *Worker) ensureScaleSetInGitHub() error {
 	return nil
 }
 
+func (w *Worker) markScaleSetCreated() error {
+	if w.scaleSet.State == params.ScaleSetCreated {
+		return nil
+	}
+
+	entity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return fmt.Errorf("getting scale set entity: %w", err)
+	}
+	state := params.ScaleSetCreated
+	updated, err := w.store.UpdateEntityScaleSet(
+		w.ctx,
+		entity,
+		w.scaleSet.ID,
+		params.UpdateScaleSetParams{State: &state},
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("updating scale set state: %w", err)
+	}
+	w.scaleSet = updated
+	return nil
+}
+
 func (w *Worker) Stop() error {
 	slog.DebugContext(w.ctx, "stopping scale set worker", "scale_set", w.consumerID)
 	w.mux.Lock()
@@ -342,6 +366,11 @@ func (w *Worker) Start() (err error) {
 
 	if err := w.ensureScaleSetInGitHub(); err != nil {
 		return fmt.Errorf("failed to ensure scale set: %w", err)
+	}
+
+	// The state is informational, so a failed update must not stop the worker.
+	if err := w.markScaleSetCreated(); err != nil {
+		slog.ErrorContext(w.ctx, "error marking scale set as created", "scale_set", w.consumerID, "error", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(
@@ -811,6 +840,27 @@ func (w *Worker) handleInstanceCleanup(instance params.Instance) error {
 		delete(w.runners, instance.ID)
 	}
 	return nil
+}
+
+func (w *Worker) reconcileRunners() (refreshed bool, err error) {
+	instances, err := w.store.ListScaleSetInstances(w.ctx, w.scaleSet.ID, false)
+	if err != nil {
+		return false, fmt.Errorf("listing scale set instances: %w", err)
+	}
+
+	runners := make(map[string]params.Instance, len(instances))
+	for _, instance := range instances {
+		runners[instance.ID] = instance
+	}
+	w.runners = runners
+
+	var cleanupErrs []error
+	for _, instance := range instances {
+		if err := w.handleInstanceCleanup(instance); err != nil {
+			cleanupErrs = append(cleanupErrs, err)
+		}
+	}
+	return true, errors.Join(cleanupErrs...)
 }
 
 func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
@@ -1364,15 +1414,21 @@ func (w *Worker) handleAutoScale() {
 			return
 		case <-ticker.C:
 			w.mux.Lock()
-			for _, instance := range w.runners {
-				if err := w.handleInstanceCleanup(instance); err != nil {
-					slog.ErrorContext(w.ctx, "error cleaning up instance", "instance_id", instance.ID, "error", err)
-				}
+			// Scale from the database's view of the instances, not only from
+			// the events this worker has seen. If the refresh fails, skip the
+			// tick rather than scale from a stale list.
+			refreshed, err := w.reconcileRunners()
+			if err != nil {
+				slog.ErrorContext(w.ctx, "error reconciling scale set instances", "error", err)
+			}
+			if !refreshed {
+				w.mux.Unlock()
+				continue
 			}
 
-			// Instance cleanup above is database-only and always runs; the
-			// scaling decisions below talk to the forge and pause while rate
-			// limited or while our credentials are rejected.
+			// The refresh and cleanup above are database-only; the scaling
+			// decisions below talk to the forge and pause while rate limited
+			// or while our credentials are rejected.
 			if w.scalingPausedLocked() {
 				w.mux.Unlock()
 				continue
