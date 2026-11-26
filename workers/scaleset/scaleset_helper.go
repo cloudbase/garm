@@ -30,7 +30,8 @@ import (
 )
 
 func (w *Worker) GetScaleSetClient() (*scalesets.ScaleSetClient, error) {
-	scaleSetEntity, err := w.scaleSet.GetEntity()
+	set := w.GetScaleSet()
+	scaleSetEntity, err := set.GetEntity()
 	if err != nil {
 		return nil, fmt.Errorf("getting entity: %w", err)
 	}
@@ -48,6 +49,9 @@ func (w *Worker) GetScaleSetClient() (*scalesets.ScaleSetClient, error) {
 }
 
 func (w *Worker) GetScaleSet() params.ScaleSet {
+	if current := w.scaleSetView.Load(); current != nil {
+		return *current
+	}
 	return w.scaleSet
 }
 
@@ -56,7 +60,7 @@ func (w *Worker) Owner() string {
 }
 
 func (w *Worker) SetLastMessageID(id int64) error {
-	if err := w.store.SetScaleSetLastMessageID(w.ctx, w.scaleSet.ID, id); err != nil {
+	if err := w.store.SetScaleSetLastMessageID(w.ctx, w.GetScaleSet().ID, id); err != nil {
 		return fmt.Errorf("setting last message ID: %w", err)
 	}
 	return nil
@@ -209,7 +213,7 @@ func (w *Worker) HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error {
 }
 
 func (w *Worker) SetDesiredRunnerCount(count int) error {
-	if err := w.store.SetScaleSetDesiredRunnerCount(w.ctx, w.scaleSet.ID, count); err != nil {
+	if err := w.store.SetScaleSetDesiredRunnerCount(w.ctx, w.GetScaleSet().ID, count); err != nil {
 		return fmt.Errorf("setting desired runner count: %w", err)
 	}
 	return nil
