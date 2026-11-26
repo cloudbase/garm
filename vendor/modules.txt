@@ -25,8 +25,8 @@ github.com/chzyer/readline
 # github.com/clipperhouse/uax29/v2 v2.7.0
 ## explicit; go 1.18
 github.com/clipperhouse/uax29/v2/graphemes
-# github.com/cloudbase/garm-provider-common v0.1.10
-## explicit; go 1.25.0
+# github.com/cloudbase/garm-provider-common v0.1.11
+## explicit; go 1.26.0
 github.com/cloudbase/garm-provider-common/cloudconfig
 github.com/cloudbase/garm-provider-common/defaults
 github.com/cloudbase/garm-provider-common/errors
@@ -248,7 +248,7 @@ github.com/jackc/pgx/v5/stdlib
 ## explicit; go 1.19
 github.com/jackc/puddle/v2
 github.com/jackc/puddle/v2/internal/genstack
-# github.com/jedib0t/go-pretty/v6 v6.9.2
+# github.com/jedib0t/go-pretty/v6 v6.9.3
 ## explicit; go 1.18
 github.com/jedib0t/go-pretty/v6/table
 github.com/jedib0t/go-pretty/v6/text
