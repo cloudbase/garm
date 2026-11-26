@@ -26,9 +26,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/cache"
+	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -41,12 +45,21 @@ import (
 
 func init() {
 	watcher.SetWatcher(&garmTesting.MockWatcher{})
+	// The cleanup paths take per instance locks.
+	locker, err := locking.NewLocalLocker(context.Background(), nil)
+	if err != nil {
+		panic(err)
+	}
+	if err := locking.RegisterLocker(locker); err != nil {
+		panic(err)
+	}
 }
 
 type PoolStressTestSuite struct {
 	suite.Suite
 
 	store          dbCommon.Store
+	dbCfg          config.Database
 	adminCtx       context.Context
 	entity         params.ForgeEntity
 	pool           params.Pool
@@ -62,6 +75,7 @@ func (s *PoolStressTestSuite) SetupTest() {
 	s.Require().NoError(err)
 
 	s.store = db
+	s.dbCfg = dbCfg
 	s.adminCtx = garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
 
 	endpoint := garmTesting.CreateDefaultGithubEndpoint(s.adminCtx, db, s.T())
@@ -314,6 +328,135 @@ func (s *PoolStressTestSuite) TestCompletedJobWithoutRunnerName() {
 			}
 		})
 	}
+}
+
+// ageInstance backdates an instance in the database so the timeout checks fire.
+func (s *PoolStressTestSuite) ageInstance(name string, at time.Time) {
+	_, uri, err := s.dbCfg.GormParams(config.ConnPurposeRuntime)
+	s.Require().NoError(err)
+	conn, err := gorm.Open(sqlite.Open(uri), &gorm.Config{})
+	s.Require().NoError(err)
+	sqlDB, err := conn.DB()
+	s.Require().NoError(err)
+	defer sqlDB.Close()
+
+	err = conn.Table("instances").Where("name = ?", name).
+		UpdateColumns(map[string]any{"created_at": at, "updated_at": at}).Error
+	s.Require().NoError(err)
+}
+
+// TestCleanupOrphanedProviderRunners feeds the cleanup a database snapshot and a
+// forge listing and checks what it marks for deletion.
+func (s *PoolStressTestSuite) TestCleanupOrphanedProviderRunners() {
+	maxRunners := uint(20)
+	_, err := s.store.UpdateEntityPool(s.adminCtx, s.entity, s.pool.ID, params.UpdatePoolParams{MaxRunners: &maxRunners})
+	s.Require().NoError(err)
+
+	create := func(name string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, agentID int64) {
+		_, err := s.store.CreateInstance(s.adminCtx, s.pool.ID, params.CreateInstanceParams{
+			Name: name, Status: status, RunnerStatus: runnerStatus, AgentID: agentID,
+		})
+		s.Require().NoError(err)
+	}
+	onForge := func(name, status string, managed bool) forgeRunner {
+		run := forgeRunner{Name: name, Status: status}
+		if managed {
+			run.Labels = []RunnerLabels{{Name: s.mgr.controllerLabel()}}
+		}
+		return run
+	}
+	stale := time.Now().Add(-time.Hour)
+
+	create("idle-gone", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	create("active-gone", commonParams.InstanceRunning, params.RunnerActive, 0)
+	create("idle-online", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	create("idle-unmanaged", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	create("installing-fresh", commonParams.InstanceRunning, params.RunnerInstalling, 0)
+	create("installing-timed-out", commonParams.InstanceRunning, params.RunnerInstalling, 42)
+	s.ageInstance("installing-timed-out", stale)
+	create("idle-dead", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	s.ageInstance("idle-dead", stale)
+	create("pending-delete", commonParams.InstancePendingDelete, params.RunnerTerminated, 0)
+	create("scale-set", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	create("vanished", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	create("force-deleted", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	create("retried", commonParams.InstanceError, params.RunnerPending, 0)
+	s.ageInstance("retried", stale)
+	create("woke", commonParams.InstanceRunning, params.RunnerIdle, 0)
+	s.ageInstance("woke", stale)
+	create("activated", commonParams.InstanceRunning, params.RunnerIdle, 0)
+
+	snapshot, err := s.store.ListEntityInstances(s.adminCtx, s.entity)
+	s.Require().NoError(err)
+	s.Require().Len(snapshot, 14)
+	var pendingDeleteBefore params.Instance
+	for i := range snapshot {
+		switch snapshot[i].Name {
+		case "scale-set":
+			snapshot[i].ScaleSetID = 1
+		case "pending-delete":
+			pendingDeleteBefore = snapshot[i]
+		}
+	}
+
+	// Rows that moved on between the snapshot and the forge listing.
+	s.Require().NoError(s.store.DeleteInstance(s.adminCtx, s.pool.ID, "vanished"))
+	_, err = s.store.ForceUpdateInstance(s.adminCtx, "force-deleted", params.UpdateInstanceParams{Status: commonParams.InstancePendingForceDelete})
+	s.Require().NoError(err)
+	_, err = s.store.ForceUpdateInstance(s.adminCtx, "retried", params.UpdateInstanceParams{Status: commonParams.InstancePendingCreate})
+	s.Require().NoError(err)
+	_, err = s.store.ForceUpdateInstance(s.adminCtx, "woke", params.UpdateInstanceParams{RunnerStatus: params.RunnerActive})
+	s.Require().NoError(err)
+	_, err = s.store.ForceUpdateInstance(s.adminCtx, "activated", params.UpdateInstanceParams{RunnerStatus: params.RunnerActive})
+	s.Require().NoError(err)
+
+	// The timed out JIT runner is removed from the forge as well.
+	s.ghcliMock.On("RemoveEntityRunner", mock.Anything, int64(42)).Return(nil).Once()
+
+	runners := []forgeRunner{
+		onForge("idle-online", "online", true),
+		onForge("idle-unmanaged", "online", false),
+		onForge("idle-dead", "offline", true),
+		onForge("woke", "offline", true),
+	}
+	s.Require().NoError(s.mgr.cleanupOrphanedProviderRunners(snapshot, runners))
+
+	expected := map[string]commonParams.InstanceStatus{
+		"idle-gone":            commonParams.InstancePendingDelete,
+		"active-gone":          commonParams.InstancePendingDelete,
+		"idle-online":          commonParams.InstanceRunning,
+		"idle-unmanaged":       commonParams.InstancePendingDelete,
+		"installing-fresh":     commonParams.InstanceRunning,
+		"installing-timed-out": commonParams.InstancePendingDelete,
+		"idle-dead":            commonParams.InstancePendingDelete,
+		"pending-delete":       commonParams.InstancePendingDelete,
+		"scale-set":            commonParams.InstanceRunning,
+		"force-deleted":        commonParams.InstancePendingForceDelete,
+		"retried":              commonParams.InstancePendingCreate,
+		"woke":                 commonParams.InstanceRunning,
+		"activated":            commonParams.InstanceRunning,
+	}
+	for name, status := range expected {
+		instance, err := s.store.GetInstance(s.adminCtx, name)
+		s.Require().NoError(err, name)
+		s.Equal(status, instance.Status, name)
+	}
+
+	// An instance already awaiting deletion is not written again.
+	pendingDelete, err := s.store.GetInstance(s.adminCtx, "pending-delete")
+	s.Require().NoError(err)
+	s.True(pendingDelete.UpdatedAt.Equal(pendingDeleteBefore.UpdatedAt))
+
+	// Runners that took a job after the snapshot keep it, whether the forge
+	// lists them as offline or not at all.
+	for _, name := range []string{"woke", "activated"} {
+		instance, err := s.store.GetInstance(s.adminCtx, name)
+		s.Require().NoError(err)
+		s.Equal(params.RunnerActive, instance.RunnerStatus, name)
+	}
+
+	_, err = s.store.GetInstance(s.adminCtx, "vanished")
+	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
 
 // TestConcurrentQueuedJobs sends N queued webhooks concurrently with different job IDs
