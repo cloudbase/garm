@@ -321,9 +321,10 @@ func (s *ScaleSetClient) DeleteMessageSession(ctx context.Context, session *Mess
 
 	resp, err := s.Do(req)
 	if err != nil {
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return fmt.Errorf("failed to delete message session: %w", err)
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
 		}
+		return fmt.Errorf("failed to delete message session: %w", err)
 	}
 	defer resp.Body.Close()
 	return nil
