@@ -16,6 +16,7 @@ Providers are external executables that GARM calls to create and manage runner i
 | **LXD** | [cloudbase/garm-provider-lxd](https://github.com/cloudbase/garm-provider-lxd) | Easiest to get started |
 | **OpenStack** | [cloudbase/garm-provider-openstack](https://github.com/cloudbase/garm-provider-openstack) | |
 | **Oracle OCI** | [cloudbase/garm-provider-oci](https://github.com/cloudbase/garm-provider-oci) | |
+| **Vultr** | [devoplus/garm-provider-vultr](https://github.com/devoplus/garm-provider-vultr) | By Devoplus |
 
 The GARM Docker image includes pre-built binaries for all providers in `/opt/garm/providers.d/`.
 
