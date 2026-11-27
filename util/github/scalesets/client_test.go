@@ -22,8 +22,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-github/v84/github"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -153,6 +156,31 @@ func TestDoMapsOtherStatuses(t *testing.T) {
 	}
 
 	require.NoError(t, doAgainstStatus(t, http.StatusOK, "ok"))
+}
+
+func TestDeleteMessageSessionAlreadyGone(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(srv.Close)
+
+	expiresAt := time.Now().Add(time.Hour)
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(expiresAt),
+	}).SignedString([]byte("test"))
+	require.NoError(t, err)
+	cli := &ScaleSetClient{
+		ghCli:      githubClientWithCABundle(t, nil),
+		httpClient: srv.Client(),
+		runnerRegistrationToken: &github.RegistrationToken{
+			ExpiresAt: &github.Timestamp{Time: expiresAt},
+		},
+		actionsServiceInfo: &params.ActionsServiceAdminInfoResponse{URL: srv.URL, Token: token},
+	}
+	id := uuid.New()
+	session := &MessageSession{session: &params.RunnerScaleSetSession{
+		SessionID:      &id,
+		RunnerScaleSet: &params.RunnerScaleSet{ID: 1},
+	}}
+	require.NoError(t, cli.DeleteMessageSession(context.Background(), session))
 }
 
 func TestActionServiceInfoNotFoundIsConflict(t *testing.T) {
