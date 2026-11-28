@@ -77,6 +77,7 @@ GARM uses external providers to create runners in a particular IaaS. Providers a
 | Provider | Repository |
 | ---------- | ------------ |
 | Akamai/Linode | [flatcar/garm-provider-linode](https://github.com/flatcar/garm-provider-linode) (experimental) |
+| Alibaba Cloud | [bdim404/garm-provider-alibabacloud](https://github.com/bdim404/garm-provider-alibabacloud) |
 | Amazon EC2 | [cloudbase/garm-provider-aws](https://github.com/cloudbase/garm-provider-aws) |
 | Azure | [cloudbase/garm-provider-azure](https://github.com/cloudbase/garm-provider-azure) |
 | CloudStack | [nexthop-ai/garm-provider-cloudstack](https://github.com/nexthop-ai/garm-provider-cloudstack) |

@@ -43,6 +43,7 @@ RUN set -ex; \
       cloudbase/garm-provider-incus \
       cloudbase/garm-provider-aws \
       cloudbase/garm-provider-gcp \
+      bdim404/garm-provider-alibabacloud \
       flatcar/garm-provider-linode \
       mercedes-benz/garm-provider-k8s \
       nexthop-ai/garm-provider-cloudstack; \
@@ -84,6 +85,7 @@ COPY --from=builder /opt/garm/providers.d/garm-provider-azure /opt/garm/provider
 COPY --from=builder /opt/garm/providers.d/garm-provider-aws /opt/garm/providers.d/garm-provider-aws
 COPY --from=builder /opt/garm/providers.d/garm-provider-gcp /opt/garm/providers.d/garm-provider-gcp
 
+COPY --from=builder /opt/garm/providers.d/garm-provider-alibabacloud /opt/garm/providers.d/garm-provider-alibabacloud
 COPY --from=builder /opt/garm/providers.d/garm-provider-k8s /opt/garm/providers.d/garm-provider-k8s
 COPY --from=builder /opt/garm/providers.d/garm-provider-cloudstack /opt/garm/providers.d/garm-provider-cloudstack
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
